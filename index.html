@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>仿真小手机</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="phone">
+    <button class="debug-btn" onclick="toggleDebug()">显形</button>
+
+    <div class="panorama-container" id="slider">
+      <div class="panorama-content" id="contentArea">
+        <img class="wallpaper" alt="手机桌面壁纸" src="https://img.facfox.com/imgs/2026/07/21/ca7e52f015267b44.jpg" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjZmN2Y5Ii8+PHJlY3QgeD0iNTAiIHk9IjUwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RlY2lkZSIvPjwvc3ZnPg=='">
+        <div class="hotspot" data-name="打卡" style="top:25%;left:4%;width:50px;height:50px;"></div>
+        <div class="hotspot" data-name="设置" style="top:80%;left:8%;width:50px;height:50px;"></div>
+        <div class="hotspot" data-name="家园" style="top:15%;left:16%;width:60px;height:60px;"></div>
+        <div class="hotspot" data-name="QQ" style="top:55%;left:26%;width:60px;height:60px;"></div>
+        <div class="hotspot" data-name="恋爱日记" style="top:83%;left:26%;width:50px;height:50px;"></div>
+        <div class="hotspot" data-name="自习室" style="top:43%;left:80%;width:60px;height:60px;"></div>
+        <div class="hotspot" data-name="养多肉" style="top:80%;left:60%;width:50px;height:80px;"></div>
+        <div class="hotspot" data-name="账本" style="top:80%;left:52%;width:50px;height:50px;"></div>
+        <div class="hotspot" data-name="涂鸦" style="top:45%;left:60%;width:55px;height:55px;"></div>
+        <div class="hotspot" data-name="音乐" style="top:35%;left:82%;width:55px;height:30px;"></div>
+        <div class="hotspot" data-name="啵啵间" style="top:15%;left:70%;width:65px;height:65px;"></div>
+        <div class="hotspot" data-name="相册" style="top:55%;left:74%;width:50px;height:50px;"></div>
+        <div class="hotspot" data-name="塔罗牌" style="top:13%;left:38%;width:50px;height:80px;"></div>
+        <div class="hotspot" data-name="游戏房" style="top:80%;left:78%;width:50px;height:50px;"></div>
+        <div class="hotspot" data-name="情侣空间" style="top:18%;left:82%;width:60px;height:60px;"></div>
+      </div>
+    </div>
+
+    <div class="app-modal" id="appModal">
+      <div class="app-header">
+        <button class="header-action" onclick="closeApp()">退出</button>
+        <div class="header-pill" id="m-tit">消息</div>
+      </div>
+      <div class="header-menu" id="headerMenu"></div>
+      <div class="app-content" id="m-content"></div>
+
+      <div id="chatWindow">
+        <div class="chat-header">
+          <button class="header-action" onclick="closeChat()">返回</button>
+          <div style="text-align:center;min-width:0">
+            <b id="chatName" style="display:block">角色</b>
+            <span id="chatRel" class="subtle" style="font-size:12px;font-weight:400"></span>
+          </div>
+          <button class="icon-btn" style="justify-self:end" onclick="openSettings()">⚙</button>
+        </div>
+        <div class="chat-body" id="chatBody"></div>
+        <div class="chat-footer">
+          <div class="footer-main">
+            <button class="icon-btn" onclick="toggleEmoji()">☺</button>
+            <div class="chat-input-wrapper">
+              <input type="text" class="chat-input" id="chatInput" placeholder="发消息..." onkeydown="if(event.key==='Enter')sendChat()">
+            </div>
+            <button class="icon-btn" onclick="toggleMore()">＋</button>
+            <button class="send-btn" id="sendBtn" onclick="sendChat()">发送</button>
+          </div>
+          <div class="emoji-panel" id="emojiPanel"></div>
+          <div class="more-panel" id="morePanel">
+            <div class="panel-item" onclick="startVoice()"><div class="panel-icon">🎤</div>语音</div>
+            <div class="panel-item" onclick="startCall()"><div class="panel-icon">📹</div>通话</div>
+            <div class="panel-item" onclick="openApp('相册')"><div class="panel-icon">🖼</div>相册</div>
+            <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
+            <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
+            <div class="panel-item" onclick="rememberLastUserMessage()"><div class="panel-icon">🧠</div>记忆</div>
+            <div class="panel-item" onclick="inviteStudy()"><div class="panel-icon">🍅</div>邀TA自习</div>
+            <div class="panel-item" onclick="sendLocation()"><div class="panel-icon">📍</div>位置</div>
+            <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="chatSettings">
+        <div class="chat-header">
+          <button class="header-action" onclick="closeSettings()">返回</button>
+          <b style="text-align:center">聊天设置</b>
+          <span></span>
+        </div>
+        <div class="settings-row">置顶聊天 <div class="switch" id="pinSwitch" onclick="togglePin()"></div></div>
+        <div class="settings-row" onclick="rememberLastUserMessage()" style="font-weight:800;justify-content:center;cursor:pointer">把最后一句加入记忆</div>
+        <div class="settings-row" onclick="clearHistory()" style="color:#e53935;font-weight:800;justify-content:center;cursor:pointer">清空聊天记录</div>
+      </div>
+
+      <div class="tab-bar" id="qqTabs">
+        <div class="tab-item active" onclick="switchTab('msg', this)"><i>💬</i><span>消息</span></div>
+        <div class="tab-item" onclick="switchTab('contact', this)"><i>👥</i><span>联系人</span></div>
+        <div class="tab-item" onclick="switchTab('moment', this)"><i>⭐</i><span>动态</span></div>
+        <div class="tab-item" onclick="switchTab('me', this)"><i>👤</i><span>我的</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IG Profile Editor Modal -->
+  <div class="ig-modal-overlay" id="profileModal">
+    <div class="ig-modal-sheet">
+      <h3>编辑资料</h3>
+      <label>头像</label>
+      <input type="file" id="profileAvatarInput" accept="image/*" style="display:none;" onchange="handleProfileAvatarUpload(event)">
+      <div class="profile-avatar-upload">
+        <div class="avatar-preview" id="profileAvatarPreview">🌸</div>
+        <div class="upload-info">
+          <button class="profile-upload-btn" type="button" onclick="document.getElementById('profileAvatarInput').click()">📷 选择图片</button>
+          <div class="profile-upload-hint">支持 JPG、PNG，建议 200x200 正方形</div>
+        </div>
+      </div>
+      <label>封面背景</label>
+      <input type="file" id="profileCoverInput" accept="image/*" style="display:none;" onchange="handleProfileCoverUpload(event)">
+      <div class="profile-cover-preview" id="profileCoverPreview"></div>
+      <button class="profile-upload-btn" type="button" onclick="document.getElementById('profileCoverInput').click()" style="margin-bottom:12px;">🖼️ 选择封面</button>
+      <label>名称</label>
+      <input type="text" id="profileEditName" placeholder="你的名字">
+      <label>用户名</label>
+      <input type="text" id="profileEditUsername" placeholder="@username">
+      <label>简介</label>
+      <textarea id="profileEditBio" rows="3" placeholder="介绍一下自己..."></textarea>
+      <label>位置</label>
+      <input type="text" id="profileEditLocation" placeholder="🌍 地球">
+      <div class="ig-modal-actions">
+        <button class="btn-cancel" onclick="closeProfileEditor()">取消</button>
+        <button class="btn-primary" onclick="saveProfile()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IG Post Creator -->
+  <div class="post-creator-overlay" id="postCreator">
+    <div class="post-creator-header">
+      <button class="cancel" onclick="closePostCreator()">✕</button>
+      <span class="title">新建帖子</span>
+      <button class="next" id="postCreatorNext" onclick="postCreatorNext()">下一步</button>
+    </div>
+    <div class="post-creator-image-area" id="postCreatorImageArea">
+      <div class="placeholder" id="postCreatorPlaceholder">🖼️</div>
+      <img id="postCreatorImage" style="display:none;" />
+      <input type="file" id="postCreatorFileInput" accept="image/*" style="display:none;" onchange="handlePostImageSelect(event)">
+    </div>
+    <div class="post-creator-filters" id="postCreatorFilters" style="display:none;">
+      <div class="filter-option active" data-filter="none" onclick="setPostFilter('none')"><div class="filter-preview" style="filter:none;background:#333;"></div><div class="filter-label">原图</div></div>
+      <div class="filter-option" data-filter="grayscale(100%)" onclick="setPostFilter('grayscale(100%)')"><div class="filter-preview" style="filter:grayscale(100%);background:#555;"></div><div class="filter-label">黑白</div></div>
+      <div class="filter-option" data-filter="sepia(80%)" onclick="setPostFilter('sepia(80%)')"><div class="filter-preview" style="filter:sepia(80%);background:#885;"></div><div class="filter-label">暖色</div></div>
+      <div class="filter-option" data-filter="saturate(150%) hue-rotate(-10deg)" onclick="setPostFilter('saturate(150%) hue-rotate(-10deg)')"><div class="filter-preview" style="filter:saturate(150%) hue-rotate(-10deg);background:#553;"></div><div class="filter-label">冷色</div></div>
+      <div class="filter-option" data-filter="contrast(120%) brightness(110%)" onclick="setPostFilter('contrast(120%) brightness(110%)')"><div class="filter-preview" style="filter:contrast(120%) brightness(110%);background:#444;"></div><div class="filter-label">鲜明</div></div>
+    </div>
+    <div class="post-creator-caption-area" id="postCreatorCaptionArea">
+      <textarea id="postCreatorCaption" placeholder="写一段文字..."></textarea>
+    </div>
+  </div>
+
+  <!-- IG Post Detail Viewer -->
+  <div class="post-detail-overlay" id="postDetail">
+    <button class="post-detail-close" onclick="closePostDetail()">✕</button>
+    <div class="post-detail-img" id="postDetailImg"></div>
+    <div class="post-detail-info">
+      <div class="post-detail-caption" id="postDetailCaption"></div>
+      <div class="post-detail-time" id="postDetailTime"></div>
+      <button class="post-detail-delete" id="postDetailDelete" onclick="deletePost()">🗑️ 删除</button>
+    </div>
+  </div>
+
+  <!-- IG Toast -->
+  <div class="ig-toast" id="igToast"></div>
+
+  <script src="js/state.js"></script>
+  <script src="js/mq.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/apps.js"></script>
+  <script src="js/profile-ig.js"></script>
+  <script src="js/init.js"></script>
+</body>
+</html>
