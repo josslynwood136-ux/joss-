@@ -53,7 +53,7 @@ function renderMQ() {
     if (mqView === 'chat') mqView = 'msg';
   }
   const tabs = ['消息', '联系人', '动态', '我的'];
-  const html = '<div class="mq-app' + (mqView === 'chat' ? ' chat' : '') + (mqEditRole ? ' editing' : '') + '"><div class="mq-topbar"><button class="mq-back" onclick="mqBack()">‹ 返回</button><span class="mq-title" id="mqTopTitle"></span><button class="mq-add" onclick="toggleHeaderMenu()">＋</button></div><div class="mq-body" id="mqBody"></div><div class="mq-tabs">' +
+  const html = '<div class="mq-app' + (mqView === 'chat' ? ' chat' : '') + (mqEditRole ? ' editing' : '') + '"><div class="mq-topbar"><button class="mq-back" onclick="mqBack()">‹ 返回</button><span class="mq-title" id="mqTopTitle"></span></div><div class="mq-body" id="mqBody"></div><div class="mq-tabs">' +
     tabs.map(t => '<div class="mq-tab ' + ((t === '消息' && mqView === 'msg') || (t === '联系人' && mqView === 'contact') || (t === '动态' && mqView === 'moment') || (t === '我的' && mqView === 'me') ? 'on' : '') + '" onclick="mqSwitch(\'' + ({ '消息': 'msg', '联系人': 'contact', '动态': 'moment', '我的': 'me' }[t]) + '\')">' + t + '</div>').join('') +
     '</div></div>';
   c().innerHTML = html;
@@ -71,8 +71,7 @@ function toggleHeaderMenu() {
 function mqHeaderMenu() {
   const menu = document.getElementById('headerMenu');
   if (!menu) return;
-  if (mqView === 'moment') menu.innerHTML = '<div class="header-menu-item" onclick="mqMomentEditor()">发朋友圈</div>';
-  else if (mqView === 'contact') menu.innerHTML = '<div class="header-menu-item" onclick="mqNewRole()">新建角色</div>';
+  if (mqView === 'contact') menu.innerHTML = '<div class="header-menu-item" onclick="mqNewRole()">新建角色</div>';
   else menu.innerHTML = '';
 }
 

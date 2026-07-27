@@ -63,7 +63,7 @@
           <div class="more-panel" id="morePanel">
             <div class="panel-item" onclick="startVoice()"><div class="panel-icon">🎤</div>语音</div>
             <div class="panel-item" onclick="startCall()"><div class="panel-icon">📹</div>通话</div>
-            <div class="panel-item" onclick="openApp('相册')"><div class="panel-icon">🖼</div>相册</div>
+            <div class="panel-item" onclick="openAlbumPicker()"><div class="panel-icon">🖼</div>相册</div>
             <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
             <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
             <div class="panel-item" onclick="rememberLastUserMessage()"><div class="panel-icon">🧠</div>记忆</div>
@@ -133,8 +133,8 @@
       <span class="title">新建帖子</span>
       <button class="next" id="postCreatorNext" onclick="postCreatorNext()">下一步</button>
     </div>
-    <div class="post-creator-image-area" id="postCreatorImageArea">
-      <div class="placeholder" id="postCreatorPlaceholder">🖼️</div>
+    <div class="post-creator-image-area" id="postCreatorImageArea" onclick="document.getElementById('postCreatorFileInput').click()">
+      <div class="placeholder" id="postCreatorPlaceholder">🖼️<br><span style="font-size:16px;color:rgba(255,255,255,.5)">点击选择图片</span></div>
       <img id="postCreatorImage" style="display:none;" />
       <input type="file" id="postCreatorFileInput" accept="image/*" style="display:none;" onchange="handlePostImageSelect(event)">
     </div>

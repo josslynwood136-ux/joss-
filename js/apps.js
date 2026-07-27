@@ -19,7 +19,7 @@ function openApp(name) {
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
       '养多肉': renderPlant, '多肉': renderPlant, '账本': renderLedger, '涂鸦': renderDoodle,
       '音乐': renderMusic, '啵啵': renderKiss, '相册': renderAlbum,
-      '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '空间': renderSpace,
+      '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace,
       'QQ': renderIGProfile
     };
     if (map[name]) { map[name](); return; }
@@ -1920,112 +1920,206 @@ function gameOverSnake() {
   alert('游戏结束，蛇长 ' + snake.body.length);
 }
 
-// -- 阿Sue做蛋糕 --
-const CAKE_TEMPLATES = {
-  '🍓草莓': { steps: ['基础料','草莓主料','烤胚','奶油淋面','摆草莓'], emoji:'🍓' },
-  '🍫巧克力': { steps: ['基础料','巧克力主料','烤胚','深色奶油','巧克力叶'], emoji:'🍫' },
-  '🫐蓝莓': { steps: ['基础料','蓝莓主料','烤胚','奶油淋面','摆蓝莓'], emoji:'🫐' },
-  '🌰栗子': { steps: ['基础料','栗子主料','烤胚','奶油淋面','摆栗子'], emoji:'🌰' }
-};
+// -- 阿Sue做蛋糕（精进版） --
+const CAKE_BASES = [
+  { name: '原味', color: '#f3e2c0', emoji: '🥚', desc: '香软经典' },
+  { name: '巧克力', color: '#6b3a2a', emoji: '🍫', desc: '浓郁丝滑' },
+  { name: '抹茶', color: '#8fbc8f', emoji: '🍵', desc: '清新回甘' },
+  { name: '红丝绒', color: '#c23b22', emoji: '🔴', desc: '浪漫绵密' }
+];
+const CAKE_FILLINGS = [
+  { name: '新鲜水果', emoji: '🍓', desc: '酸甜多汁' },
+  { name: '果酱', emoji: '🍊', desc: '甜蜜夹心' },
+  { name: '坚果碎', emoji: '🥜', desc: '酥脆口感' },
+  { name: '无夹心', emoji: '—', desc: '纯粹糕体' }
+];
+const CAKE_CREAMS = [
+  { name: '淡奶油', color: '#fff7fb', emoji: '🥛', desc: '轻盈不腻' },
+  { name: '巧克力甘纳许', color: '#5b3a29', emoji: '🍫', desc: '浓郁丝滑' },
+  { name: '奶油奶酪', color: '#fef5e7', emoji: '🧀', desc: '微酸醇厚' },
+  { name: '草莓奶油', color: '#fddde6', emoji: '🍓', desc: '果香清甜' }
+];
+const CAKE_TOPPINGS = [
+  { name: '新鲜水果', emoji: '🍓', desc: '色彩缤纷' },
+  { name: '糖珠', emoji: '✨', desc: '闪闪可爱' },
+  { name: '巧克力刨花', emoji: '🍫', desc: '精致卷花' },
+  { name: '坚果碎', emoji: '🥜', desc: '香脆点缀' }
+];
+const CAKE_DECOS = [
+  { name: '蜡烛', emoji: '🕯️', desc: '许个愿吧' },
+  { name: '糖花', emoji: '🌹', desc: '浪漫加分' },
+  { name: '马卡龙', emoji: '🥠', desc: '法式精致' },
+  { name: '淋面酱', emoji: '🍯', desc: '丝滑流下' }
+];
 
-let cakeTpl = null, cakeStep = 0, cakeDone = false, cakeParts = [];
+const CAKE_ORDERS = [
+  { base: '巧克力', cream: '巧克力甘纳许', filling: '坚果碎', topping: '巧克力刨花', deco: ['蜡烛', '淋面酱'], desc: '重度巧克力控，要浓郁到底！' },
+  { base: '原味', cream: '淡奶油', filling: '新鲜水果', topping: '新鲜水果', deco: ['糖花', '马卡龙'], desc: '清爽水果风，适合下午茶~' },
+  { base: '抹茶', cream: '奶油奶酪', filling: '无夹心', topping: '坚果碎', deco: ['糖花', '蜡烛'], desc: '日式简约，微苦回甘' },
+  { base: '红丝绒', cream: '奶油奶酪', filling: '果酱', topping: '糖珠', deco: ['马卡龙', '淋面酱'], desc: '经典红丝绒，颜值即正义' },
+  { base: '巧克力', cream: '草莓奶油', filling: '新鲜水果', topping: '巧克力刨花', deco: ['糖花', '淋面酱'], desc: '巧克力+草莓，恋人必选' },
+  { base: '原味', cream: '巧克力甘纳许', filling: '坚果碎', topping: '糖珠', deco: ['蜡烛', '马卡龙'], desc: '送给孩子的生日惊喜' }
+];
+
+let cakeOrder = null, cakeStepIdx = 0, cakeChoices = {}, cakeDone = false;
+const cakeSteps = ['base', 'cream', 'filling', 'topping', 'deco'];
 
 function renderGameCake() {
-  let selHtml = Object.keys(CAKE_TEMPLATES).map(t =>
-    `<button class="ghost-btn" onclick="cakeChoose('${t}')">${CAKE_TEMPLATES[t].emoji} ${t}</button>`
-  ).join('');
-
-  return `<div class="card" id="cakeWrap" style="position:relative;background:linear-gradient(#fff,#fff0f6);border:2px solid #ffd9e8">
-    <div class="section-title" style="text-align:center;font-size:18px;color:#e84393">🧁 阿Sue的蛋糕店</div>
-    <div id="cakeSelect" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0">${selHtml}</div>
-    <div id="cakePlay" style="display:none">
-      <div style="font-size:14px;color:#e84393;font-weight:bold;margin-bottom:4px">📋 顾客想要：<span id="cakeOrderName"></span></div>
-      <div style="font-size:13px;color:#888">步骤进度：<span id="cakeSteps"></span></div>
-      <div id="cakeStage" style="position:relative;min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin:8px 0;padding:8px;background:rgba(255,255,255,.6);border-radius:12px"></div>
-      <div id="cakeTip" style="text-align:center;min-height:20px;font-size:13px;color:#999">选好模板就开始吧~</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:6px">
-        <button class="ghost-btn" onclick="cakeAction('基础料')">🥚 基础料</button>
-        <button class="ghost-btn" onclick="cakeAction('风味')">🍓 风味主料</button>
-        <button class="ghost-btn" onclick="cakeAction('烤')">🔥 送烤箱</button>
-        <button class="ghost-btn" onclick="cakeAction('奶油')">🍦 抹奶油</button>
-        <button class="ghost-btn" onclick="cakeAction('装饰')">✨ 摆装饰</button>
-      </div>
-      <div style="text-align:center;margin-top:8px"><button class="ghost-btn" onclick="cakeRestart()">↺ 重做一款</button></div>
+  return `<div class="card" id="cakeWrap" style="position:relative;background:linear-gradient(145deg,#fef6fb,#fce4ec);border:2px solid #f8bbd0;border-radius:20px;overflow:hidden">
+    <div style="text-align:center;padding:16px 0 8px;background:linear-gradient(135deg,#f06292,#ec407a);color:#fff;margin:-2px -2px 0;border-radius:20px 20px 0 0">
+      <div style="font-size:20px;font-weight:800;letter-spacing:1px">🧁 阿Sue的蛋糕店</div>
+      <div style="font-size:12px;opacity:.85;margin-top:2px">今天也要做出完美的蛋糕哦</div>
+    </div>
+    <div id="cakeSelect" style="display:block;padding:20px 16px;text-align:center">
+      <div style="font-size:48px;margin-bottom:6px">🧑‍🍳</div>
+      <div style="font-size:15px;color:#555;margin-bottom:14px">有新的顾客订单，快来接单吧！</div>
+      <button class="primary-btn" style="width:100%;background:linear-gradient(135deg,#f06292,#ec407a);border:none;font-size:16px;padding:14px" onclick="cakeNewOrder()">📋 接新订单</button>
+    </div>
+    <div id="cakePlay" style="display:none;padding:12px 14px">
+      <div id="cakeOrderBanner" style="font-size:13px;color:#6a1b2a;font-weight:600;background:#fff0f6;padding:10px 14px;border-radius:12px;margin-bottom:10px;border-left:4px solid #ec407a"></div>
+      <div id="cakeStage" style="position:relative;min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin:6px 0 10px;padding:10px;background:#fefefe;border-radius:16px;box-shadow:inset 0 2px 8px rgba(0,0,0,.04)"></div>
+      <div id="cakeChooser" style="margin-top:4px"></div>
+      <div id="cakeTip" style="text-align:center;min-height:22px;font-size:13px;color:#888;margin-top:8px;padding:4px 0"></div>
+      <div style="text-align:center;margin-top:6px"><button class="ghost-btn" style="color:#999;font-size:12px" onclick="cakeRestart()">↺ 重新接单</button></div>
     </div>
   </div>`;
 }
 
-function cakeStepLabel(s) {
-  const map = {
-    '基础料': '加蛋+发酵粉+糖+盐', '烤胚': '送烤箱烘烤', '奶油淋面': '抹白色奶油',
-    '深色奶油': '抹巧克力奶油', '草莓主料': '加草莓酱', '巧克力主料': '加巧克力块',
-    '蓝莓主料': '加蓝莓果', '栗子主料': '加栗子泥',
-    '摆草莓': '摆🍓装饰', '巧克力叶': '摆🍫叶片', '摆蓝莓': '摆🫐装饰', '摆栗子': '摆🌰装饰'
-  };
-  return map[s] || s;
-}
-
-function renderCakeStage() {
-  const pad = document.getElementById('cakeStage'); if (!pad) return;
-  pad.innerHTML = '';
-  const plate = document.createElement('div');
-  plate.style.cssText = 'width:170px;height:14px;background:#e7d3b3;border-radius:50%;margin:4px 0;box-shadow:0 3px 6px rgba(0,0,0,.12)';
-  pad.appendChild(plate);
-  cakeParts.forEach(p => {
-    let el = document.createElement('div');
-    if (p === '胚生') el.style.cssText = 'width:130px;height:30px;background:#f3e2c0;border:1px dashed #cbb78f;border-radius:10px 10px 4px 4px;margin-top:-4px';
-    else if (p === '胚') el.style.cssText = 'width:130px;height:30px;background:linear-gradient(#e8be8a,#cf9b5e);border-radius:10px 10px 4px 4px;margin-top:-4px';
-    else if (p === '白奶油') el.style.cssText = 'width:138px;height:16px;background:#fff7fb;border:2px solid #f6cfe2;border-radius:14px;margin-top:-6px';
-    else if (p === '黑奶油') el.style.cssText = 'width:138px;height:16px;background:#5b3a29;border-radius:14px;margin-top:-6px';
-    else { el = document.createElement('span'); el.style.cssText = 'font-size:18px;margin:0 2px'; el.innerText = p; }
-    pad.appendChild(el);
-  });
-}
-
-function cakeChoose(t) {
-  cakeTpl = CAKE_TEMPLATES[t]; cakeStep = 0; cakeDone = false; cakeParts = [];
+function cakeNewOrder() {
+  cakeOrder = CAKE_ORDERS[Math.floor(Math.random() * CAKE_ORDERS.length)];
+  cakeStepIdx = 0; cakeChoices = {}; cakeDone = false;
   document.getElementById('cakeSelect').style.display = 'none';
   document.getElementById('cakePlay').style.display = 'block';
-  document.getElementById('cakeOrderName').innerText = cakeTpl.emoji + ' ' + t + '蛋糕';
-  document.getElementById('cakeSteps').innerText = cakeTpl.steps.map((s, i) => (i === 0 ? '▶ ' : '') + cakeStepLabel(s)).join(' → ');
-  const tip = document.getElementById('cakeTip');
-  tip.style.color = '#e84393';
-  tip.innerText = '开始：' + cakeStepLabel(cakeTpl.steps[0]);
-  renderCakeStage();
+  const banner = document.getElementById('cakeOrderBanner');
+  banner.innerHTML = `📋 新订单：${cakeOrder.desc}`;
+  cakeRenderStep();
+  cakeRenderStage();
 }
 
-function cakeAction(act) {
-  if (!cakeTpl || cakeDone) return;
-  const cur = cakeTpl.steps[cakeStep];
+function cakeRenderStep() {
+  if (cakeDone) return;
+  const chooser = document.getElementById('cakeChooser');
   const tip = document.getElementById('cakeTip');
-  let ok = false, msg = '';
+  if (!chooser) return;
+  const step = cakeSteps[cakeStepIdx];
+  const stepInfo = { base: ['选择蛋糕胚', '🥚'], cream: ['涂抹奶油', '🥛'], filling: ['添加夹心', '🍓'], topping: ['撒顶饰', '✨'], deco: ['选2种装饰', '🎀'] };
+  const [label, icon] = stepInfo[step] || ['', ''];
+  let items;
+  if (step === 'base') items = CAKE_BASES;
+  else if (step === 'cream') items = CAKE_CREAMS;
+  else if (step === 'filling') items = CAKE_FILLINGS;
+  else if (step === 'topping') items = CAKE_TOPPINGS;
+  else if (step === 'deco') items = CAKE_DECOS;
+  if (!items) return;
 
-  if (cur === '基础料') { ok = act === '基础料'; if(!ok) msg = '先加基础料哦'; else cakeParts.push('胚生'); }
-  else if (cur.includes('主料')) { ok = act === '风味'; if(!ok) msg = '这步加' + cur; }
-  else if (cur === '烤胚') { ok = act === '烤'; if(ok) { const i = cakeParts.indexOf('胚生'); if (i >= 0) cakeParts[i] = '胚'; } else msg = '这步送烤箱'; }
-  else if (cur.includes('奶油')) { ok = act === '奶油'; if(ok) cakeParts.push(cur === '奶油淋面' ? '白奶油' : '黑奶油'); else msg = '这步抹奶油'; }
-  else if (cur.startsWith('摆')) { ok = act === '装饰'; if(ok) cakeParts.push(cur.replace('摆','')); else msg = '这步摆装饰'; }
-
-  if (ok) {
-    cakeStep++;
-    if (tip) { tip.style.color = '#27ae60'; tip.innerText = '✅ ' + cakeStepLabel(cur) + ' 完成'; }
-    renderCakeStage();
-    if (cakeStep >= cakeTpl.steps.length) {
-      cakeDone = true;
-      const st2 = document.getElementById('cakeStage');
-      if (st2) st2.insertAdjacentHTML('beforeend', '<div style="margin-top:8px;color:#e84393;font-weight:bold">✨ 完成！阿Sue说好看~</div>');
-      const wrap = document.getElementById('cakeWrap');
-      if (wrap) { const f = document.createElement('div'); f.innerText = '🎉🎊🧁'; f.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px;animation:cakePop .8s ease'; wrap.appendChild(f); }
-    }
-  } else {
-    if (tip) { tip.style.color = '#999'; tip.innerText = '🙂 ' + (msg || '步骤不对，再试试~'); }
+  const stepNum = cakeStepIdx + 1;
+  chooser.innerHTML = `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+    <span style="background:#ec407a;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">${stepNum}</span>
+    <span style="font-weight:700;font-size:14px;color:#444">${icon} ${label}</span>
+    <span style="margin-left:auto;font-size:11px;color:#aaa">${stepNum}/5</span>
+  </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      ${items.map(item => {
+        const isDeco = step === 'deco';
+        const selected = isDeco ? (cakeChoices.deco || []).includes(item.name) : cakeChoices[step] === item.name;
+        const maxed = isDeco && (cakeChoices.deco || []).length >= 2 && !selected;
+        return `<button style="padding:12px 10px;text-align:left;display:flex;align-items:center;gap:10px;background:${selected ? '#fce4ec' : '#fff'};border:${selected ? '2px solid #ec407a' : '1.5px solid #f0e0e6'};border-radius:14px;cursor:pointer;font-family:inherit;transition:all .15s;${maxed ? 'opacity:.35' : ''}"
+          onclick="cakePick('${step}','${item.name}')" ${maxed ? 'disabled' : ''}
+          onmouseenter="this.style.borderColor='#ec407a'" onmouseleave="this.style.borderColor='${selected ? '#ec407a' : '#f0e0e6'}'">
+          <span style="font-size:22px">${item.emoji}</span>
+          <div><div style="font-weight:600;font-size:13px;color:#333">${item.name}</div><div style="font-size:11px;color:#999">${item.desc}</div></div>
+          ${selected ? '<span style="margin-left:auto;color:#ec407a;font-size:14px">✓</span>' : ''}
+        </button>`;
+      }).join('')}
+    </div>`;
+  if (step === 'deco' && (cakeChoices.deco || []).length > 0) {
+    chooser.innerHTML += `<div style="text-align:center;margin-top:10px"><button class="primary-btn" style="background:#ec407a;border:none;padding:12px 24px;font-size:14px" onclick="cakeNextStep()">✓ 选好了，下一步</button></div>`;
+  }
+  if (tip) {
+    const hints = { base:'选一个蛋糕胚作为基底', cream:'选择奶油涂抹在蛋糕上', filling:'在中间加一层夹心', topping:'在表面撒上装饰', deco:'选2种装饰点缀蛋糕' };
+    tip.innerText = hints[step] || '';
   }
 }
 
+function cakePick(step, name) {
+  if (cakeDone) return;
+  if (step === 'deco') {
+    if (!cakeChoices.deco) cakeChoices.deco = [];
+    if (cakeChoices.deco.includes(name)) {
+      cakeChoices.deco = cakeChoices.deco.filter(d => d !== name);
+    } else if (cakeChoices.deco.length < 2) {
+      cakeChoices.deco.push(name);
+    }
+    cakeRenderStep();
+    cakeRenderStage();
+    return;
+  }
+  cakeChoices[step] = name;
+  cakeRenderStage();
+  const tip = document.getElementById('cakeTip');
+  if (tip) tip.innerText = `✅ ${name} 已选`;
+  setTimeout(() => { if (!cakeDone) cakeNextStep(); }, 400);
+}
+
+function cakeNextStep() {
+  if (cakeStepIdx < cakeSteps.length - 1) { cakeStepIdx++; cakeRenderStep(); }
+  else cakeFinishCake();
+}
+
+function cakeRenderStage() {
+  const pad = document.getElementById('cakeStage'); if (!pad) return;
+  const base = cakeChoices.base ? CAKE_BASES.find(b => b.name === cakeChoices.base) : null;
+  const cream = cakeChoices.cream ? CAKE_CREAMS.find(c => c.name === cakeChoices.cream) : null;
+  const filling = cakeChoices.filling ? CAKE_FILLINGS.find(f => f.name === cakeChoices.filling) : null;
+  const topping = cakeChoices.topping ? CAKE_TOPPINGS.find(t => t.name === cakeChoices.topping) : null;
+  const decos = (cakeChoices.deco || []).map(d => CAKE_DECOS.find(dc => dc.name === d)).filter(Boolean);
+  const hasAny = base || cream || filling || topping || decos.length;
+  pad.innerHTML = '';
+  if (!hasAny) return;
+  const rows = [];
+  if (base) rows.push(`· 蛋糕胚：${base.name}`);
+  if (filling && filling.name !== '无夹心') rows.push(`· 夹心：${filling.name}`);
+  if (cream) rows.push(`· 奶油：${cream.name}`);
+  if (topping) rows.push(`· 顶饰：${topping.name}`);
+  if (decos.length) rows.push(`· 装饰：${decos.map(d => d.name).join('、')}`);
+  pad.innerHTML = '<div style="font-size:13px;line-height:1.8;color:#555;padding:10px 0">✅ 已选：<br>' + rows.join('<br>') + '</div>';
+  pad.style.background = '#fafafe';
+  pad.style.padding = '8px 12px';
+  pad.style.borderRadius = '10px';
+}
+
+function cakeFinishCake() {
+  cakeDone = true;
+  const tip = document.getElementById('cakeTip');
+  const score = cakeOrder ? (cakeChoices.base === cakeOrder.base ? 1 : 0) + (cakeChoices.cream === cakeOrder.cream ? 1 : 0) +
+    (cakeChoices.filling === cakeOrder.filling ? 1 : 0) + (cakeChoices.topping === cakeOrder.topping ? 1 : 0) +
+    Math.min(2, (cakeChoices.deco || []).filter(d => (cakeOrder.deco || []).includes(d)).length) : 0;
+  const maxScore = 6;
+  const pct = Math.round(score / maxScore * 100);
+  const starCount = pct >= 90 ? 5 : pct >= 70 ? 4 : pct >= 50 ? 3 : pct >= 30 ? 2 : 1;
+  const stars = '⭐'.repeat(starCount) + '☆'.repeat(5 - starCount);
+  const comment = pct >= 90 ? '完美！顾客超满意！' : pct >= 70 ? '很好吃，顾客很开心~' : pct >= 50 ? '还可以，但不太对订单哦' : '顾客有点失望…再接再厉';
+
+  const st2 = document.getElementById('cakeStage');
+  if (st2) st2.insertAdjacentHTML('beforeend', `<div style="margin-top:12px;text-align:center;background:linear-gradient(135deg,#fce4ec,#fff0f6);padding:12px;border-radius:14px;width:100%">
+    <div style="font-size:20px;letter-spacing:2px">${stars}</div>
+    <div style="font-weight:700;color:#c62828;font-size:15px;margin-top:4px">${comment}</div>
+    <div style="font-size:12px;color:#999;margin-top:3px">订单匹配度 ${score}/${maxScore}</div>
+  </div>`);
+
+  if (tip) tip.innerText = '🎉 蛋糕完成！';
+  const chooser = document.getElementById('cakeChooser');
+  if (chooser) chooser.innerHTML = '';
+  const wrap = document.getElementById('cakeWrap');
+  if (wrap) { const f = document.createElement('div'); f.innerText = '🎉🧁✨'; f.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:40px;pointer-events:none;animation:cakePop .8s ease;z-index:10'; wrap.appendChild(f); setTimeout(() => f.remove(), 1500); }
+}
+
 function cakeRestart() {
-  cakeTpl = null; cakeStep = 0; cakeDone = false; cakeParts = [];
-  document.getElementById('cakeSelect').style.display = 'flex';
+  cakeOrder = null; cakeStepIdx = 0; cakeChoices = {}; cakeDone = false;
+  document.getElementById('cakeSelect').style.display = 'block';
   document.getElementById('cakePlay').style.display = 'none';
+  const wrap = document.getElementById('cakeWrap');
+  if (wrap) { const f = wrap.querySelector('div:last-child'); if (f && f.style.animation) f.remove(); }
 }
 
 // ---------- 情侣空间 ----------

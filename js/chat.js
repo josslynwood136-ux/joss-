@@ -248,3 +248,32 @@ function inviteStudy() {
   saveState();
   if (window.renderStudy) renderStudy();
 }
+
+// ===== 发送真实照片（文件选择） =====
+function openAlbumPicker() {
+  hidePanels();
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = function(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const dataUrl = ev.target.result;
+      appendBubble('user', '[图片]', { type: 'image', src: dataUrl });
+      setChatTyping(true);
+      saveState();
+      callAI('用户给你发了一张照片，请根据当前聊天氛围自然回复。').then(reply => {
+        setChatTyping(false);
+        appendBubble('assistant', reply);
+      }).catch(() => {
+        setChatTyping(false);
+        appendBubble('assistant', '我看到你发的照片啦～');
+      });
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+  };
+  input.click();
+}

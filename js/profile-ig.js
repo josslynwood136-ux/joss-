@@ -5,7 +5,6 @@
 let selectedProfileAvatar = '🌸';
 let selectedProfileAvatarImage = '';
 let selectedProfileCoverImage = '';
-let postCreatorStep = 1;
 let pendingPostImage = null;
 let viewPostId = null;
 let currentProfileTab = 'home';
@@ -40,7 +39,6 @@ function renderIGProfile() {
           <span class="logo-text">Instagram</span>
         </div>
         <div class="header-actions">
-          <button class="header-action-btn" onclick="openPostCreator()" title="发布">➕</button>
           <button class="header-action-btn" onclick="closeApp()" title="首页">✕</button>
         </div>
       </div>
@@ -66,7 +64,6 @@ function renderIGProfile() {
         <div class="profile-panel" id="igPanelDm">
           <div class="dm-header-bar">
             <span class="dm-title">私信</span>
-            <button class="dm-new-btn" onclick="showIGToast('新建消息')">✏️</button>
           </div>
           <div class="dm-container" id="igDmContainer"></div>
         </div>
@@ -148,9 +145,10 @@ function renderFeed() {
         <span class="feed-username">${escapeHTML(username)}</span>
         <button class="feed-more">⋯</button>
       </div>
+      ${post.image ? `
       <div class="feed-post-image">
         <img src="${post.image}" style="filter:${post.filter || 'none'};" onclick="viewPost('${post.id}')" />
-      </div>
+      </div>` : ''}
       <div class="feed-post-actions">
         <button class="action-btn" onclick="toggleFeedLike('${post.id}')">♡</button>
         <button class="action-btn" onclick="showIGToast('评论功能')">💬</button>
@@ -429,7 +427,7 @@ function renderMyProfileContent() {
       ${state.profilePosts && state.profilePosts.length > 0
         ? state.profilePosts.slice(0, 9).map(p => `
           <div class="profile-post" onclick="viewPost('${p.id}')" style="background:linear-gradient(135deg, #f093fb, #f5576c, #fda085);">
-            <img src="${p.image}" style="width:100%;height:100%;object-fit:cover;filter:${p.filter || 'none'};" />
+            ${p.image ? `<img src="${p.image}" style="width:100%;height:100%;object-fit:cover;filter:${p.filter || 'none'};" />` : '<span style="font-size:24px;color:#fff;opacity:.6">📝</span>'}
           </div>
         `).join('')
         : (postEmojis.map(e => `<div class="profile-post">${e}</div>`).join(''))
@@ -525,21 +523,20 @@ function saveProfile() {
 
 // ====== Post Creator ======
 function openPostCreator() {
-  postCreatorStep = 1;
   pendingPostImage = null;
   $('postCreator').classList.add('active');
   $('postCreatorPlaceholder').style.display = 'block';
   $('postCreatorImage').style.display = 'none';
   $('postCreatorFilters').style.display = 'none';
-  $('postCreatorCaptionArea').classList.remove('active');
-  $('postCreatorNext').textContent = '下一步';
-  $('postCreatorNext').classList.remove('ready');
-  $('postCreatorFileInput').click();
+  $('postCreatorCaptionArea').classList.add('active');
+  $('postCreatorNext').textContent = '发布';
+  $('postCreatorNext').classList.add('ready');
+  $('postCreatorCaption').value = '';
+  setTimeout(() => $('postCreatorCaption').focus(), 100);
 }
 
 function closePostCreator() {
   $('postCreator').classList.remove('active');
-  postCreatorStep = 1;
   pendingPostImage = null;
 }
 
@@ -573,24 +570,16 @@ function setPostFilter(filter) {
 }
 
 function postCreatorNext() {
-  if (!pendingPostImage) return;
-  if (postCreatorStep === 1) {
-    postCreatorStep = 2;
-    $('postCreatorFilters').style.display = 'none';
-    $('postCreatorCaptionArea').classList.add('active');
-    $('postCreatorNext').textContent = '分享';
-    $('postCreatorCaption').focus();
-  } else {
-    publishPost();
-  }
+  publishPost();
 }
 
 function publishPost() {
   var caption = $('postCreatorCaption').value.trim();
-  var filter = $('postCreatorImage').style.filter || 'none';
+  var filter = pendingPostImage ? ($('postCreatorImage').style.filter || 'none') : 'none';
+  if (!caption && !pendingPostImage) { showIGToast('写点什么吧'); return; }
   state.profilePosts.unshift({
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-    image: pendingPostImage,
+    image: pendingPostImage || '',
     filter: filter,
     caption: caption,
     time: Date.now()
@@ -608,7 +597,7 @@ function viewPost(postId) {
   var post = state.profilePosts.find(function(p) { return p.id === postId; });
   if (!post) return;
   viewPostId = postId;
-  $('postDetailImg').innerHTML = '<img src="' + post.image + '" style="filter:' + (post.filter || 'none') + ';" />';
+  $('postDetailImg').innerHTML = post.image ? '<img src="' + post.image + '" style="filter:' + (post.filter || 'none') + ';" />' : '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:80px;color:rgba(255,255,255,.2)">📝</div>';
   $('postDetailCaption').textContent = post.caption || '无标题';
   $('postDetailTime').textContent = formatPostTime(post.time);
   $('postDetailDelete').style.display = 'block';
