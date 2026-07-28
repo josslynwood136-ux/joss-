@@ -13,7 +13,16 @@ function openApp(name) {
     hidePanels();
     setTitle(name === 'QQ' ? '' : name);
     const ah = document.querySelector('.app-header');
-    if (ah) ah.style.display = (name === 'QQ') ? 'none' : '';
+    if (ah) {
+      ah.style.display = (name === 'QQ') ? 'none' : '';
+      ah.style.gridTemplateColumns = '1fr 50px 1fr';
+      ah.style.height = '44px';
+      ah.style.flex = '0 0 44px';
+      ah.style.alignItems = 'center';
+      ah.style.padding = '0 15px';
+    }
+    var hp = document.querySelector('.header-pill');
+    if (hp) hp.style.display = 'none';
     const map = {
       '设置': renderApiSettings, '打卡': renderCheckins,
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
@@ -34,7 +43,7 @@ function closeApp() {
   const mc = c();
   if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; }
   const ah = document.querySelector('.app-header');
-  if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; }
+  if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; ah.style.height = ''; ah.style.flex = ''; ah.style.alignItems = ''; ah.style.padding = ''; }
   const hp = document.querySelector('.header-pill');
   if (hp && hp.style.display) hp.style.display = '';
   const hdr = document.querySelector('.app-header');
@@ -888,10 +897,7 @@ function renderStudy() {
   el.style.display = 'flex';
   el.style.flexDirection = 'column';
   el.style.background = '#fdf5e6';
-  var ahEl = document.querySelector('.app-header');
-  ahEl.style.background = '#fdf5e6';
-  ahEl.style.gridTemplateColumns = '70px 1fr';
-  document.querySelector('.header-pill').style.display = 'none';
+  document.querySelector('.app-header').style.background = '#fdf5e6';
   el.innerHTML = `
     <div style="flex:1;display:flex;flex-direction:column;background:#fdf5e6;padding:4px 0">
       <div style="text-align:center;flex-shrink:0">
