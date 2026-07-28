@@ -69,7 +69,7 @@ const defaultState = {
     ],
     logs: []
   },
-  tarot: null,
+  tarot: { step: 'start', major: null, minors: [] },
   qq: null,
   game: { score: 0, best: 0 },
   myProfile: {
