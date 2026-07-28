@@ -23,6 +23,11 @@ function openApp(name) {
     }
     var hp = document.querySelector('.header-pill');
     if (hp) hp.style.display = 'none';
+    if (name !== 'QQ') {
+      c().style.background = '#f0ede8';
+      var ha = document.querySelector('.app-header');
+      if (ha) ha.style.background = '#f0ede8';
+    }
     const map = {
       '设置': renderApiSettings, '打卡': renderCheckins,
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
@@ -608,11 +613,11 @@ function renderCheckins() {
         <div class="label">项目名称</div>
         <input class="field" id="ck-name" value="${escapeHTML(x.name)}">
         <div class="grid2">
-          <div><div class="label">开始</div><input class="field" id="ck-start" value="${escapeHTML(x.start)}"></div>
-          <div><div class="label">结束</div><input class="field" id="ck-end" value="${escapeHTML(x.end)}"></div>
+          <div><div class="label">开始</div><input class="field" id="ck-start" oninput="syncDaysToEnd()" value="${escapeHTML(x.start)}"></div>
+          <div><div class="label">结束</div><input class="field" id="ck-end" oninput="syncEndToDays()" value="${escapeHTML(x.end)}"></div>
         </div>
         <div class="label">总天数</div>
-        <input class="field" id="ck-total" type="number" value="${x.totalDays}">
+        <input class="field" id="ck-total" type="number" oninput="syncDaysToEnd()" value="${x.totalDays}">
         <div class="grid2" style="margin-top:10px">
           <button class="primary-btn" onclick="submitEditCheckin('${x.id}')">保存</button>
           <button class="ghost-btn" onclick="checkinForm=null;renderCheckins()">取消</button>
@@ -625,11 +630,28 @@ function renderCheckins() {
         <span class="tag">${x.status === 'done' ? '已完成' : (x.status === 'undone' ? '未完成' : '进行中')}</span>
       </div>
       <div class="subtle" style="margin:6px 0">${escapeHTML(x.start)} - ${escapeHTML(x.end)}　共 ${x.totalDays} 天</div>
-      <div style="height:8px;background:#eef2f6;border-radius:99px;overflow:hidden;margin:8px 0 4px">
-        <div style="height:100%;width:${rate}%;background:var(--qq-grad);transition:width .3s"></div>
+      <div style="position:relative;height:24px;background:#e8e3db;border-radius:12px;margin:10px 0 2px;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;padding:0 20px;pointer-events:none">
+          ${[25,50,75,100].map(function(m) {
+            if (rate >= m) return '';
+            var pct = m;
+            return '<div style="position:absolute;left:' + pct + '%;width:6px;height:6px;background:#d4c9bc;border-radius:50%;transform:translate(-50%,0)"></div>';
+          }).join('')}
+        </div>
+        <div style="height:100%;width:${rate}%;background:linear-gradient(90deg,#c4b5a5,#b8a99a,#c9bbad);border-radius:12px;transition:width .5s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden">
+          <div style="position:absolute;top:2px;bottom:2px;left:4px;right:4px;background:linear-gradient(90deg,rgba(255,255,255,.2),rgba(255,255,255,.05));border-radius:10px"></div>
+          ${rate > 0 && rate < 100 ? '<div style="position:absolute;top:50%;right:-1px;transform:translate(0,-50%);font-size:16px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.15))">🐰</div>' : ''}
+          ${rate >= 100 ? '<div style="position:absolute;top:50%;right:4px;transform:translate(0,-50%);font-size:18px;line-height:1;animation:bounce .5s ease">🎉</div>' : ''}
+        </div>
+        ${[25,50,75,100].map(function(m) {
+          if (rate >= m) return '';
+          return '<div style="position:absolute;top:0;left:' + m + '%;width:1px;height:100%;background:rgba(0,0,0,.04)"></div>';
+        }).join('')}
+        
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)">
-        <span>已坚持 ${x.doneDays || 0} 天</span><span>完成率 ${rate}%</span>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
+        <span>已坚持 ${x.doneDays || 0} 天</span>
+        <span>完成率 ${rate}%</span>
       </div>
       ${x.status !== 'done' ? `<button class="primary-btn" style="width:100%;margin-top:10px" onclick="doCheckin('${x.id}')">立即打卡</button>` : `<div class="subtle" style="text-align:center;margin-top:10px">🎉 已达成</div>`}
       <div style="display:flex;gap:10px;margin-top:8px">
@@ -645,11 +667,11 @@ function renderCheckins() {
       <div class="label">项目名称</div>
       <input class="field" id="ck-name" placeholder="如 考研学习">
       <div class="grid2">
-        <div><div class="label">开始</div><input class="field" id="ck-start" value="2026/1/1"></div>
-        <div><div class="label">结束</div><input class="field" id="ck-end" value="2026/6/1"></div>
+        <div><div class="label">开始</div><input class="field" id="ck-start" oninput="syncDaysToEnd()" value="2026/1/1"></div>
+        <div><div class="label">结束</div><input class="field" id="ck-end" oninput="syncEndToDays()" value="2026/6/1"></div>
       </div>
       <div class="label">总天数</div>
-      <input class="field" id="ck-total" type="number" value="150">
+      <input class="field" id="ck-total" type="number" oninput="syncDaysToEnd()" value="150">
       <div class="grid2" style="margin-top:10px">
         <button class="primary-btn" onclick="submitNewCheckin()">创建</button>
         <button class="ghost-btn" onclick="checkinForm=null;renderCheckins()">取消</button>
@@ -659,9 +681,9 @@ function renderCheckins() {
 
   c().innerHTML = `
     <div class="stack">
-      <div class="profile-hero" style="background:var(--qq-grad);color:#fff;border-radius:var(--radius-lg);padding:18px 14px;box-shadow:var(--shadow)">
-        <div style="font-size:20px;font-weight:900">打卡</div>
-        <div style="font-size:12px;opacity:.9;margin-top:4px">已坚持 ${totalDone} 次打卡</div>
+      <div class="card" style="text-align:center;padding:12px 14px">
+        <div style="font-size:14px;color:#7a6b5c;font-weight:700">📋 打卡</div>
+        <div style="font-size:12px;color:#9c9488;margin-top:2px">已打卡 ${totalDone} 次</div>
       </div>
       <div class="pill-row" style="justify-content:center;margin:2px 0">
         <span class="choice ${checkinTab==='doing'?'active':''}" onclick="checkinTab='doing';renderCheckins()">进行中</span>
@@ -677,10 +699,61 @@ function doCheckin(id) {
   const x = state.checkins.find(c => c.id === id);
   if (!x || x.status === 'done') return;
   x.doneDays = (x.doneDays || 0) + 1;
-  if (x.doneDays >= x.totalDays) x.status = 'done';
+  if (x.doneDays >= x.totalDays) {
+    x.status = 'done';
+    saveState();
+    renderCheckins();
+    showCheckinCelebration(x.name);
+    return;
+  }
   saveState();
   renderCheckins();
 }
+function showCheckinCelebration(name) {
+  var el = document.createElement('div');
+  el.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(240,237,232,.92);z-index:999;animation:fadeIn .3s ease';
+  el.innerHTML = '<div style="font-size:64px;margin-bottom:8px;animation:bounce .6s ease">🎉</div><div style="font-size:18px;color:#7a6b5c;font-weight:700">「' + escapeHTML(name) + '」</div><div style="font-size:14px;color:#9c9488;margin-top:4px">打卡完成，太棒了！</div>';
+  var appModal = $('appModal');
+  appModal.appendChild(el);
+  setTimeout(function() {
+    el.style.transition = 'opacity .4s ease';
+    el.style.opacity = '0';
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 400);
+  }, 2000);
+}
+
+function parseCkDate(str) {
+  var p = str.split('/');
+  return new Date(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+}
+function fmtCkDate(d) {
+  return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+}
+function syncDaysToEnd() {
+  var start = document.getElementById('ck-start');
+  var total = document.getElementById('ck-total');
+  var end = document.getElementById('ck-end');
+  if (!start || !total || !end) return;
+  var s = parseCkDate(start.value);
+  if (isNaN(s.getTime())) return;
+  var days = parseInt(total.value, 10);
+  if (!days || days < 1) return;
+  var e = new Date(s);
+  e.setDate(e.getDate() + days - 1);
+  end.value = fmtCkDate(e);
+}
+function syncEndToDays() {
+  var start = document.getElementById('ck-start');
+  var end = document.getElementById('ck-end');
+  var total = document.getElementById('ck-total');
+  if (!start || !end || !total) return;
+  var s = parseCkDate(start.value);
+  var e = parseCkDate(end.value);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return;
+  var diff = Math.round((e - s) / 86400000) + 1;
+  if (diff > 0) total.value = diff;
+}
+
 function deleteCheckin(id) {
   if (!confirm('删除该打卡项目？')) return;
   state.checkins = state.checkins.filter(c => c.id !== id);
@@ -896,10 +969,9 @@ function renderStudy() {
   el.style.paddingBottom = '0';
   el.style.display = 'flex';
   el.style.flexDirection = 'column';
-  el.style.background = '#fdf5e6';
-  document.querySelector('.app-header').style.background = '#fdf5e6';
+  el.style.background = '#f0ede8';
   el.innerHTML = `
-    <div style="flex:1;display:flex;flex-direction:column;background:#fdf5e6;padding:4px 0">
+    <div style="flex:1;display:flex;flex-direction:column;background:#f0ede8;padding:4px 0">
       <div style="text-align:center;flex-shrink:0">
         <div style="font-size:12px;color:#b8a99a;letter-spacing:1px">${isFocus ? '🍅 专注中' : '☕ 休息中'} · 第 ${state.study.round} 个番茄</div>
         <div style="font-size:48px;font-weight:300;margin:6px 0 4px;color:#5c4f42;letter-spacing:2px">${m}:${s}</div>

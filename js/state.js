@@ -31,10 +31,7 @@ const defaultState = {
   ],
   moments: [],
   chat: [],
-  checkins: [
-    { id: 'ck-kaoyan', name: '考研学习', start: '2025/12/21', end: '2026/12/22', totalDays: 367, doneDays: 5, status: 'doing' },
-    { id: 'ck-kaogong', name: '考公学习', start: '2025/12/15', end: '2026/3/15', totalDays: 91, doneDays: 5, status: 'doing' }
-  ],
+  checkins: [],
   habits: [
     { id: 'h-water', name: '喝水', icon: '💧', done: {} },
     { id: 'h-read', name: '阅读', icon: '📚', done: {} },
