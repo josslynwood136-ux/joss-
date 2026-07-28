@@ -34,7 +34,9 @@ function closeApp() {
   const mc = c();
   if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; }
   const ah = document.querySelector('.app-header');
-  if (ah && ah.style.background) ah.style.background = '';
+  if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; }
+  const hp = document.querySelector('.header-pill');
+  if (hp && hp.style.display) hp.style.display = '';
   const hdr = document.querySelector('.app-header');
   if (hdr) hdr.classList.remove('hidden');
   $('appModal').classList.remove('active');
@@ -886,7 +888,10 @@ function renderStudy() {
   el.style.display = 'flex';
   el.style.flexDirection = 'column';
   el.style.background = '#fdf5e6';
-  document.querySelector('.app-header').style.background = '#fdf5e6';
+  var ahEl = document.querySelector('.app-header');
+  ahEl.style.background = '#fdf5e6';
+  ahEl.style.gridTemplateColumns = '70px 1fr';
+  document.querySelector('.header-pill').style.display = 'none';
   el.innerHTML = `
     <div style="flex:1;display:flex;flex-direction:column;background:#fdf5e6;padding:4px 0">
       <div style="text-align:center;flex-shrink:0">
