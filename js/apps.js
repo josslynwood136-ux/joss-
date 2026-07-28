@@ -32,7 +32,9 @@ function openApp(name) {
 
 function closeApp() {
   const mc = c();
-  if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; }
+  if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; }
+  const ah = document.querySelector('.app-header');
+  if (ah && ah.style.background) ah.style.background = '';
   const hdr = document.querySelector('.app-header');
   if (hdr) hdr.classList.remove('hidden');
   $('appModal').classList.remove('active');
@@ -878,36 +880,43 @@ function renderStudy() {
   const m = Math.floor(state.study.seconds / 60).toString().padStart(2, '0');
   const s = (state.study.seconds % 60).toString().padStart(2, '0');
   const isFocus = state.study.mode === 'focus';
-  c().innerHTML = `
-    <div class="stack">
-      <div class="card" style="text-align:center;background:${isFocus ? 'var(--qq-grad)' : 'linear-gradient(135deg,#ff9a6b,#ff6f91)'};color:#fff">
-        <div style="font-size:13px;font-weight:800;opacity:.9">${isFocus ? '🍅 专注中' : '☕ 休息中'} · 第 ${state.study.round} 个番茄</div>
-        <div style="font-size:56px;font-weight:900;margin:8px 0;color:#fff">${m}:${s}</div>
-        ${isFocus ? `<input class="field" id="studySubject" value="${escapeHTML(state.study.subject)}" placeholder="学习科目" style="color:#18212f">` : '<div class="subtle" style="color:#ffe">喝口水，伸个懒腰～</div>'}
-        <div class="grid3" style="margin-top:10px">
+  const char = getRole(state.activeRoleId);
+  const el = c();
+  el.style.paddingBottom = '0';
+  el.style.display = 'flex';
+  el.style.flexDirection = 'column';
+  el.style.background = '#fdf5e6';
+  document.querySelector('.app-header').style.background = '#fdf5e6';
+  el.innerHTML = `
+    <div style="flex:1;display:flex;flex-direction:column;background:#fdf5e6;padding:4px 0">
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-size:12px;color:#b8a99a;letter-spacing:1px">${isFocus ? '🍅 专注中' : '☕ 休息中'} · 第 ${state.study.round} 个番茄</div>
+        <div style="font-size:48px;font-weight:300;margin:6px 0 4px;color:#5c4f42;letter-spacing:2px">${m}:${s}</div>
+        ${isFocus ? `<input class="field" id="studySubject" value="${escapeHTML(state.study.subject)}" placeholder="学习科目" style="border-color:#e8ddd0;background:#faf6f0;color:#5c4f42;text-align:center">` : '<div style="font-size:13px;color:#b8a99a;padding:2px 0">喝口水，伸个懒腰～</div>'}
+        <div class="grid3" style="margin-top:8px;gap:6px">
           ${isFocus
-            ? `<button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="setStudyMinutes(25)">专注25</button><button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="setStudyMinutes(45)">专注45</button><button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="setStudyMinutes(15)">专注15</button>`
-            : `<button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="setBreak(5)">休息5</button><button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="setBreak(10)">休息10</button><button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="setBreak(15)">休息15</button>`}
+            ? `<button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setStudyMinutes(25)">25分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setStudyMinutes(45)">45分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setStudyMinutes(15)">15分</button>`
+            : `<button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setBreak(5)">5分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setBreak(10)">10分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setBreak(15)">15分</button>`}
         </div>
-        <div class="grid2" style="margin-top:10px">
-          <button class="primary-btn" style="background:#fff;color:${isFocus ? 'var(--qq-blue)' : '#ff6f91'}" onclick="toggleStudy()">${state.study.running ? '暂停' : '开始'}</button>
-          <button class="ghost-btn" style="background:rgba(255,255,255,.2);color:#fff" onclick="finishStudy(true)">结束本段</button>
+        <div class="grid2" style="margin-top:10px;gap:8px">
+          <button style="background:#d4c5b3;color:#fff;border:none;border-radius:20px;padding:10px 0;font-size:14px;cursor:pointer;font-weight:600" onclick="toggleStudy()">${state.study.running ? '暂停' : '开始'}</button>
+          <button style="background:transparent;color:#b8a99a;border:1px solid #e0d5c8;border-radius:20px;padding:10px 0;font-size:13px;cursor:pointer" onclick="finishStudy(true)">结束</button>
         </div>
+      </div>
+      <div style="margin:14px 0 0;border-top:1px solid #e8ddd0"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px 6px;flex-shrink:0">
+        <span style="font-size:13px;color:#b8a99a">🤗 角色陪伴</span>
+        <div class="switch${state.study.companion ? ' on' : ''}" onclick="toggleCompanion()" style="flex-shrink:0"></div>
       </div>
       ${state.study.companion ? `
-      <div class="card" style="display:flex;align-items:center;gap:10px">
-        <div class="avatar">${renderAvatar(activeCharacter().avatar, activeCharacter().name)}</div>
-        <div style="flex:1;min-width:0">
-          <div class="subtle">${escapeHTML(activeCharacter().name)} 陪你自习</div>
-          <div style="margin-top:4px;font-weight:600">${escapeHTML(state.study.companionMsg || '我在呢，随时可以开始。')}</div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:4px 0 12px">
+        <div style="position:relative;width:120px;height:120px">
+          <div style="position:absolute;top:-14px;right:0;background:#d4c5b3;color:#fff;border-radius:16px;padding:6px 12px;font-size:12px;line-height:1.4;max-width:160px;white-space:nowrap;z-index:1;box-shadow:0 2px 8px rgba(0,0,0,.06)">
+            ${escapeHTML(state.study.companionMsg || '我在呢～')}
+          </div>
+          <div style="position:absolute;bottom:0;left:0;width:80px;height:80px;border-radius:50%;border:2px solid #e0d5c8;display:flex;align-items:center;justify-content:center;font-size:64px;line-height:1;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);background:#fff">${renderAvatar(char.avatar, char.name)}</div>
         </div>
-        <button class="ghost-btn" onclick="refreshCompanion()">换一句</button>
-      </div>` : ''}
-      <div class="grid2" style="margin:6px 0">
-        <button class="ghost-btn" onclick="toggleCompanion()">${state.study.companion ? '关闭陪伴' : '开启陪伴'}</button>
-      </div>
-      <div class="subtle" style="text-align:center">🍅 已完成 ${state.study.round} 个番茄 · 每完成一段专注自动进入休息</div>
-      ${state.study.records.slice(0,6).map(r => `<div class="list-card"><b>${escapeHTML(r.subject)}</b><span class="subtle">${r.minutes} 分钟 · ${r.date}</span></div>`).join('') || '<div class="card subtle">还没有自习记录。</div>'}
+      </div>` : '<div style="flex:1;display:flex;align-items:center;justify-content:center"><span style="color:#d0c5b8;font-size:12px">开启陪伴，让 TA 陪你学习</span></div>'}
     </div>`;
 }
 

@@ -86,45 +86,45 @@ function initDragDesktop() {
 }
 
 // ===== 导出到 window（确保内联 onclick 正常工作）=====
-Object.assign(window, {
-  toggleDebug, openApp, closeApp, toggleHeaderMenu, quickNotice,
-  switchTab, openChat, closeChat, openSettings, closeSettings,
-  togglePin, clearHistory, toggleMore, toggleEmoji,
-  sendChat, sendRed, addLedgerQuick, saveApiConfig, pullModels,
-  testConnection, exportAllData, importAllData, resetAllData,
-  renderCharacterEditor, saveCharacter, deleteCharacter, addMemory,
-  deleteMemory, uploadAvatar, postMoment, saveMyProfile, rememberLastUserMessage,
-  newProfile, editProfile,
-  doCheckin, deleteCheckin, submitNewCheckin, submitEditCheckin,
-  addDiary, setStudyMinutes, setBreak,
-  toggleStudy, finishStudy, companionSay, toggleCompanion, refreshCompanion, inviteStudy,
-  addLedger, deleteLedger, editLedger, changeLedgerMonth,
-  clearCanvas, saveDoodle, undoDoodle, uploadDoodleBg,
-  playTone, uploadMusic, playMusic, renameMusic, deleteMusic,
-  addKiss, startGame, hitTarget, submitGuess, resetGuess, initSnake, saveSpace,
-  renderMQ, mqSwitch, mqOpenChat, mqSend, mqNewRole, mqEditRoleView,
-  mqSaveRole, mqDelRole, mqPublish, mqInvite, mqSaveMe, mqShowMem, mqClearMem,
-  likeMoment, addComment, deleteMessage, openAlbumPicker,
-  fertilizePlant, plantMood, plantStage,
-  renderAlbum, addPhoto, uploadPhoto, deletePhoto, viewPhoto, toggleAlbumUpload,
-  openAlbum, newAlbum, renameAlbum, delAlbum, renderAlbumPhotos,
-  capturePhoto, renamePhoto, copyPhoto, movePhoto,
-  renderHome, openFurniture, closeHomePanel, doFurnitureAction,
-  toggleHomeLog, waterPlant, touchPlant,
-  cakeNewOrder, cakePick, cakeNextStep, cakeRestart,
-  hidePanels, toggleHabit, addHabit, delHabit, stopMusic,
-  renderIGProfile, switchProfileTab, renderFeed, renderCharLibrary, openCharFromLib,
-  createCharFromLib, renderIGCharEditor, igHandleAvatarUpload, igClearAvatar, saveIGCharEditor, deleteIGChar,
-  renderDmList, renderMyProfileContent,
-  openProfileEditor, closeProfileEditor,
-  handleProfileAvatarUpload, handleProfileCoverUpload,
-  resetProfileAvatar, saveProfile,
-  openPostCreator, closePostCreator,
-  handlePostImageSelect, setPostFilter,
-  postCreatorNext, publishPost,
-  viewPost, closePostDetail, deletePost,
-  toggleFeedLike, showIGToast
-});
+var _w = window;
+_w.toggleDebug = toggleDebug; _w.openApp = openApp; _w.closeApp = closeApp; _w.toggleHeaderMenu = toggleHeaderMenu; _w.quickNotice = quickNotice;
+_w.switchTab = switchTab; _w.openChat = openChat; _w.closeChat = closeChat; _w.openSettings = openSettings; _w.closeSettings = closeSettings;
+_w.togglePin = togglePin; _w.clearHistory = clearHistory; _w.toggleMore = toggleMore; _w.toggleEmoji = toggleEmoji;
+_w.sendChat = sendChat; _w.sendRed = sendRed; _w.saveApiConfig = saveApiConfig; _w.pullModels = pullModels;
+_w.testConnection = testConnection; _w.exportAllData = exportAllData; _w.importAllData = importAllData; _w.resetAllData = resetAllData;
+_w.renderCharacterEditor = renderCharacterEditor; _w.saveCharacter = saveCharacter; _w.deleteCharacter = deleteCharacter; _w.addMemory = addMemory;
+_w.deleteMemory = deleteMemory; _w.uploadAvatar = uploadAvatar; _w.postMoment = postMoment; _w.saveMyProfile = saveMyProfile; _w.rememberLastUserMessage = rememberLastUserMessage;
+_w.newProfile = newProfile; _w.editProfile = editProfile;
+_w.doCheckin = doCheckin; _w.deleteCheckin = deleteCheckin; _w.submitNewCheckin = submitNewCheckin; _w.submitEditCheckin = submitEditCheckin;
+_w.addDiary = addDiary; _w.setStudyMinutes = setStudyMinutes; _w.setBreak = setBreak;
+_w.toggleStudy = toggleStudy; _w.finishStudy = finishStudy; _w.companionSay = companionSay; _w.toggleCompanion = toggleCompanion; _w.refreshCompanion = refreshCompanion; _w.inviteStudy = inviteStudy;
+_w.addLedger = addLedger; _w.deleteLedger = deleteLedger; _w.editLedger = editLedger; _w.changeLedgerMonth = changeLedgerMonth;
+_w.clearCanvas = clearCanvas; _w.saveDoodle = saveDoodle; _w.undoDoodle = undoDoodle; _w.uploadDoodleBg = uploadDoodleBg;
+_w.playTone = playTone; _w.uploadMusic = uploadMusic; _w.playMusic = playMusic; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic;
+_w.addKiss = addKiss; _w.startGame = startGame; _w.hitTarget = hitTarget; _w.submitGuess = submitGuess; _w.resetGuess = resetGuess; _w.initSnake = initSnake; _w.saveSpace = saveSpace;
+_w.renderMQ = renderMQ; _w.mqSwitch = mqSwitch; _w.mqOpenChat = mqOpenChat; _w.mqSend = mqSend; _w.mqNewRole = mqNewRole; _w.mqEditRoleView = mqEditRoleView;
+_w.mqSaveRole = mqSaveRole; _w.mqDelRole = mqDelRole; _w.mqPublish = mqPublish; _w.mqInvite = mqInvite; _w.mqSaveMe = mqSaveMe; _w.mqShowMem = mqShowMem; _w.mqClearMem = mqClearMem;
+_w.likeMoment = likeMoment; _w.addComment = addComment; _w.deleteMessage = deleteMessage; _w.openAlbumPicker = openAlbumPicker;
+_w.fertilizePlant = fertilizePlant; _w.plantMood = plantMood; _w.plantStage = plantStage;
+_w.addLedgerQuick = addLedgerQuick;
+_w.renderAlbum = renderAlbum; _w.addPhoto = addPhoto; _w.uploadPhoto = uploadPhoto; _w.deletePhoto = deletePhoto; _w.viewPhoto = viewPhoto; _w.toggleAlbumUpload = toggleAlbumUpload;
+_w.openAlbum = openAlbum; _w.newAlbum = newAlbum; _w.renameAlbum = renameAlbum; _w.delAlbum = delAlbum; _w.renderAlbumPhotos = renderAlbumPhotos;
+_w.capturePhoto = capturePhoto; _w.renamePhoto = renamePhoto; _w.copyPhoto = copyPhoto; _w.movePhoto = movePhoto;
+_w.renderHome = renderHome; _w.openFurniture = openFurniture; _w.closeHomePanel = closeHomePanel; _w.doFurnitureAction = doFurnitureAction;
+_w.toggleHomeLog = toggleHomeLog; _w.waterPlant = waterPlant; _w.touchPlant = touchPlant;
+_w.cakeNewOrder = cakeNewOrder; _w.cakePick = cakePick; _w.cakeNextStep = cakeNextStep; _w.cakeRestart = cakeRestart;
+_w.hidePanels = hidePanels; _w.toggleHabit = toggleHabit; _w.addHabit = addHabit; _w.delHabit = delHabit; _w.stopMusic = stopMusic;
+_w.renderIGProfile = renderIGProfile; _w.switchProfileTab = switchProfileTab; _w.renderFeed = renderFeed; _w.renderCharLibrary = renderCharLibrary; _w.openCharFromLib = openCharFromLib;
+_w.createCharFromLib = createCharFromLib; _w.renderIGCharEditor = renderIGCharEditor; _w.igHandleAvatarUpload = igHandleAvatarUpload; _w.igClearAvatar = igClearAvatar; _w.saveIGCharEditor = saveIGCharEditor; _w.deleteIGChar = deleteIGChar;
+_w.renderDmList = renderDmList; _w.renderMyProfileContent = renderMyProfileContent;
+_w.openProfileEditor = openProfileEditor; _w.closeProfileEditor = closeProfileEditor;
+_w.handleProfileAvatarUpload = handleProfileAvatarUpload; _w.handleProfileCoverUpload = handleProfileCoverUpload;
+_w.resetProfileAvatar = resetProfileAvatar; _w.saveProfile = saveProfile;
+_w.openPostCreator = openPostCreator; _w.closePostCreator = closePostCreator;
+_w.handlePostImageSelect = handlePostImageSelect; _w.setPostFilter = setPostFilter;
+_w.postCreatorNext = postCreatorNext; _w.publishPost = publishPost;
+_w.viewPost = viewPost; _w.closePostDetail = closePostDetail; _w.deletePost = deletePost;
+_w.toggleFeedLike = toggleFeedLike; _w.showIGToast = showIGToast;
 
 // 离开时保存
 window.addEventListener('beforeunload', saveState);
