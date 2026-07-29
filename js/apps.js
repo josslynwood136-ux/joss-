@@ -819,8 +819,9 @@ function renderHome() {
   const hdr = document.querySelector('.app-header');
   if (hdr) hdr.classList.add('hidden');
   const h = state.home || (state.home = { bg: '', person: '', personPos: { x: 50, y: 72 }, furniture: [], logs: [] });
+  if (!h.furniture || !h.furniture.length) { h.furniture = (JSON.parse(JSON.stringify(defaultState)).home.furniture || []); saveState(); }
   const furHtml = (h.furniture || []).map(f => `
-    <div class="home-fur" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;background-image:url('${escapeHTML(f.img || '')}')" onclick="openFurniture('${f.id}')">
+    <div class="home-fur" data-fid="${f.id}" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;background-image:url('${escapeHTML(f.img || '')}')">
       <span class="home-fur-name">${escapeHTML(f.name)}</span>
     </div>`).join('');
   const DEFAULT_PERSON = 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg';
@@ -847,6 +848,8 @@ function renderHome() {
   const room = document.querySelector('.home-room');
   if (room) {
     room.onclick = function(ev) {
+      const fur = ev.target.closest('.home-fur');
+      if (fur) { const fid = fur.dataset.fid; if (fid) { openFurniture(fid); return; } }
       if (ev.target === room || ev.target.classList.contains('home-bg')) {
         const box = room.querySelector('.tv-watch-box');
         if (box) box.remove();

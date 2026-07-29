@@ -101,7 +101,6 @@ async function sendChat() {
       appendBubble('system', '对方暂时没有回应，稍后再试。');
     } finally {
       $('sendBtn').disabled = false;
-      $('sendBtn').innerText = '发送';
     }
     return;
   }
@@ -117,7 +116,6 @@ async function sendChat() {
     appendBubble('system', '对方暂时没有回应，稍后再试。');
   } finally {
     $('sendBtn').disabled = false;
-    $('sendBtn').innerText = '发送';
   }
 }
 
@@ -285,24 +283,72 @@ function startCapture() {
   overlay.id = 'captureOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;';
   overlay.innerHTML = `
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
-      <video id="captureVideo" autoplay playsinline style="max-width:100%;max-height:100%;object-fit:contain"></video>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:#111">
+      <video id="captureVideo" autoplay playsinline style="width:100%;height:100%;object-fit:contain"></video>
+      <img id="capturePreview" style="display:none;width:100%;height:100%;object-fit:contain">
       <canvas id="captureCanvas" style="display:none"></canvas>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-evenly;padding:20px 0 40px;background:#111">
-      <button id="captureCancelBtn" style="border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer">取消</button>
+    <div id="captureActions" style="display:flex;align-items:center;justify-content:space-evenly;padding:20px 0 40px;background:#111">
+      <button id="captureCancelBtn" style="border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer;padding:8px 16px">取消</button>
       <button id="captureBtn" style="width:64px;height:64px;border-radius:50%;border:4px solid #fff;background:transparent;cursor:pointer;position:relative"><div style="position:absolute;inset:4px;border-radius:50%;background:#fff"></div></button>
-      <span style="width:40px"></span>
+      <span style="width:60px"></span>
+    </div>
+    <div id="captureConfirm" style="display:none;align-items:center;justify-content:space-evenly;padding:20px 0 40px;background:#111">
+      <button id="retakeBtn" style="border:none;background:#333;color:#fff;padding:10px 24px;border-radius:12px;font-size:14px;cursor:pointer">重拍</button>
+      <button id="sendPhotoBtn" style="border:none;background:#3897f0;color:#fff;padding:10px 28px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">发送</button>
     </div>`;
   document.body.appendChild(overlay);
   let stream = null;
+  let photoDataUrl = null;
   const video = document.getElementById('captureVideo');
+  const preview = document.getElementById('capturePreview');
   const cancelBtn = document.getElementById('captureCancelBtn');
   const captureBtn = document.getElementById('captureBtn');
-  cancelBtn.onclick = () => { if (stream) stream.getTracks().forEach(t => t.stop()); overlay.remove(); };
+  const retakeBtn = document.getElementById('retakeBtn');
+  const sendBtn = document.getElementById('sendPhotoBtn');
+  const actionsArea = document.getElementById('captureActions');
+  const confirmArea = document.getElementById('captureConfirm');
+  function stopStream() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
+  function closeOverlay() { stopStream(); overlay.remove(); }
+  function showViewfinder() {
+    video.style.display = 'block';
+    preview.style.display = 'none';
+    actionsArea.style.display = 'flex';
+    confirmArea.style.display = 'none';
+  }
+  function showPreview(dataUrl) {
+    video.style.display = 'none';
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+    actionsArea.style.display = 'none';
+    confirmArea.style.display = 'flex';
+  }
+  cancelBtn.onclick = closeOverlay;
+  retakeBtn.onclick = () => {
+    photoDataUrl = null;
+    showViewfinder();
+    if (!stream) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(s => {
+        stream = s; video.srcObject = s;
+      }).catch(() => { overlay.remove(); alert('无法打开摄像头'); });
+    }
+  };
+  sendBtn.onclick = () => {
+    if (!photoDataUrl) return;
+    closeOverlay();
+    appendBubble('user', '[拍摄]', { type: 'image', src: photoDataUrl });
+    setChatTyping(true);
+    saveState();
+    callAI('用户给你发了一张拍摄的照片，请根据当前聊天氛围自然回复。').then(reply => {
+      setChatTyping(false);
+      appendBubble('assistant', reply);
+    }).catch(() => {
+      setChatTyping(false);
+      appendBubble('assistant', '这张照片拍得不错～');
+    });
+  };
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(s => {
-    stream = s;
-    video.srcObject = s;
+    stream = s; video.srcObject = s;
   }).catch(() => {
     overlay.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999;font-size:14px"><span style="font-size:48px;margin-bottom:10px">📷</span>无法访问摄像头</div><div style="padding:20px 0 40px;text-align:center"><button onclick="document.getElementById('captureOverlay').remove()" style="border:none;background:#333;color:#fff;padding:10px 20px;border-radius:10px;cursor:pointer">关闭</button></div>`;
     return;
@@ -314,18 +360,8 @@ function startCapture() {
     canvas.height = video.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    overlay.remove();
-    appendBubble('user', '[拍摄]', { type: 'image', src: dataUrl });
-    setChatTyping(true);
-    saveState();
-    callAI('用户给你发了一张拍摄的照片，请根据当前聊天氛围自然回复。').then(reply => {
-      setChatTyping(false);
-      appendBubble('assistant', reply);
-    }).catch(() => {
-      setChatTyping(false);
-      appendBubble('assistant', '这张照片拍得不错～');
-    });
+    photoDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    stopStream();
+    showPreview(photoDataUrl);
   };
 }
