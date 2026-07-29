@@ -13,6 +13,11 @@ window.addEventListener('error', function(e) {
 
 // 初始化入口
 function init() {
+  function setPhoneH() {
+    document.documentElement.style.setProperty('--phone-h', window.innerHeight + 'px');
+  }
+  setPhoneH();
+  window.addEventListener('resize', setPhoneH);
   renderEmojiPanel();
   if (!state.checkins.find(function(c) { return c.id === 'ck-water'; })) {
     var today = new Date();
