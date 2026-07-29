@@ -46,8 +46,10 @@ function openApp(name) {
 
 function closeApp() {
   _tarotFogShown = false;
+  const m = $('appModal');
+  if (m) { m.style.transition = ''; m.style.top = ''; }
   const mc = c();
-  if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; }
+  if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; mc.style.filter = ''; mc.style.opacity = ''; mc.style.transition = ''; }
   const ah = document.querySelector('.app-header');
   if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; ah.style.height = ''; ah.style.flex = ''; ah.style.alignItems = ''; ah.style.padding = ''; }
   const hp = document.querySelector('.header-pill');
@@ -1836,28 +1838,100 @@ function drawOneCard(deck, isMajor) {
 }
 
 var _tarotFogShown = false;
+function showTarotPortal() {
+  // Inject persistent SVG filter into body
+  var svgEl = document.getElementById('warpFSvg');
+  if (!svgEl) {
+    svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgEl.id = 'warpFSvg';
+    svgEl.style.cssText = 'position:absolute;width:0;height:0';
+    svgEl.innerHTML = '<filter id="warpF"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" result="n"/><feDisplacementMap id="warpMap" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>';
+    document.body.appendChild(svgEl);
+  }
+  
+  // Create portal overlay
+  var d = document.createElement('div');
+  d.id = 'tarotPortal';
+  d.style.cssText = 'position:fixed;inset:0;z-index:99999;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none';
+  var particles = '';
+  for (var i = 0; i < 20; i++) {
+    var e = ['🌫️','✨','·','✦','🌙'][i % 5];
+    particles += '<span style="position:absolute;font-size:20px;left:' + (Math.random() * 94 + 3).toFixed(0) + '%;top:' + (Math.random() * 90 + 5).toFixed(0) + '%;opacity:0;animation:fadeIn 1.5s ease forwards ' + (0.3 + Math.random()).toFixed(1) + 's;pointer-events:none">' + e + '</span>';
+  }
+  d.innerHTML =
+    '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,rgba(180,165,145,.3),rgba(240,235,225,.5) 50%,rgba(245,240,235,.9))" id="tarotPortalBg"></div>' +
+    '<div style="position:absolute;inset:-10%;background:radial-gradient(ellipse at 40% 30%,rgba(210,195,175,.2),transparent 60%),radial-gradient(ellipse at 70% 70%,rgba(190,175,155,.15),transparent 50%);filter:blur(40px);animation:mistDrift 5s ease-in-out infinite alternate"></div>' +
+    '<div style="position:absolute;inset:-20%;background:radial-gradient(ellipse at 30% 50%,rgba(220,210,195,.15),transparent 50%),radial-gradient(ellipse at 80% 30%,rgba(200,188,170,.1),transparent 40%);filter:blur(60px);animation:mistDrift 7s ease-in-out infinite alternate-reverse"></div>' +
+    particles +
+    '<div style="font-size:48px;margin-bottom:12px;opacity:0;animation:fadeIn 1s ease forwards .6s;position:relative;z-index:1">🔮</div>' +
+    '<div style="font-size:16px;color:#6a5b4c;letter-spacing:3px;opacity:0;animation:fadeIn 1s ease forwards .9s;position:relative;z-index:1">命运之轮缓缓转动...</div>' +
+    '<div style="font-size:12px;color:#b8a99a;margin-top:18px;letter-spacing:6px;opacity:0;animation:fadeIn 1s ease forwards 1.2s;position:relative;z-index:1">✦ ✦ ✦</div>';
+  document.body.appendChild(d);
+  
+  // Animate: ramp up → hold → open tarot → clear all
+  var scale = 0, step = 0, appOpened = false;
+  var timer = setInterval(function() {
+    step++;
+    if (step < 25) { scale = step * 1.2; }
+    else if (step < 45) { scale = 30; }
+    else if (step < 85) { scale = 30 - (step - 45) * 0.75; }
+    else { scale = 0; clearInterval(timer); cleanup(); }
+    
+    if (step === 40 && !appOpened) {
+      appOpened = true;
+      _tarotFogShown = true;
+      var m = $('appModal');
+      if (m) { m.style.transition = 'none'; m.style.top = '0'; }
+      // Apply warp to entire modal
+      if (m) { m.style.filter = 'url(#warpF)'; m.style.opacity = '0.6'; }
+      openApp('塔罗牌');
+      // Apply blur to content
+      var tc = document.getElementById('m-content');
+      if (tc) { tc.style.filter = 'blur(6px)'; tc.style.opacity = '0.7'; }
+      if (m) setTimeout(function() { m.style.transition = ''; }, 50);
+    }
+    
+    // Both portal and app content transition together
+    if (step >= 45) {
+      var p = (step - 45) / 40;
+      var el = document.getElementById('tarotPortal');
+      if (el) el.style.opacity = Math.max(0, 1 - p);
+      var m2 = $('appModal');
+      if (m2) {
+        var blurAmt = Math.max(0, (1 - p) * 6);
+        m2.style.opacity = Math.min(1, 0.6 + p * 0.4);
+        // Keep SVG warp on modal, then remove at end
+      }
+      var tc2 = document.getElementById('m-content');
+      if (tc2) {
+        tc2.style.filter = 'blur(' + Math.max(0, (1 - p) * 6) + 'px)';
+        tc2.style.opacity = Math.min(1, 0.7 + p * 0.3);
+      }
+    }
+    
+    var map = document.getElementById('warpMap');
+    if (map) map.setAttribute('scale', Math.round(scale));
+    var bg = document.getElementById('tarotPortalBg');
+    if (bg) bg.style.backdropFilter = 'blur(' + (scale * 0.15) + 'px)';
+  }, 25);
+  
+  function cleanup() {
+    var el = document.getElementById('tarotPortal');
+    if (el) el.remove();
+    var m = $('appModal');
+    if (m) { m.style.filter = ''; m.style.opacity = ''; }
+    var tc = document.getElementById('m-content');
+    if (tc) { tc.style.filter = ''; tc.style.opacity = ''; }
+    var svg = document.getElementById('warpFSvg');
+    if (svg) svg.remove();
+  }
+}
 function renderTarot() {
   var t = state.tarot;
   var cards = (t && t.cards) || [];
   var prog = cards.length;
   var done = prog >= 4;
   
-  if (!_tarotFogShown) {
-    _tarotFogShown = true;
-    var particles = '';
-    for (var i = 0; i < 15; i++) {
-      var e = ['🌫️','✨','·','✦','🌙'][i % 5];
-      particles += '<span style="position:absolute;font-size:18px;left:' + (Math.random() * 90 + 5).toFixed(0) + '%;top:' + (Math.random() * 80 + 10).toFixed(0) + '%;opacity:.5">' + e + '</span>';
-    }
-    c().style.position = 'relative'; c().style.overflow = 'hidden';
-    c().innerHTML = '<div style="position:absolute;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,#c8b8a8,#e8e0d6 70%,#f0ede8);transition:opacity .8s" id="tarotFog">' + particles + '<div style="font-size:40px;margin-bottom:10px">🔮</div><div style="font-size:15px;color:#6a5b4c;letter-spacing:2px">命运之轮缓缓转动...</div><div style="font-size:11px;color:#b8a99a;margin-top:20px;letter-spacing:4px">✦ ✦ ✦</div></div>';
-    setTimeout(function() {
-      var f = document.getElementById('tarotFog');
-      if (f) f.style.opacity = '0';
-      setTimeout(function() { renderTarot(); }, 400);
-    }, 2000);
-    return;
-  }
   if (prog === 0) {
     c().innerHTML = '<div class="stack" style="align-items:center;padding-top:10px"><div style="font-size:22px;margin-bottom:2px">🔮</div><div style="font-size:13px;color:#7a6b5c;text-align:center;margin-bottom:10px">集中精神，想好你的问题</div><div class="tarot-glow" style="position:relative;width:320px;height:200px;cursor:pointer;margin:0 auto" onclick="tarotDraw()">' + spreadDecks(20, 320, 200) + sparkles(8, 320, 200) + '</div></div>';
     return;
@@ -1865,13 +1939,17 @@ function renderTarot() {
   
   var deckHtml = '<div class="tarot-glow" style="position:relative;width:320px;height:200px;cursor:pointer;margin:0 auto" onclick="' + (done ? '' : 'tarotDraw()') + '">' + spreadDecks(20, 320, 200) + sparkles(6, 320, 200) + '</div>';
   
+  var cardW = cards.length > 3 ? 74 : 110;
+  var cardH = cards.length > 3 ? 80 : 160;
+  var symSize = cards.length > 3 ? 22 : 24;
+  var nameSize = cards.length > 3 ? 10 : 11;
   var cardsRow = cards.map(function(c, i) {
     var id = i === 0 ? ' id="tarotMain"' : '';
     var faceDown = i === cards.length - 1;
     var flip = faceDown ? '' : ' flipped';
-    var numHtml = '<div class="num">' + (c.roman || '✦') + '</div>';
-    var textHtml = '<div class="text" style="font-size:10px;padding-top:4px">' + escapeHTML(c.text) + '</div>';
-    return '<div class="tarot-wrap"><div class="tarot-card' + flip + '"' + id + ' style="width:120px;height:180px"><div class="tarot-back"></div><div class="tarot-front">' + numHtml + '<div class="symbol" style="font-size:24px">' + (c.symbol || '✦') + '</div><div class="name" style="font-size:11px">' + escapeHTML(c.name) + '</div><div class="subtle2" style="font-size:8px">' + (c.reverse ? '逆' : '正') + '</div>' + textHtml + '</div></div></div>';
+    var numHtml = '<div class="num" style="font-size:' + (cards.length > 3 ? 7 : 11) + 'px">' + (c.roman || '✦') + '</div>';
+    var textHtml = i === 0 && cards.length <= 3 ? '<div class="text" style="font-size:10px;padding-top:4px">' + escapeHTML(c.text) + '</div>' : '';
+    return '<div class="tarot-wrap"><div class="tarot-card' + flip + '"' + id + ' style="width:' + cardW + 'px;height:' + cardH + 'px"><div class="tarot-back"></div><div class="tarot-front">' + numHtml + '<div class="symbol" style="font-size:' + symSize + 'px">' + (c.symbol || '✦') + '</div><div class="name" style="font-size:' + nameSize + 'px">' + escapeHTML(c.name) + '</div><div class="subtle2" style="font-size:7px">' + (c.reverse ? '逆' : '正') + '</div>' + textHtml + '</div></div></div>';
   }).join('');
   
   var btnHtml = done ? '<div style="margin-top:8px"><button class="primary-btn" onclick="tarotShowAll()">查看完整解读</button></div>' : '';

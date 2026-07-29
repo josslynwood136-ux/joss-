@@ -42,10 +42,12 @@ function bindHotspots() {
     hs.addEventListener('touchstart', function(ev) {
       touched = true;
       ev.preventDefault();
+      if (name === '塔罗牌' || name === '塔罗') { showTarotPortal(); return; }
       openApp(name);
     }, { passive: false });
     hs.addEventListener('click', function(ev) {
       if (touched) { touched = false; return; }
+      if (name === '塔罗牌' || name === '塔罗') { showTarotPortal(); return; }
       openApp(name);
     });
   });

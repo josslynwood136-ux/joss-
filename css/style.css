@@ -897,6 +897,7 @@ button { border: 0; cursor: pointer; }
 @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 @keyframes mistDrift { 0%{transform:translateX(-10%) scale(1)} 100%{transform:translateX(10%) scale(1.2)} }
 @keyframes fogFade { 0%{opacity:1} 100%{opacity:0} }
+@keyframes fadeIn { 0%{opacity:0} 100%{opacity:1} }
 .tarot-glow { position:relative }
 .tarot-glow::before { content:''; position:absolute; inset:-20px; background:radial-gradient(ellipse,rgba(200,180,150,.12),transparent 70%); pointer-events:none; border-radius:50% }
 .tarot-fog { position:absolute; inset:0; z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 60%,rgba(180,165,145,.25),rgba(240,237,232,.6) 60%,rgba(240,237,232,.95)); pointer-events:none; animation:fogFade 1.2s ease forwards 1.2s }
