@@ -13,13 +13,7 @@ window.addEventListener('error', function(e) {
 
 // 初始化入口
 function init() {
-  const emojisPanel = ['😀','😂','🥰','😎','😭','👍','🎉','💕','🌟','🍰','🌹','🔥'];
-  emojisPanel.forEach(e => {
-    const span = document.createElement('span');
-    span.innerText = e;
-    span.onclick = () => { $('chatInput').value += e; $('chatInput').focus(); };
-    $('emojiPanel').appendChild(span);
-  });
+  renderEmojiPanel();
   if (!state.checkins.find(function(c) { return c.id === 'ck-water'; })) {
     var today = new Date();
     var weekLater = new Date(today);
@@ -114,8 +108,8 @@ _w.playTone = playTone; _w.uploadMusic = uploadMusic; _w.playMusic = playMusic; 
 _w.addKiss = addKiss; _w.startGame = startGame; _w.hitTarget = hitTarget; _w.submitGuess = submitGuess; _w.resetGuess = resetGuess; _w.initSnake = initSnake; _w.saveSpace = saveSpace;
 _w.renderMQ = renderMQ; _w.mqSwitch = mqSwitch; _w.mqOpenChat = mqOpenChat; _w.mqSend = mqSend; _w.mqNewRole = mqNewRole; _w.mqEditRoleView = mqEditRoleView;
 _w.mqSaveRole = mqSaveRole; _w.mqDelRole = mqDelRole; _w.mqPublish = mqPublish; _w.mqInvite = mqInvite; _w.mqSaveMe = mqSaveMe; _w.mqShowMem = mqShowMem; _w.mqClearMem = mqClearMem;
-_w.likeMoment = likeMoment; _w.addComment = addComment; _w.deleteMessage = deleteMessage; _w.openAlbumPicker = openAlbumPicker;
-_w.fertilizePlant = fertilizePlant; _w.plantMood = plantMood; _w.plantStage = plantStage;
+_w.likeMoment = likeMoment; _w.addComment = addComment; _w.deleteMessage = deleteMessage; _w.openAlbumPicker = openAlbumPicker; _w.startCapture = startCapture;
+_w.fertilizePlant = fertilizePlant; _w.plantMood = plantMood;
 _w.addLedgerQuick = addLedgerQuick;
 _w.renderAlbum = renderAlbum; _w.addPhoto = addPhoto; _w.uploadPhoto = uploadPhoto; _w.deletePhoto = deletePhoto; _w.viewPhoto = viewPhoto; _w.toggleAlbumUpload = toggleAlbumUpload;
 _w.openAlbum = openAlbum; _w.newAlbum = newAlbum; _w.renameAlbum = renameAlbum; _w.delAlbum = delAlbum; _w.renderAlbumPhotos = renderAlbumPhotos;
@@ -135,6 +129,10 @@ _w.handlePostImageSelect = handlePostImageSelect; _w.setPostFilter = setPostFilt
 _w.postCreatorNext = postCreatorNext; _w.publishPost = publishPost;
 _w.viewPost = viewPost; _w.closePostDetail = closePostDetail; _w.deletePost = deletePost;
 _w.toggleFeedLike = toggleFeedLike; _w.showIGToast = showIGToast;
+_w.renderEmojiPanel = renderEmojiPanel; _w.switchEmojiTab = switchEmojiTab; _w.sendSticker = sendSticker;
+_w.renderStickerManager = renderStickerManager; _w.openStickerForm = openStickerForm;
+_w.closeStickerForm = closeStickerForm; _w.stickerPickImage = stickerPickImage; _w.saveStickerForm = saveStickerForm;
+_w.deleteSticker = deleteSticker;
 
 // 离开时保存
 window.addEventListener('beforeunload', saveState);

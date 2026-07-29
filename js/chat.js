@@ -277,3 +277,55 @@ function openAlbumPicker() {
   };
   input.click();
 }
+
+// ===== 拍摄 =====
+function startCapture() {
+  hidePanels();
+  const overlay = document.createElement('div');
+  overlay.id = 'captureOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column;';
+  overlay.innerHTML = `
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+      <video id="captureVideo" autoplay playsinline style="max-width:100%;max-height:100%;object-fit:contain"></video>
+      <canvas id="captureCanvas" style="display:none"></canvas>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-evenly;padding:20px 0 40px;background:#111">
+      <button id="captureCancelBtn" style="border:none;background:transparent;color:#fff;font-size:14px;cursor:pointer">取消</button>
+      <button id="captureBtn" style="width:64px;height:64px;border-radius:50%;border:4px solid #fff;background:transparent;cursor:pointer;position:relative"><div style="position:absolute;inset:4px;border-radius:50%;background:#fff"></div></button>
+      <span style="width:40px"></span>
+    </div>`;
+  document.body.appendChild(overlay);
+  let stream = null;
+  const video = document.getElementById('captureVideo');
+  const cancelBtn = document.getElementById('captureCancelBtn');
+  const captureBtn = document.getElementById('captureBtn');
+  cancelBtn.onclick = () => { if (stream) stream.getTracks().forEach(t => t.stop()); overlay.remove(); };
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(s => {
+    stream = s;
+    video.srcObject = s;
+  }).catch(() => {
+    overlay.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999;font-size:14px"><span style="font-size:48px;margin-bottom:10px">📷</span>无法访问摄像头</div><div style="padding:20px 0 40px;text-align:center"><button onclick="document.getElementById('captureOverlay').remove()" style="border:none;background:#333;color:#fff;padding:10px 20px;border-radius:10px;cursor:pointer">关闭</button></div>`;
+    return;
+  });
+  captureBtn.onclick = () => {
+    if (!stream) return;
+    const canvas = document.getElementById('captureCanvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    overlay.remove();
+    appendBubble('user', '[拍摄]', { type: 'image', src: dataUrl });
+    setChatTyping(true);
+    saveState();
+    callAI('用户给你发了一张拍摄的照片，请根据当前聊天氛围自然回复。').then(reply => {
+      setChatTyping(false);
+      appendBubble('assistant', reply);
+    }).catch(() => {
+      setChatTyping(false);
+      appendBubble('assistant', '这张照片拍得不错～');
+    });
+  };
+}

@@ -32,7 +32,7 @@ function openApp(name) {
       '设置': renderApiSettings, '打卡': renderCheckins,
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
       '养多肉': renderPlant, '多肉': renderPlant, '账本': renderLedger, '涂鸦': renderDoodle,
-      '音乐': renderMusic, '啵啵': renderKiss, '相册': renderAlbum,
+      '音乐': renderMusic, '啵啵': renderKiss, '相册': renderAlbum, '表情包': renderStickerManager,
       '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace,
       'QQ': renderIGProfile
     };
@@ -1097,12 +1097,12 @@ function refreshCompanion() {
 // ---------- 养多肉 ----------
 function plantMood(p) {
   const score = p.water + p.love;
-  if (score < 40) return { icon: '🥀', text: '有点蔫了，多陪陪它吧' };
-  if (score < 80) return { icon: '🌿', text: '状态还行，正在慢慢长' };
-  if (score < 140) return { icon: '😊', text: '很开心，叶片胖乎乎的' };
-  return { icon: '🌟', text: '爆棚状态！它是你的小太阳' };
+  if (score < 40) return { icon: '🥀', text: '有点蔫了' };
+  if (score < 80) return { icon: '🌿', text: '正在慢慢长' };
+  if (score < 140) return { icon: '😊', text: '叶片胖乎乎的' };
+  return { icon: '🌟', text: '爆棚状态' };
 }
-function plantStage(p) {
+function stageEmoji(p) {
   if (p.level >= 6) return '🌳';
   if (p.level >= 4) return '🌵';
   if (p.level >= 2) return '🪴';
@@ -1111,33 +1111,47 @@ function plantStage(p) {
 function renderPlant() {
   const p = state.plant;
   const mood = plantMood(p);
-  const stage = plantStage(p);
+  const emoji = stageEmoji(p);
   const careToday = p.lastCare === todayKey();
+  const wPct = Math.min(100, p.water);
+  const lPct = Math.min(100, p.love);
+  const logDots = { '💧': 'blue', '🤚': 'pink', '🌟': 'gold' };
   c().innerHTML = `
     <div class="stack">
-      <div class="profile-hero" style="padding:18px 14px">
-        <div style="font-size:72px;line-height:1">${stage}</div>
-        <h2 style="margin:8px 0 2px">多肉 Lv.${p.level}</h2>
-        <div class="subtle" style="color:rgba(255,255,255,.9)">${mood.icon} ${mood.text}</div>
-        ${p.streak > 0 ? `<div class="wallet-pill">🔥 连续照顾 ${p.streak} 天</div>` : ''}
-      </div>
-      <div class="card">
-        <div style="margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>💧 水分</span><b>${Math.round(p.water)}%</b></div>
-          <div style="height:8px;background:#eef2f6;border-radius:6px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${Math.min(100, p.water)}%;background:linear-gradient(90deg,#4fc3f7,#1d6fb8)"></div></div>
-        </div>
-        <div>
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>💗 喜爱</span><b>${Math.round(p.love)}</b></div>
-          <div style="height:8px;background:#eef2f6;border-radius:6px;overflow:hidden;margin-top:4px"><div style="height:100%;width:${Math.min(100, p.love)}%;background:linear-gradient(90deg,#ff8a9b,#ff4d6d)"></div></div>
+      <div class="plant-card">
+        <div class="plant-display">
+          <div class="emoji" id="plantEmoji">${emoji}</div>
+          <div class="plant-level">Lv.${p.level}</div>
+          <div class="plant-mood">${mood.icon} ${mood.text}</div>
+          ${p.streak > 0 ? `<div class="plant-streak">🔥 ${p.streak} 天</div>` : ''}
+          <div class="plant-care-status">${careToday ? '✓ 已照顾' : '今天还没照顾'}</div>
         </div>
       </div>
-      <div class="grid3">
-        <button class="primary-btn" onclick="waterPlant()">💧 浇水</button>
-        <button class="ghost-btn" onclick="touchPlant()">🤚 摸摸</button>
-        <button class="ghost-btn" onclick="fertilizePlant()">🌟 施肥</button>
+      <div class="plant-card">
+        <div class="plant-bar-group">
+          <div class="plant-bar">
+            <span class="icon">💧</span>
+            <div class="track"><div class="fill" style="width:${wPct}%;background:#5ba3e6"></div></div>
+            <span class="val">${Math.round(wPct)}%</span>
+          </div>
+          <div class="plant-bar">
+            <span class="icon">💗</span>
+            <div class="track"><div class="fill" style="width:${lPct}%;background:#e65a7a"></div></div>
+            <span class="val">${Math.round(lPct)}</span>
+          </div>
+        </div>
       </div>
-      <div class="card subtle">每天第一次浇水加成更高。打卡、摸摸、施肥都会增加喜爱值。${careToday ? '今天已照顾过啦 🎉' : '今天还没照顾它哦～'}</div>
-      ${p.logs.length ? `<div class="card"><h2 class="section-title">📜 植物手账</h2><div style="max-height:240px;overflow-y:auto">${p.logs.map(l => `<div class="list-card" style="padding:9px 12px"><div style="flex:1;min-width:0"><b>${l.act}</b><div class="subtle">${l.date}</div></div></div>`).join('')}</div></div>` : '<div class="card subtle">还没有互动记录，开始照顾它吧～</div>'}
+      <div class="plant-card">
+        <div class="plant-actions">
+          <button class="btn" onclick="waterPlant()"><span class="icon">💧</span>浇水</button>
+          <button class="btn" onclick="touchPlant()"><span class="icon">🤚</span>摸摸</button>
+          <button class="btn" onclick="fertilizePlant()"><span class="icon">🌟</span>施肥</button>
+        </div>
+      </div>
+      ${p.logs.length ? `<div class="plant-card"><div style="font-size:13px;font-weight:600;color:#555;margin-bottom:8px">📜 手账</div><div class="plant-log" style="max-height:192px;overflow-y:auto">${p.logs.map(l => {
+        const dot = logDots[l.act.slice(0, 1)] || '';
+        return `<div class="item"><span class="dot ${dot}"></span><span>${escapeHTML(l.act)}</span><span class="date">${escapeHTML(l.date)}</span></div>`;
+      }).join('')}</div></div>` : '<div class="plant-card" style="text-align:center;color:#bbb;font-size:13px;padding:24px">还没有互动记录</div>'}
     </div>`;
 }
 function bumpStreak() {
@@ -1154,10 +1168,25 @@ function pushLog(act) {
   state.plant.logs.unshift({ act, date: new Date().toLocaleString() });
   if (state.plant.logs.length > 50) state.plant.logs.length = 50;
 }
+function plantBubble(text) {
+  const el = $('plantEmoji');
+  if (!el) return;
+  const bub = document.createElement('div');
+  bub.className = 'plant-bubble';
+  bub.textContent = text;
+  bub.style.left = (Math.random() * 60 + 20) + '%';
+  bub.style.top = (Math.random() * 20 + 10) + '%';
+  el.parentElement.appendChild(bub);
+  setTimeout(() => bub.remove(), 2000);
+  el.classList.remove('plant-shake');
+  void el.offsetWidth;
+  el.classList.add('plant-shake');
+}
 function waterPlant() {
   const today = todayKey();
   const p = state.plant;
-  p.water = Math.min(100, p.water + (p.lastWater === today ? 10 : 28));
+  const bonus = p.lastWater === today ? 10 : 28;
+  p.water = Math.min(100, p.water + bonus);
   p.lastWater = today;
   p.love += 2;
   bumpStreak();
@@ -1165,6 +1194,7 @@ function waterPlant() {
   growPlant();
   saveState();
   renderPlant();
+  setTimeout(() => plantBubble(bonus === 28 ? '咕嘟咕嘟～💧' : '+10 💧'), 30);
 }
 function touchPlant() {
   state.plant.love += 3;
@@ -1173,11 +1203,12 @@ function touchPlant() {
   growPlant();
   saveState();
   renderPlant();
+  setTimeout(() => plantBubble('好舒服～💗'), 30);
 }
 function fertilizePlant() {
   const today = todayKey();
   const p = state.plant;
-  if (p.fertilizedDate === today) return alert('今天已经施过肥啦，明天再来～');
+  if (p.fertilizedDate === today) { alert('今天已经施过肥啦，明天再来～'); return; }
   p.fertilizedDate = today;
   p.love += 8;
   bumpStreak();
@@ -1185,6 +1216,7 @@ function fertilizePlant() {
   growPlant();
   saveState();
   renderPlant();
+  setTimeout(() => plantBubble('营养满满！🌟'), 30);
 }
 function growPlant() {
   state.plant.level = Math.max(state.plant.level, Math.floor((state.plant.water + state.plant.love) / 45));
@@ -2385,4 +2417,147 @@ function saveSpace() {
   state.space.memo = $('spaceMemo').value.trim();
   saveState();
   renderSpace();
+}
+
+// ===== 自定义表情包 =====
+let stickerFormMode = null;
+
+function renderEmojiPanel() {
+  const panel = $('emojiPanel');
+  if (!panel) return;
+  const stickers = state.customStickers || [];
+  panel.innerHTML = `
+    <div class="panel-tabs">
+      <button class="active" data-tab="emoji" onclick="switchEmojiTab('emoji', this)">😊 表情</button>
+      <button data-tab="sticker" onclick="switchEmojiTab('sticker', this)">🖼 包</button>
+    </div>
+    <div id="emojiTabContent">
+      <div class="emoji-grid">
+        ${['😀','😂','🥰','😎','😭','👍','🎉','💕','🌟','🍰','🌹','🔥','😘','😊','🤣','😍','💋','✨','❤️','🌈','🎁','🎈','🙏','👌','✌️','😴','😱','🤔','😡','🍓','🍦','🍹'].map(e => `<span>${e}</span>`).join('')}
+      </div>
+    </div>
+    <div id="stickerTabContent" style="display:none">
+      <div class="sticker-grid">${stickers.length ? stickers.map(s => `<div class="sticker-item" title="${escapeHTML(s.meaning || '')}" onclick="sendSticker('${s.id}')"><img src="${escapeHTML(s.image)}" alt="${escapeHTML(s.name)}"></div>`).join('') : '<div style="grid-column:1/-1;text-align:center;color:#ccc;font-size:12px;padding:12px 0">还没有表情包</div>'}</div>
+      <button class="sticker-mgr" onclick="closeChat();openApp('表情包')">📦 管理表情包</button>
+    </div>`;
+  const emojis = panel.querySelectorAll('.emoji-grid span');
+  emojis.forEach(el => {
+    el.onclick = () => { $('chatInput').value += el.textContent; $('chatInput').focus(); };
+  });
+}
+
+function switchEmojiTab(tab, btn) {
+  document.querySelectorAll('#emojiPanel .panel-tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('emojiTabContent').style.display = tab === 'emoji' ? 'block' : 'none';
+  document.getElementById('stickerTabContent').style.display = tab === 'sticker' ? 'block' : 'none';
+}
+
+function sendSticker(id) {
+  const s = (state.customStickers || []).find(x => x.id === id);
+  if (!s) return;
+  hidePanels();
+  appendBubble('user', '[' + s.name + ']', { type: 'image', src: s.image });
+  setChatTyping(true);
+  callAI('用户给你发了一个表情包"' + s.name + '"（' + (s.meaning || '无含义') + '），请根据当前氛围自然回复。').then(reply => {
+    setChatTyping(false);
+    appendBubble('assistant', reply);
+  }).catch(() => {
+    setChatTyping(false);
+    appendBubble('assistant', '哈哈，这个表情包好有趣～');
+  });
+}
+
+function renderStickerManager() {
+  setTitle('表情包');
+  const stickers = state.customStickers || [];
+  c().innerHTML = `
+    <div class="sticker-mgr-page">
+      <div class="header">
+        <h2>📦 表情包</h2>
+        <button class="add-btn" onclick="openStickerForm()">＋ 添加</button>
+      </div>
+      ${stickers.length ? stickers.map(s => `
+        <div class="card">
+          <div class="preview"><img src="${escapeHTML(s.image)}"></div>
+          <div class="info">
+            <div class="name">${escapeHTML(s.name)}</div>
+            <div class="meaning">${escapeHTML(s.meaning || '无含义')}</div>
+          </div>
+          <div class="actions">
+            <button class="edit" onclick="openStickerForm('${s.id}')">编辑</button>
+            <button class="del" onclick="deleteSticker('${s.id}')">删除</button>
+          </div>
+        </div>`).join('') : '<div style="text-align:center;color:#ccc;padding:40px 0;font-size:14px">还没有表情包<br><span style="font-size:12px">点右上角 ＋ 添加</span></div>'}
+    </div>`;
+}
+
+function openStickerForm(id) {
+  stickerFormMode = id || null;
+  const s = id ? (state.customStickers || []).find(x => x.id === id) : null;
+  const overlay = document.createElement('div');
+  overlay.className = 'sticker-form-overlay active';
+  overlay.id = 'stickerFormOverlay';
+  overlay.onclick = e => { if (e.target === overlay) closeStickerForm(); };
+  overlay.innerHTML = `
+    <div class="sticker-form-sheet" onclick="event.stopPropagation()">
+      <h3>${s ? '编辑表情包' : '添加表情包'}</h3>
+      <label>图片</label>
+      <div class="upload-area" id="stickerUploadArea" onclick="document.getElementById('stickerFileInput').click()">${s ? `<img src="${escapeHTML(s.image)}">` : '＋'}</div>
+      <input type="file" id="stickerFileInput" accept="image/*" style="display:none" onchange="stickerPickImage(event)">
+      <input type="hidden" id="stickerImageVal" value="${s ? escapeHTML(s.image) : ''}">
+      <label>名称</label>
+      <input id="stickerName" placeholder="给表情包取个名字" value="${s ? escapeHTML(s.name) : ''}">
+      <label>含义说明（可选）</label>
+      <textarea id="stickerMeaning" placeholder="这个表情表达什么含义？">${s ? escapeHTML(s.meaning || '') : ''}</textarea>
+      <div class="actions">
+        <button class="cancel" onclick="closeStickerForm()">取消</button>
+        <button class="save" onclick="saveStickerForm()">保存</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeStickerForm() {
+  const o = document.getElementById('stickerFormOverlay');
+  if (o) o.remove();
+  stickerFormMode = null;
+}
+
+function stickerPickImage(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('stickerImageVal').value = e.target.result;
+    document.getElementById('stickerUploadArea').innerHTML = `<img src="${e.target.result}">`;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function saveStickerForm() {
+  const image = document.getElementById('stickerImageVal').value.trim();
+  const name = document.getElementById('stickerName').value.trim();
+  const meaning = document.getElementById('stickerMeaning').value.trim();
+  if (!image) { alert('请选择图片'); return; }
+  if (!name) { alert('请输入名称'); return; }
+  if (stickerFormMode) {
+    const s = state.customStickers.find(x => x.id === stickerFormMode);
+    if (s) { s.image = image; s.name = name; s.meaning = meaning; }
+  } else {
+    state.customStickers.push({ id: 'stk-' + Date.now(), image, name, meaning, date: new Date().toLocaleString() });
+  }
+  closeStickerForm();
+  saveState();
+  renderStickerManager();
+  renderEmojiPanel();
+}
+
+function deleteSticker(id) {
+  if (!confirm('删除这个表情包？')) return;
+  state.customStickers = state.customStickers.filter(s => s.id !== id);
+  saveState();
+  renderStickerManager();
+  renderEmojiPanel();
 }

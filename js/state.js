@@ -71,6 +71,7 @@ const defaultState = {
   },
   tarot: { step: 'start', major: null, minors: [] },
   qq: null,
+  customStickers: [],
   game: { score: 0, best: 0 },
   myProfile: {
     avatar: '🌸',
@@ -200,6 +201,7 @@ function ensureStateShape(next, saved) {
     next.myProfile = cloneDefaultState().myProfile;
   }
   if (!Array.isArray(next.profilePosts)) next.profilePosts = [];
+  if (!Array.isArray(next.customStickers)) next.customStickers = [];
   return next;
 }
 
