@@ -39,57 +39,116 @@
       </div>
       <div class="header-menu" id="headerMenu"></div>
       <div class="app-content" id="m-content"></div>
-
-      <div id="chatWindow">
-        <div class="chat-header">
-          <button class="header-action" onclick="closeChat()">返回</button>
-          <div style="text-align:center;min-width:0">
-            <b id="chatName" style="display:block">角色</b>
-            <span id="chatRel" class="subtle" style="font-size:12px;font-weight:400"></span>
-          </div>
-          <button class="icon-btn" style="justify-self:end" onclick="openSettings()">⚙</button>
-        </div>
-        <div class="chat-body" id="chatBody"></div>
-        <div class="chat-footer">
-          <div class="footer-main">
-            <button class="icon-btn" onclick="toggleEmoji()">☺</button>
-            <div class="chat-input-wrapper">
-              <input type="text" class="chat-input" id="chatInput" placeholder="发消息..." onkeydown="if(event.key==='Enter')sendChat()">
-            </div>
-            <button class="icon-btn" onclick="toggleMore()">＋</button>
-            <button class="send-btn" id="sendBtn" onclick="sendChat()" title="发送"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16h10c.6 0 1-.4 1-1V7c0-.6-.4-1-1-1H7c-.6 0-1 .4-1 1v8c0 .6.4 1 1 1z"/><rect x="9" y="3" width="6" height="4" rx=".8"/><rect x="9.5" y="1.5" width="5" height="2" rx=".6"/><path d="M12 11v3M10.5 12.5l3-3" stroke-width="1.5"/></svg></button>
-          </div>
-          <div class="emoji-panel" id="emojiPanel"></div>
-          <div class="more-panel" id="morePanel">
-            <div class="panel-item" onclick="startVoice()"><div class="panel-icon">🎤</div>语音</div>
-            <div class="panel-item" onclick="startCall()"><div class="panel-icon">📹</div>通话</div>
-            <div class="panel-item" onclick="openAlbumPicker()"><div class="panel-icon">🖼</div>相册</div>
-            <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
-            <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
-            <div class="panel-item" onclick="rememberLastUserMessage()"><div class="panel-icon">🧠</div>记忆</div>
-            <div class="panel-item" onclick="inviteStudy()"><div class="panel-icon">🍅</div>邀TA自习</div>
-            <div class="panel-item" onclick="sendLocation()"><div class="panel-icon">📍</div>位置</div>
-            <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
-          </div>
-        </div>
-      </div>
-
-      <div id="chatSettings">
-        <div class="chat-header">
-          <button class="header-action" onclick="closeSettings()">返回</button>
-          <b style="text-align:center">聊天设置</b>
-          <span></span>
-        </div>
-        <div class="settings-row">置顶聊天 <div class="switch" id="pinSwitch" onclick="togglePin()"></div></div>
-        <div class="settings-row" onclick="rememberLastUserMessage()" style="font-weight:800;justify-content:center;cursor:pointer">把最后一句加入记忆</div>
-        <div class="settings-row" onclick="clearHistory()" style="color:#e53935;font-weight:800;justify-content:center;cursor:pointer">清空聊天记录</div>
-      </div>
-
       <div class="tab-bar" id="qqTabs">
         <div class="tab-item active" onclick="switchTab('msg', this)"><i>💬</i><span>消息</span></div>
         <div class="tab-item" onclick="switchTab('contact', this)"><i>👥</i><span>联系人</span></div>
         <div class="tab-item" onclick="switchTab('moment', this)"><i>⭐</i><span>动态</span></div>
         <div class="tab-item" onclick="switchTab('me', this)"><i>👤</i><span>我的</span></div>
+      </div>
+    </div>
+
+    <div id="chatWindow">
+      <div class="chat-header">
+        <button class="header-action" onclick="closeChat()">返回</button>
+        <div style="text-align:center;min-width:0">
+          <b id="chatName" style="display:block">角色</b>
+          <span id="chatRel" class="subtle" style="font-size:12px;font-weight:400"></span>
+        </div>
+        <div style="display:flex;gap:4px;justify-self:end">
+          <button class="icon-btn" onclick="startCall('audio')" title="语音通话">📞</button>
+          <button class="icon-btn" onclick="openSettings()">⚙</button>
+        </div>
+      </div>
+      <div class="chat-body" id="chatBody"></div>
+      <div class="chat-footer">
+        <div class="footer-main">
+          <button class="icon-btn" onclick="toggleEmoji()">☺</button>
+          <div class="chat-input-wrapper">
+            <input type="text" class="chat-input" id="chatInput" placeholder="发消息..." onkeydown="if(event.key==='Enter')sendChat()">
+          </div>
+          <button class="icon-btn" id="voiceBtn" onclick="if(!window._voiceWasHold)toggleVoice();window._voiceWasHold=false" ontouchstart="voiceTouchStart()" ontouchend="voiceTouchEnd()" onmousedown="voiceTouchStart()" onmouseup="voiceTouchEnd()" title="点按转文字，长按发语音">🎤</button>
+          <button class="icon-btn" onclick="toggleMore()">＋</button>
+          <button class="send-btn" id="sendBtn" onclick="sendChat()" title="发送"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+        </div>
+        <div class="emoji-panel" id="emojiPanel"></div>
+        <div class="more-panel" id="morePanel">
+          <div class="panel-item" onclick="startCall()"><div class="panel-icon">📹</div>通话</div>
+          <div class="panel-item" onclick="openAlbumPicker()"><div class="panel-icon">🖼</div>相册</div>
+          <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
+          <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
+          <div class="panel-item" onclick="rememberLastUserMessage()"><div class="panel-icon">🧠</div>记忆</div>
+          <div class="panel-item" onclick="inviteStudy()"><div class="panel-icon">🍅</div>邀TA自习</div>
+          <div class="panel-item" onclick="sendLocation()"><div class="panel-icon">📍</div>位置</div>
+          <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatSettings">
+      <div class="cs-header">
+        <button class="cs-back" onclick="closeSettings()">‹</button>
+        <span class="cs-title">聊天设置</span>
+        <span></span>
+      </div>
+      <div class="cs-section">
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 8l5-5 5 5M10 3v12"/><path d="M3 16h14"/></svg>
+            <span>置顶聊天</span>
+          </div>
+          <div class="switch" id="pinSwitch" onclick="togglePin()"></div>
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><path d="M10 7v3l2 2"/></svg>
+            <div>
+              <span>角色自主发动态</span>
+              <div class="cs-hint">允许角色在 IG 首页自动发布动态</div>
+            </div>
+          </div>
+          <div class="switch" id="autoPostSwitch" onclick="toggleAutoPost()"></div>
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 7c0-1.1.9-2 2-2h10a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/><path d="M3 7l7 4 7-4"/></svg>
+            <div>
+              <span>对方输出语种</span>
+              <div class="cs-hint">角色回复使用的语言</div>
+            </div>
+          </div>
+          <select id="charLang" onchange="setCharLang(this.value)" style="border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0">
+            <option value="中文">中文</option>
+            <option value="English">English</option>
+            <option value="日本語">日本語</option>
+            <option value="한국어">한국어</option>
+            <option value="Français">Français</option>
+            <option value="Deutsch">Deutsch</option>
+            <option value="Español">Español</option>
+            <option value="Русский">Русский</option>
+          </select>
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 10h3l2-5 2 10 2-8 2 6 2-3 3 5"/></svg>
+            <div>
+              <span>显示翻译</span>
+              <div class="cs-hint">在回复下方显示中文翻译</div>
+            </div>
+          </div>
+          <div class="switch" id="translateSwitch" onclick="toggleTranslate()"></div>
+        </div>
+      </div>
+      <div class="cs-section">
+        <div class="cs-row cs-action" onclick="rememberLastUserMessage()">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10c0 3.3 3.1 6 7 6 1.2 0 2.4-.2 3.4-.7l3.6 1.2-1.2-3.6c.4-.9.6-1.9.6-2.9 0-3.3-3.1-6-7-6s-7 2.7-7 6z"/></svg>
+          <span>把最后一句加入记忆</span>
+        </div>
+      </div>
+      <div class="cs-section">
+        <div class="cs-row cs-action cs-danger" onclick="clearHistory()">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 5h12M8 5V3h4v2M7 9v6M10 9v6M13 9v6"/><path d="M5 5l1 12h8l1-12"/></svg>
+          <span>清空聊天记录</span>
+        </div>
       </div>
     </div>
   </div>

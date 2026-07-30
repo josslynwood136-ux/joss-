@@ -9,7 +9,9 @@ const defaultState = {
   profile: { name: '我', avatar: '', wallet: 99999, persona: '', likes: '', boundaries: '', speaking: '' },
   profiles: [{ id: 'prof-default', name: '我', avatar: '', persona: '', likes: '', boundaries: '', speaking: '' }],
   activeProfileId: 'prof-default',
-  api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '你是一个角色扮演聊天引擎。严格遵守用户创建的角色卡、用户人设和记忆库，以自然聊天方式回复。' },
+  api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '', temp: 0.75, topP: 0.9, maxTokens: 500, presencePenalty: 0, frequencyPenalty: 0 },
+  apiProfiles: [],
+  activeApiProfile: '',
   settings: { ai: true, pinned: false },
   activeRoleId: 'role-default',
   roles: [
@@ -26,7 +28,9 @@ const defaultState = {
       unread: 0,
       read: true,
       pinned: false,
-      online: true
+      online: true,
+      lang: '中文',
+      translate: false
     }
   ],
   moments: [],
@@ -53,25 +57,86 @@ const defaultState = {
     moments: []
   },
   home: {
-    bg: 'https://img.facfox.com/imgs/2026/07/19/06d3c79d7f440afd.jpg',
-    person: 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg',
-    personPos: { x: 50, y: 72 },
-    furniture: [
-      { id: 'fur-sofa', name: '沙发',img: 'https://img.facfox.com/imgs/2026/07/19/4c76fde007fe6788.jpg',x: 31, y: 35, w: 50, h: 32, actions: [{ label: '瘫一会儿', result: '小人瘫在沙发上，像一颗被吸干的电池。' }, { label: '抱紧抱枕', result: '小人抱紧抱枕，获得了短暂的安全感。' }] },
-      { id: 'fur-desk', name: '书桌', img: '', x: 62, y: 30, w: 26, h: 26, actions: [{ label: '写日记', result: '小人趴在书桌前写了两行字，又删掉了。' }, { label: '发呆', result: '小人盯着桌面木纹看了十分钟。' }] },
-      { id: 'fur-fridge', name: '冰箱', img: '', x: 80, y: 64, w: 16, h: 30, actions: [{ label: '拿饮料', result: '小人拿出一瓶冰饮料，舒服地叹气。' }] },
-      { id: 'fur-coffee', name: '咖啡机', img: '', x: 40, y: 24, w: 16, h: 18, actions: [{ label: '泡咖啡', result: '小人泡了杯热咖啡，香气飘满客厅。' }, { label: '往里放致死量糖', result: '小人往咖啡里倒了半袋糖……它裂开了。' }] },
-      { id: 'fur-plant', name: '绿植', img: 'https://img.facfox.com/imgs/2026/07/19/c04f5b36f0772578.jpg', x: 4, y: 50, w: 14, h: 10, actions: [{ label: '浇点水', result: '小人给绿植浇了水，叶子抖了抖。' }] },
-      { id: 'fur-tv', name: '电视', img: 'https://img.facfox.com/imgs/2026/07/19/f85416dc3afd0f7e.jpg', x: 30, y: 72, w: 50, h: 17, actions: [{ label: '看动画', result: '小人盘腿看动画，笑得肩膀直抖。' }, { label: '看新闻', result: '小人看了三秒新闻，默默关掉。' }] },
-      { id: 'fur-tvcabinet', name: '电视柜', img: 'https://img.facfox.com/imgs/2026/07/19/a8d596cfd10afc97.jpg', x: 33, y: 80, w: 46, h: 24,actions: [] },
-      { id: 'fur-table', name: '桌子', img: 'https://img.facfox.com/imgs/2026/07/19/fe76d6eb69100b4d.jpg', x: 34, y: 35, w: 40, h: 58, actions: [] },
-      { id: 'fur-painting', name: '挂画', img: 'https://img.facfox.com/imgs/2026/07/19/fdf9f477504349c7.jpg', x: 54, y: 6, w: 22, h: 20, actions: [] }
-    ],
+    rooms: {
+      living: {
+        name: '客厅',
+        bg: 'https://img.facfox.com/imgs/2026/07/19/06d3c79d7f440afd.jpg',
+        person: 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg',
+        personPos: { x: 50, y: 72 },
+        furniture: [
+          { id: 'fur-painting', name: '🖼️挂画', img: 'https://img.facfox.com/imgs/2026/07/19/fdf9f477504349c7.jpg', x: 54, y: 6, w: 22, h: 20, actions: [] },
+          { id: 'fur-tvcabinet', name: '📺电视柜', img: 'https://img.facfox.com/imgs/2026/07/19/a8d596cfd10afc97.jpg', x: 33, y: 80, w: 46, h: 24, actions: [] },
+          { id: 'fur-table', name: '🪑桌子', img: 'https://img.facfox.com/imgs/2026/07/19/fe76d6eb69100b4d.jpg', x: 34, y: 35, w: 40, h: 58, actions: [] },
+          { id: 'fur-plant', name: '🌱绿植', img: 'https://img.facfox.com/imgs/2026/07/19/c04f5b36f0772578.jpg', x: 4, y: 50, w: 14, h: 10, actions: [{ label: '浇点水', result: '小人给绿植浇了水，叶子抖了抖。' }] },
+          { id: 'fur-tv', name: '📺电视', img: 'https://img.facfox.com/imgs/2026/07/19/f85416dc3afd0f7e.jpg', x: 30, y: 72, w: 50, h: 17, actions: [{ label: '看动画', result: '小人盘腿看动画，笑得肩膀直抖。' }, { label: '看新闻', result: '小人看了三秒新闻，默默关掉。' }] },
+          { id: 'fur-desk', name: '📖书桌', img: '', x: 62, y: 30, w: 26, h: 26, actions: [{ label: '写日记', result: '小人趴在书桌前写了两行字，又删掉了。' }, { label: '发呆', result: '小人盯着桌面木纹看了十分钟。' }] },
+          { id: 'fur-fridge', name: '🧊冰箱', img: '', x: 80, y: 64, w: 16, h: 30, actions: [{ label: '拿饮料', result: '小人拿出一瓶冰饮料，舒服地叹气。' }] },
+          { id: 'fur-coffee', name: '☕咖啡机', img: '', x: 40, y: 24, w: 16, h: 18, actions: [{ label: '泡咖啡', result: '小人泡了杯热咖啡，香气飘满客厅。' }, { label: '往里放致死量糖', result: '小人往咖啡里倒了半袋糖……它裂开了。' }] },
+          { id: 'fur-sofa', name: '🛋️沙发', img: '', x: 36, y: 38, w: 44, h: 26, actions: [{ label: '瘫一会儿', result: '小人瘫在沙发上，像一颗被吸干的电池。' }, { label: '抱紧抱枕', result: '小人抱紧抱枕，获得了短暂的安全感。' }] }
+        ]
+      },
+      bathroom: {
+        name: '厕所',
+        bg: '',
+        person: 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg',
+        personPos: { x: 30, y: 68 },
+        effects: ['steam', 'bubble'],
+        furniture: [
+          { id: 'fur-bathtub', name: '🛁 浴缸', img: '', x: 42, y: 18, w: 54, h: 52, actions: [
+            { label: '放热水泡澡', result: '小人拧开水龙头，热水哗哗涌出，蒸汽升腾。钻进水里的一瞬间，整个人都化了。🫧', effect: 'steam' },
+            { label: '撒泡泡浴盐', result: '小人扔了一块浴盐进去，水里咕嘟嘟冒出粉色泡泡，整个浴室都是香甜的味道。', effect: 'bubble' },
+            { label: '泡着唱歌', result: '小人泡在水里，开始哼歌，声音在浴室里回荡……还挺好听。🎵' }
+          ]},
+          { id: 'fur-shower', name: '🚿 淋浴', img: '', x: 3, y: 6, w: 24, h: 40, actions: [
+            { label: '冲个热水澡', result: '花洒喷出热水，蒸汽弥漫。小人站在水下，闭上眼睛，浑身都放松了。', effect: 'steam' },
+            { label: '冲个冷水澡', result: '冷水浇下来——小人打了个激灵，瞬间清醒了！💦' },
+            { label: '边洗边唱', result: '淋浴间里传来跑调的歌声和哗哗水声……幸好没人听见。🎤' }
+          ]},
+          { id: 'fur-sink', name: '🚿 洗手台', img: '', x: 72, y: 58, w: 26, h: 28, actions: [
+            { label: '洗手', result: '小人挤了点洗手液，慢悠悠搓出泡沫，冲干净，甩了甩手上的水。' },
+            { label: '刷牙', result: '小人对着镜子刷牙，左边刷刷右边刷刷，咕噜咕噜吐掉泡沫。🪥' },
+            { label: '洗把脸', result: '小人捧了把凉水泼在脸上，拍了拍脸颊，清醒多了。💧' }
+          ]},
+          { id: 'fur-mirror', name: '🪞 镜子', img: '', x: 72, y: 0, w: 26, h: 30, actions: [
+            { label: '照镜子', result: '小人看着镜子里自己的脸，眨了眨眼，做了个鬼脸。😜' },
+            { label: '整理头发', result: '小人用手指理了理头发，左看右看，满意地点了点头。💇' },
+            { label: '在镜子上画画', result: '小人用手指在起雾的镜子上画了一个笑脸，然后又默默擦掉了。😶' }
+          ]},
+          { id: 'fur-toilet', name: '🚽 马桶', img: '', x: 2, y: 55, w: 22, h: 30, actions: [
+            { label: '坐下', result: '小人坐下来，终于可以安静一会儿了……📖' },
+            { label: '冲水', result: '哗——水流声在安静的浴室里格外清晰。' },
+            { label: '玩手机', result: '小人坐在马桶上刷手机，十分钟过去了……📱' }
+          ]},
+          { id: 'fur-towel', name: '🧺 毛巾架', img: '', x: 30, y: 0, w: 16, h: 14, actions: [
+            { label: '拿干毛巾', result: '小人取了一条干净柔软的白毛巾，闻了闻，有洗衣液的清香。' },
+            { label: '换毛巾', result: '小人把旧毛巾收走，挂上一条新毛巾，整整齐齐。' }
+          ]},
+          { id: 'fur-stool', name: '🪑 小木凳', img: '', x: 22, y: 70, w: 12, h: 14, actions: [
+            { label: '坐着发呆', result: '小人坐在小木凳上，托着腮，看着浴室地板上的水纹发呆。' },
+            { label: '踩着够东西', result: '小人踩上小木凳，伸手去够高处柜子里的东西，刚好能够着！' }
+          ]},
+          { id: 'fur-candle', name: '🕯️ 香薰', img: '', x: 86, y: 48, w: 12, h: 16, actions: [
+            { label: '点燃', result: '小人划燃火柴，点亮蜡烛。暖黄色的火光摇曳，淡淡的薰衣草香弥漫开来。🕯️✨', effect: 'candle' },
+            { label: '吹灭', result: '小人轻轻吹了一口气，烛火熄灭，一缕细烟袅袅升起。' }
+          ]},
+          { id: 'fur-plant-bath', name: '🪴 绿植', img: '', x: 85, y: 68, w: 14, h: 18, actions: [
+            { label: '浇水', result: '小人给浴室的小绿植浇了点水，水珠挂在叶子上，青翠欲滴。🌿' },
+            { label: '跟它说话', result: '小人蹲下来对绿植说：「你要好好长大哦。」叶子轻轻摇了摇，好像在回应。' }
+          ]},
+          { id: 'fur-scale', name: '⚖️ 体重秤', img: '', x: 38, y: 74, w: 14, h: 14, actions: [
+            { label: '称体重', result: '小人站上体重秤，低头看了一眼数字，面无表情地走下来了。⚖️' },
+            { label: '把它藏起来', result: '小人把体重秤塞到角落眼不见心不烦，舒服了。😌' }
+          ]}
+        ]
+      }
+    },
+    activeRoom: 'living',
     logs: []
   },
   tarot: { step: 'start', major: null, minors: [] },
   qq: null,
   customStickers: [],
+  call: { active: false, type: 'audio', startTime: 0, muted: false, speaker: false },
   game: { score: 0, best: 0 },
   myProfile: {
     avatar: '🌸',
@@ -86,7 +151,8 @@ const defaultState = {
     following: 156,
     gallery: ['💖','✨','🎨','🌈','🔥','🎵','📸','🦋','🌟']
   },
-  profilePosts: []
+  profilePosts: [],
+  viewedStories: {}
 };
 
 // ===== 深层合并 =====
@@ -125,7 +191,9 @@ function ensureStateShape(next, saved) {
     unread: role.unread || 0,
     read: role.read !== false,
     pinned: role.pinned === true,
-    online: role.online !== false
+    online: role.online !== false,
+    lang: role.lang || '中文',
+    translate: role.translate === true
   }));
   if (!next.activeRoleId || !next.roles.some(role => role.id === next.activeRoleId)) {
     next.activeRoleId = next.roles[0].id;
@@ -156,25 +224,40 @@ function ensureStateShape(next, saved) {
   next.plant.streak = Number(next.plant.streak) || 0;
   next.plant.fertilizedDate = next.plant.fertilizedDate || '';
   next.plant.logs = Array.isArray(next.plant.logs) ? next.plant.logs : [];
-  const HOME_BG_NEW = 'https://img.facfox.com/imgs/2026/07/19/06d3c79d7f440afd.jpg';
-  const HOME_BG_OLD = 'https://img.facfox.com/imgs/2026/07/19/6b8c616e9b4c927c.jpg';
   if (!next.home || typeof next.home !== 'object') next.home = {};
-  if (!next.home.bg || next.home.bg === HOME_BG_OLD) {
-    next.home.bg = HOME_BG_NEW;
+  if (!next.home.rooms || typeof next.home.rooms !== 'object') {
+    var def = cloneDefaultState().home.rooms;
+    var migrated = {};
+    migrated.living = {
+      name: '客厅',
+      bg: next.home.bg || def.living.bg,
+      person: next.home.person || def.living.person,
+      personPos: next.home.personPos || { x: 50, y: 72 },
+      furniture: (next.home.furniture || []).length ? next.home.furniture : JSON.parse(JSON.stringify(def.living.furniture))
+    };
+    migrated.bathroom = JSON.parse(JSON.stringify(def.bathroom));
+    next.home.rooms = migrated;
+    next.home.activeRoom = 'living';
+  } else {
+    var defRooms = cloneDefaultState().home.rooms;
+    Object.keys(defRooms).forEach(function(rid) {
+      if (!next.home.rooms[rid]) {
+        next.home.rooms[rid] = JSON.parse(JSON.stringify(defRooms[rid]));
+      } else {
+        var defFur = defRooms[rid].furniture;
+        next.home.rooms[rid].furniture = (next.home.rooms[rid].furniture || []).map(function(f) {
+          var d = defFur.find(function(x) { return x.id === f.id; });
+          if (d) { f.x = d.x; f.y = d.y; f.w = d.w; f.h = d.h; f.img = d.img; }
+          return f;
+        });
+        defFur.forEach(function(d) {
+          if (!next.home.rooms[rid].furniture.some(function(f) { return f.id === d.id; })) {
+            next.home.rooms[rid].furniture.push(JSON.parse(JSON.stringify(d)));
+          }
+        });
+      }
+    });
   }
-  try {
-    const defFur = (cloneDefaultState().home.furniture || []);
-    if (defFur.length) {
-      next.home.furniture = (next.home.furniture || []).map(f => {
-        const d = defFur.find(x => x.id === f.id);
-        if (d) { f.x = d.x; f.y = d.y; f.w = d.w; f.h = d.h; }
-        return f;
-      });
-      defFur.forEach(d => {
-        if (!next.home.furniture.some(f => f.id === d.id)) next.home.furniture.push(d);
-      });
-    }
-  } catch (e) { /* ignore */ }
   if (!Array.isArray(next.albums)) next.albums = [];
   if (Array.isArray(next.album) && next.album.length && !next.albums.length) {
     next.albums = [{ id: 'default', name: '默认相册', photos: next.album.map((p, i) => ({ id: 'p' + i, url: p.url, caption: p.caption || '', date: p.date || '' })) }];
@@ -202,6 +285,12 @@ function ensureStateShape(next, saved) {
   }
   if (!Array.isArray(next.profilePosts)) next.profilePosts = [];
   if (!Array.isArray(next.customStickers)) next.customStickers = [];
+  if (!next.call || typeof next.call !== 'object') next.call = {};
+  next.call.active = next.call.active === true;
+  next.call.type = next.call.type || 'audio';
+  next.call.startTime = Number(next.call.startTime) || 0;
+  next.call.muted = next.call.muted === true;
+  next.call.speaker = next.call.speaker === true;
   return next;
 }
 

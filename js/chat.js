@@ -3,7 +3,21 @@
 // ============================================================
 let chatTyping = false;
 let pendingReply = false;
+let activeAbort = null;
+let noteTimer = null;
 
+// ===== 消息弹窗 =====
+function showMsgNote(charId, name, avatar, text) {
+  var exist = document.getElementById('msgNote');
+  if (exist) { clearTimeout(noteTimer); exist.remove(); noteTimer = null; }
+  var n = document.createElement('div');
+  n.id = 'msgNote';
+  n.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99999;background:#fdfaf6;border-radius:14px;padding:8px 14px 8px 10px;display:flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(120,100,80,.12),0 0 0 1px rgba(200,185,165,.15);max-width:250px;width:auto;cursor:pointer;animation:msgNoteIn .3s ease';
+  n.onclick = function() { this.remove(); clearTimeout(noteTimer); noteTimer = null; openChat(charId); };
+  n.innerHTML = '<div style="width:22px;height:22px;border-radius:50%;overflow:hidden;flex-shrink:0;background:#ede4d8;font-size:12px;display:flex;align-items:center;justify-content:center">' + renderAvatar(avatar, name).replace('<img', '<img style="width:100%;height:100%;object-fit:cover"') + '</div><div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:600;color:#5a5045">' + escapeHTML(name) + '</div><div style="font-size:11px;color:#a09588;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px">' + escapeHTML(text || '发来一条消息') + '</div></div><div style="font-size:8px;color:#c8b8a8;flex-shrink:0;align-self:flex-start;margin-top:2px">now</div>';
+  document.body.appendChild(n);
+  noteTimer = setTimeout(function() { var el = document.getElementById('msgNote'); if (el) el.remove(); noteTimer = null; }, 4000);
+}
 // ===== 聊天窗口 =====
 function openChat(characterId) {
   if (characterId) {
@@ -18,7 +32,11 @@ function openChat(characterId) {
   renderChat();
 }
 
-function closeChat() { pendingReply = false; $('chatWindow').classList.remove('open'); hidePanels(); }
+function closeChat() {
+  pendingReply = false;
+  $('chatWindow').classList.remove('open');
+  hidePanels();
+}
 
 function renderChat() {
   const char = activeCharacter();
@@ -27,12 +45,28 @@ function renderChat() {
   if (relEl) relEl.innerText = char.relation ? '· ' + char.relation : (char.online ? '· 在线' : '· 离线');
   const typing = chatTyping ? `<div class="msg left"><div class="avatar">${renderAvatar(char.avatar, char.name)}</div><div class="bubble typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>` : '';
   let lastDate = '';
-  $('chatBody').innerHTML = (char.chat || []).map(msg => {
+  $('chatBody').innerHTML = (char.chat || []).map((msg, i) => {
     if (msg.role === 'system') return `<div class="bubble system">${escapeHTML(msg.content)}</div>`;
     const isUser = msg.role === 'user';
     const prof = activeProfile();
     const av = isUser ? prof.avatar : char.avatar;
     const nm = isUser ? prof.name : char.name;
+    if (msg.type === 'redpacket') {
+      const opened = msg.opened;
+      const amount = msg.amount || 0;
+      const note = msg.note || '';
+      const amtText = amount.toFixed(amount % 1 ? 2 : 0);
+      const msgDate = msg.time ? msg.time.slice(0, 10) : '';
+      const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
+      lastDate = msgDate || lastDate;
+      const tick = isUser ? `<div class="read-tick">${char.read ? '已读' : '已发送'}</div>` : '';
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}',${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="openRedPacket('${char.id}',${i})"` : ''}>
+        <span class="rp-card-icon">🧧</span>
+        <span class="rp-card-label">${isUser ? '你' : escapeHTML(nm)}</span>
+        ${opened ? `<div class="rp-card-amount">¥ ${amtText}</div>` : `<div class="rp-card-btn">開</div>`}
+        <div class="rp-card-note">${escapeHTML(note || '恭喜发财')}</div>
+      </div>${tick}</div>`;
+    }
     let mediaHtml = '';
     if (msg.media && msg.media.type === 'image') {
       mediaHtml = `<img src="${escapeHTML(msg.media.src)}" style="max-width:180px;border-radius:12px;display:block;margin-top:4px">`;
@@ -42,11 +76,15 @@ function renderChat() {
       mediaHtml = `<a href="${escapeHTML(msg.media.src)}" download="${escapeHTML(msg.media.name || 'file')}" style="display:inline-block;margin-top:4px;color:inherit;text-decoration:none"><div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);padding:8px 10px;border-radius:10px"><span style="font-size:22px">📄</span><span style="font-size:13px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(msg.media.name || '文件')}</span></div></a>`;
     }
     const textHtml = msg.content ? `<div>${escapeHTML(msg.content)}</div>` : '';
+    var transHtml = '';
+    if (!isUser && msg.translatedText) {
+      transHtml = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.06)">' + escapeHTML(msg.translatedText) + '</div>';
+    }
     const msgDate = msg.time ? msg.time.slice(0, 10) : '';
     const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
     lastDate = msgDate || lastDate;
     const tick = isUser ? `<div class="read-tick">${char.read ? '已读' : '已发送'}</div>` : '';
-    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}', ${char.chat.indexOf(msg)})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${textHtml}${mediaHtml}</div>${tick}</div>`;
+    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}', ${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
   }).join('') + typing;
   $('chatBody').scrollTop = $('chatBody').scrollHeight;
 }
@@ -64,14 +102,19 @@ function setChatTyping(value) {
   renderChat();
 }
 
-function appendBubble(role, content, media) {
+function appendBubble(role, content, media, translatedText) {
   const msg = { role, content: content || '', time: new Date().toLocaleString() };
   if (media) msg.media = media;
+  if (translatedText) msg.translatedText = translatedText;
   activeCharacter().chat.push(msg);
   if (role === 'assistant') {
     const char = activeCharacter();
     char.unread = (char.unread || 0) + 1;
     char.read = false;
+    var cw = $('chatWindow');
+    if (cw && !cw.classList.contains('open')) {
+      showMsgNote(char.id, char.name, char.avatar, content || '发来一条消息');
+    }
   }
   saveState();
   renderChat();
@@ -79,6 +122,8 @@ function appendBubble(role, content, media) {
 
 // ===== AI 对话 =====
 async function sendChat() {
+  if (_voiceRec) stopVoice();
+  if (_voiceMediaRecorder) stopVoiceRecord();
   const input = $('chatInput');
   const text = input.value.trim();
   if (!state.api.key || !state.api.url || !state.api.model) {
@@ -94,11 +139,18 @@ async function sendChat() {
     setChatTyping(true);
     try {
       const reply = await callAI(text);
+      var char = activeCharacter();
+      var trans = null;
+      if (char.translate && char.lang && char.lang !== '中文') {
+        var cleanText = reply.replace(/[（(][^）)]*[）)]/g, '').trim();
+        if (cleanText) trans = await translateText(cleanText);
+      }
       setChatTyping(false);
-      appendBubble('assistant', reply);
+      appendBubble('assistant', reply, null, trans);
     } catch (err) {
+      if (err.name === 'AbortError') return;
       setChatTyping(false);
-      appendBubble('system', '对方暂时没有回应，稍后再试。');
+      appendBubble('system', '暂时没回应（' + err.message + '）');
     } finally {
       $('sendBtn').disabled = false;
     }
@@ -109,11 +161,18 @@ async function sendChat() {
   setChatTyping(true);
   try {
     const reply = await callAI('（用户没有继续输入文字，请你根据当前角色卡、记忆和最近聊天，自然地回应或主动续上对话。）', false, true);
+    var trans2 = null;
+    var char2 = activeCharacter();
+    if (char2.translate && char2.lang && char2.lang !== '中文') {
+      var cleanText2 = reply.replace(/[（(][^）)]*[）)]/g, '').trim();
+      if (cleanText2) trans2 = await translateText(cleanText2);
+    }
     setChatTyping(false);
-    appendBubble('assistant', reply);
+    appendBubble('assistant', reply, null, trans2);
   } catch (err) {
+    if (err.name === 'AbortError') return;
     setChatTyping(false);
-    appendBubble('system', '对方暂时没有回应，稍后再试。');
+    appendBubble('system', '暂时没回应（' + err.message + '）');
   } finally {
     $('sendBtn').disabled = false;
   }
@@ -121,21 +180,29 @@ async function sendChat() {
 
 async function callAI(text, shortTest = false, proactive = false) {
   const char = activeCharacter();
-  const systemPrompt = shortTest ? state.api.preset : buildRoleSystemPrompt(char, text);
+  const systemPrompt = shortTest ? state.api.preset || '你是以下角色' : buildRoleSystemPrompt(char, text);
   const history = shortTest ? [] : char.chat.slice(-12).filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || (m.media ? '[' + m.media.type + ']' : '') }));
   const userContent = proactive ? '用户没有输入文字。请你以当前角色身份，结合最近聊天和记忆，主动发起一句自然的消息。' : text;
+  if (activeAbort) try { activeAbort.abort(); } catch(e) {}
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), shortTest ? 15000 : 45000);
+  activeAbort = controller;
+  const timer = setTimeout(() => { try { controller.abort(); } catch(e) {} }, shortTest ? 20000 : 90000);
+  var ap = state.apiProfiles && state.activeApiProfile
+    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+  var cfg = ap || state.api;
   try {
-    const response = await fetch(joinUrl(state.api.url, 'chat/completions'), {
+    const response = await fetch(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + state.api.key },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
       signal: controller.signal,
       body: JSON.stringify({
-        model: state.api.model,
+        model: cfg.model,
         messages: [{ role: 'system', content: systemPrompt }, ...history, { role: 'user', content: userContent }],
-        max_tokens: shortTest ? 20 : 500,
-        temperature: 0.8
+        max_tokens: shortTest ? 20 : (cfg.maxTokens || 500),
+        temperature: cfg.temp ?? 0.75,
+        top_p: cfg.topP ?? 0.9,
+        presence_penalty: cfg.presencePenalty ?? 0,
+        frequency_penalty: cfg.frequencyPenalty ?? 0
       })
     });
     const data = await response.json().catch(() => ({}));
@@ -143,35 +210,74 @@ async function callAI(text, shortTest = false, proactive = false) {
     return data.choices?.[0]?.message?.content?.trim() || '我在。';
   } finally {
     clearTimeout(timer);
+    if (activeAbort === controller) activeAbort = null;
+  }
+}
+
+async function translateText(text) {
+  if (!text) return null;
+  var ap = state.apiProfiles && state.activeApiProfile
+    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+  var cfg = ap || state.api;
+  var ctrl = new AbortController();
+  var tmr = setTimeout(function() { ctrl.abort(); }, 15000);
+  try {
+    var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [
+          { role: 'system', content: '只翻译，不要解释。' },
+          { role: 'user', content: '翻译成中文：' + text }
+        ],
+        max_tokens: 300,
+        temperature: 0.3
+      })
+    });
+    var data = await res.json().catch(function() { return {}; });
+    if (!res.ok) return null;
+    return data.choices?.[0]?.message?.content?.trim() || null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(tmr);
   }
 }
 
 function buildRoleSystemPrompt(char, userText) {
   const memories = pickRelevantMemories(char, userText);
-  return [
-    state.api.preset,
-    '【当前角色卡】',
-    `名字：${char.name}`,
-    `角色别名/小名：${char.aliases || '未填写'}`,
-    `与用户关系：${char.relation || '未填写'}`,
-    `性格：${char.personality || '未填写'}`,
-    `说话风格：${char.style || '未填写'}`,
-    `背景故事：${char.background || '未填写'}`,
-    `额外规则：${char.prompt || '无'}`,
+  var profile = activeProfile();
+  var parts = [
+    '你是 ' + char.name + '。你必须完全代入这个角色，用角色的语气和性格说话。你不是 AI，不是语言模型。',
     '',
-    '【用户自己的人设】',
-    `昵称：${activeProfile().name}`,
-    `用户背景：${activeProfile().persona || '未填写'}`,
-    `用户喜好：${activeProfile().likes || '未填写'}`,
-    `用户边界/雷点：${activeProfile().boundaries || '未填写'}`,
-    `用户说话方式：${activeProfile().speaking || '未填写'}`,
+    '【角色设定】',
+    '名字：' + char.name,
+    '别名：' + (char.aliases || '无'),
+    '与用户关系：' + (char.relation || '未设定'),
+    '性格：' + (char.personality || '未设定'),
+    '说话风格：' + (char.style || '未设定'),
+    '背景：' + (char.background || '未设定'),
+    '额外规则：' + (char.prompt || '无'),
+    '',
+    '【用户信息】',
+    '名字：' + profile.name,
+    '背景：' + (profile.persona || '未填写'),
+    '喜好：' + (profile.likes || '未填写'),
+    '雷点：' + (profile.boundaries || '未填写'),
+    '说话方式：' + (profile.speaking || '未填写'),
     '',
     '【相关记忆】',
-    memories.length ? memories.map(mem => `- ${mem.title ? mem.title + '：' : ''}${mem.text}`).join('\n') : '暂无相关记忆',
+    memories.length ? memories.map(function(mem) { return '- ' + (mem.title ? mem.title + '：' : '') + mem.text; }).join('\n') : '暂无',
     '',
     '【回复要求】',
-    '你正在和用户进行一对一聊天。保持角色身份，不要自称 AI 或模型。用户用角色本名、别名、小名呼唤你时，都要知道是在叫你。回复要自然、有情绪、有上下文，避免机械总结。'
-  ].join('\n');
+    '用 ' + char.name + ' 的身份自然回应，不要提 AI 相关话题，不要自我总结。'
+  ];
+  if (char.lang && char.lang !== '中文') {
+    parts.push('只能用 ' + char.lang + ' 回复，不要出现中文。');
+  }
+  return parts.join('\n');
 }
 
 function pickRelevantMemories(char, text) {
@@ -210,9 +316,35 @@ function rememberLastUserMessage() {
 function openSettings() {
   $('chatSettings').classList.add('open');
   $('pinSwitch').classList.toggle('on', state.settings.pinned);
+  var char = activeCharacter();
+  $('autoPostSwitch').classList.toggle('on', char && char.autoPost);
+  if (char) {
+    $('charLang').value = char.lang || '中文';
+    $('translateSwitch').classList.toggle('on', char.translate === true);
+  }
 }
 function closeSettings() { $('chatSettings').classList.remove('open'); }
 function togglePin() { state.settings.pinned = !state.settings.pinned; saveState(); $('pinSwitch').classList.toggle('on', state.settings.pinned); }
+function toggleAutoPost() {
+  var char = activeCharacter();
+  if (!char) return;
+  char.autoPost = !char.autoPost;
+  saveState();
+  $('autoPostSwitch').classList.toggle('on', char.autoPost);
+}
+function setCharLang(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  char.lang = val;
+  saveState();
+}
+function toggleTranslate() {
+  var char = activeCharacter();
+  if (!char) return;
+  char.translate = !char.translate;
+  saveState();
+  $('translateSwitch').classList.toggle('on', char.translate);
+}
 function clearHistory() {
   if (!confirm('清空聊天记录？')) return;
   activeCharacter().chat = [];
@@ -227,10 +359,123 @@ function toggleEmoji() { togglePanel('emojiPanel'); }
 
 // ===== 快捷操作 =====
 function sendRed() {
-  state.profile.wallet -= 5.20;
-  appendBubble('user', '🧧 [红包] 5.20元');
-  if (window.addLedgerQuick) addLedgerQuick(-5.2, '聊天红包', false);
+  showRedPacketDialog();
+}
+
+function showRedPacketDialog() {
   hidePanels();
+  const overlay = document.createElement('div');
+  overlay.id = 'rpOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease';
+  overlay.innerHTML = `
+    <div class="rp-dialog">
+      <div class="rp-dialog-header">
+        <span class="rp-dialog-title">发红包</span>
+        <button class="rp-dialog-close" onclick="document.getElementById('rpOverlay').remove()">✕</button>
+      </div>
+      <div class="rp-amount-presets">
+        ${[1,2,5.2,6.66,8.88,13.14,52,99].map(n =>
+          `<button class="rp-preset-btn" data-amount="${n}" onclick="selectRpAmount(this)">${n.toFixed(n%1?2:0)}<span class="rp-unit">元</span></button>`
+        ).join('')}
+      </div>
+      <div class="rp-custom-row">
+        <span class="rp-label">金额</span>
+        <div class="rp-input-wrap">
+          <span class="rp-currency">¥</span>
+          <input type="number" id="rpCustomAmount" class="rp-input" step="0.01" min="0.01" max="999" placeholder="0.00" oninput="onRpAmountInput(this.value)">
+        </div>
+      </div>
+      <div class="rp-note-row">
+        <span class="rp-label">附言</span>
+        <input type="text" id="rpNote" class="rp-note-input" placeholder="恭喜发财" maxlength="20">
+      </div>
+      <div class="rp-balance-row">
+        余额 <b id="rpBalanceDisplay">${(state.profile.wallet || 0).toFixed(2)}</b> 元
+      </div>
+      <button class="rp-send-btn" id="rpSendBtn" onclick="confirmRedPacket()" disabled>塞进红包</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function selectRpAmount(btn) {
+  document.querySelectorAll('.rp-preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('rpCustomAmount').value = '';
+  document.getElementById('rpSendBtn').disabled = false;
+  document.getElementById('rpSendBtn')._amount = parseFloat(btn.dataset.amount);
+}
+
+function onRpAmountInput(val) {
+  document.querySelectorAll('.rp-preset-btn').forEach(b => b.classList.remove('active'));
+  const num = parseFloat(val);
+  document.getElementById('rpSendBtn').disabled = !(val && num > 0);
+  if (val && num > 0) {
+    document.getElementById('rpSendBtn')._amount = num;
+  }
+}
+
+function confirmRedPacket() {
+  const btn = document.getElementById('rpSendBtn');
+  const amount = btn._amount;
+  if (!amount || amount <= 0) return alert('请输入金额');
+  const note = document.getElementById('rpNote').value.trim() || '恭喜发财';
+  const wallet = state.profile.wallet || 0;
+  if (amount > wallet) return alert('余额不足');
+  state.profile.wallet = +(wallet - amount).toFixed(2);
+  const msg = {
+    role: 'user',
+    type: 'redpacket',
+    amount: amount,
+    note: note,
+    content: '[红包] ' + note + '：' + amount.toFixed(2) + '元',
+    opened: true,
+    time: new Date().toLocaleString()
+  };
+  activeCharacter().chat.push(msg);
+  saveState();
+  if (window.addLedgerQuick) addLedgerQuick(-amount, '聊天红包：' + note, false);
+  renderChat();
+  document.getElementById('rpOverlay').remove();
+  hidePanels();
+  setChatTyping(true);
+  callAI('用户给你发了一个红包（' + amount + '元，附言：' + note + '），请根据当前聊天氛围自然回复。').then(reply => {
+    setChatTyping(false);
+    appendBubble('assistant', reply);
+  }).catch(function(e) {
+    setChatTyping(false);
+    appendBubble('assistant', '谢谢你～收到红包了！');
+  });
+}
+
+function openRedPacket(charId, msgIndex) {
+  const char = getCharacter(charId);
+  const msg = char.chat[msgIndex];
+  if (!msg || msg.type !== 'redpacket' || msg.opened) return;
+  msg.opened = true;
+  saveState();
+  renderChat();
+  const el = document.querySelector(`.rp-msg-${msgIndex}`);
+  if (el) {
+    el.classList.add('rp-opening');
+    setTimeout(() => el.classList.remove('rp-opening'), 600);
+  }
+}
+
+function sendAIRedPacket(amount, note) {
+  const amt = amount || parseFloat((Math.random() * 10 + 0.5).toFixed(2));
+  const nt = note || '';
+  const msg = {
+    role: 'assistant',
+    type: 'redpacket',
+    amount: amt,
+    note: nt,
+    content: nt ? '[红包] ' + nt + '：' + amt.toFixed(2) + '元' : '[红包] ' + amt.toFixed(2) + '元',
+    opened: false,
+    time: new Date().toLocaleString()
+  };
+  activeCharacter().chat.push(msg);
+  saveState();
+  renderChat();
 }
 
 function inviteStudy() {
@@ -364,4 +609,179 @@ function startCapture() {
     stopStream();
     showPreview(photoDataUrl);
   };
+}
+
+/* ===== 通话功能 ===== */
+function startCall(type) {
+  if (!type) type = 'video';
+  const char = activeCharacter();
+  if (!char) return;
+  const old = document.getElementById('callOverlay');
+  if (old) old.remove();
+  const pb = document.querySelector('.phone-body');
+  if (!pb) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'callOverlay';
+  overlay.className = 'call-overlay';
+  const avatar = char.avatar || 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg';
+  const label = type === 'video' ? '📹 视频呼叫' : '📞 语音呼叫';
+  overlay.innerHTML = `<div class="call-avatar" style="background-image:url('${escapeHTML(avatar)}')"></div><div class="call-name">${escapeHTML(char.name)}</div><div class="call-status" id="callStatus">${label}</div><div class="call-timer" id="callTimer"></div><div class="call-actions"><button class="call-btn call-btn-mute" id="callMuteBtn" onclick="toggleMute()">🔇</button><button class="call-btn call-btn-end" id="callEndBtn" onclick="endCall()">✕</button><button class="call-btn" id="callSpeakerBtn" onclick="toggleSpeaker()">🔊</button></div>`;
+  pb.appendChild(overlay);
+  state.call = state.call || {};
+  state.call.type = type;
+  state.call.active = false;
+  state.call.muted = false;
+  state.call.speaker = false;
+  setTimeout(() => {
+    const s = document.getElementById('callStatus');
+    const t = document.getElementById('callTimer');
+    if (!s || !t) return;
+    s.textContent = '通话中';
+    state.call.startTime = Date.now();
+    state.call.active = true;
+    updateCallTimer();
+  }, 2200);
+}
+
+function updateCallTimer() {
+  if (!state.call || !state.call.active) return;
+  const t = document.getElementById('callTimer');
+  if (!t) return;
+  const elapsed = Math.floor((Date.now() - state.call.startTime) / 1000);
+  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  t.textContent = m + ':' + s;
+  requestAnimationFrame(updateCallTimer);
+}
+
+function endCall() {
+  const overlay = document.getElementById('callOverlay');
+  if (overlay) overlay.remove();
+  const wasActive = state.call && state.call.active;
+  if (state.call) state.call.active = false;
+  if (wasActive) {
+    const char = activeCharacter();
+    if (char) {
+      const dur = state.call && state.call.startTime ? Math.floor((Date.now() - state.call.startTime) / 1000) : 0;
+      const m = Math.floor(dur / 60);
+      const s = dur % 60;
+      const msg = m > 0 ? '（通话结束 ' + m + '分' + s + '秒）' : '（通话结束 ' + s + '秒）';
+      appendBubble('system', msg);
+    }
+  }
+}
+
+function toggleMute() {
+  if (!state.call) state.call = {};
+  state.call.muted = !state.call.muted;
+  const btn = document.getElementById('callMuteBtn');
+  if (btn) { btn.classList.toggle('active'); btn.textContent = state.call.muted ? '🔇' : '🎤'; }
+  if (btn) btn.style.borderColor = state.call.muted ? 'var(--ink)' : '';
+}
+
+function toggleSpeaker() {
+  if (!state.call) state.call = {};
+  state.call.speaker = !state.call.speaker;
+  const btn = document.getElementById('callSpeakerBtn');
+  if (btn) { btn.classList.toggle('active'); btn.textContent = state.call.speaker ? '🔊' : '🔈'; }
+  if (btn) btn.style.borderColor = state.call.speaker ? 'var(--ink)' : '';
+}
+
+var _voiceRec = null;
+var _voiceHoldTimer = null;
+var _voiceMediaRecorder = null;
+var _voiceChunks = [];
+
+function toggleVoice() {
+  var R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!R) { alert('当前浏览器不支持语音识别'); return; }
+  if (_voiceRec) { stopVoice(); return; }
+  hidePanels();
+  var btn = document.getElementById('voiceBtn');
+  if (btn) btn.textContent = '🔴';
+  var recognition = new R();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = false;
+  var input = document.getElementById('chatInput');
+  var finalText = input ? input.value : '';
+  recognition.onresult = function(e) {
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
+    }
+    if (input) input.value = finalText;
+  };
+  recognition.onerror = function() { stopVoice(); };
+  recognition.onend = function() { _voiceRec = null; var b = document.getElementById('voiceBtn'); if (b) b.textContent = '🎤'; };
+  try { recognition.start(); _voiceRec = recognition; } catch (e) { alert('语音启动失败'); }
+}
+
+function stopVoice() {
+  if (_voiceRec) { try { _voiceRec.stop(); } catch(e) {} _voiceRec = null; }
+  var btn = document.getElementById('voiceBtn');
+  if (btn) btn.textContent = '🎤';
+}
+
+// 长按发语音条
+function voiceTouchStart() {
+  if (_voiceRec) return;
+  window._voiceWasHold = false;
+  _voiceHoldTimer = setTimeout(function() {
+    _voiceHoldTimer = null;
+    window._voiceWasHold = true;
+    startVoiceRecord();
+  }, 300);
+}
+
+function voiceTouchEnd() {
+  if (_voiceHoldTimer) { clearTimeout(_voiceHoldTimer); _voiceHoldTimer = null; window._voiceWasHold = false; return; }
+  if (_voiceMediaRecorder) { stopVoiceRecord(); }
+}
+
+function startVoiceRecord() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { alert('不支持录音'); return; }
+  var btn = document.getElementById('voiceBtn');
+  if (btn) { btn.textContent = '⏺'; btn.style.color = '#e53935'; }
+  var input = document.getElementById('chatInput');
+  if (input) input.placeholder = '🎤 录音中... 松开发送';
+  _voiceChunks = [];
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+    var recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = function(e) { if (e.data.size > 0) _voiceChunks.push(e.data); };
+    recorder.onstop = function() {
+      stream.getTracks().forEach(function(t) { t.stop(); });
+      var blob = new Blob(_voiceChunks, { type: 'audio/webm' });
+      if (blob.size > 0) sendVoiceMessage(blob);
+    };
+    recorder.start();
+    _voiceMediaRecorder = recorder;
+  }).catch(function() { alert('无法访问麦克风'); });
+}
+
+function stopVoiceRecord() {
+  if (_voiceMediaRecorder) {
+    try { _voiceMediaRecorder.stop(); } catch(e) {}
+    _voiceMediaRecorder = null;
+  }
+  var btn = document.getElementById('voiceBtn');
+  if (btn) { btn.textContent = '🎤'; btn.style.color = ''; }
+  var input = document.getElementById('chatInput');
+  if (input) input.placeholder = '发消息...';
+}
+
+function sendVoiceMessage(blob) {
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    var dataUrl = ev.target.result;
+    appendBubble('user', '[语音消息]', { type: 'audio', src: dataUrl });
+    saveState();
+    setChatTyping(true);
+    callAI('用户给你发了一段语音消息，请根据当前聊天氛围自然回复。').then(function(reply) {
+      setChatTyping(false);
+      appendBubble('assistant', reply);
+    }).catch(function() {
+      setChatTyping(false);
+      appendBubble('assistant', '收到你的语音啦～');
+    });
+  };
+  reader.readAsDataURL(blob);
 }

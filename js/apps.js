@@ -80,91 +80,195 @@ function switchTab(t, el) {
 
 // ---------- 设置 ----------
 function renderApiSettings() {
-  const cfgDone = state.api.key && state.api.url && state.api.model;
-  c().innerHTML = `
-    <div class="stack">
-      <div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 14px">
-        <span style="width:10px;height:10px;border-radius:50%;background:${cfgDone ? '#31c45d' : '#f0a020'};flex:0 0 auto"></span>
-        <div style="flex:1;min-width:0">
-          <b style="font-size:14px">连接状态</b>
-          <div class="subtle">${cfgDone ? '已配置 API，可以聊天' : '尚未完成 API 配置'}</div>
-        </div>
-      </div>
-      <div class="card">
-        <h2 class="section-title">🔧 大模型驱动中心</h2>
-        <label class="label">API Key</label>
-        <input class="field" type="password" id="apiKeyInput" placeholder="sk-..." value="${escapeHTML(state.api.key)}">
-        <label class="label">API Base URL</label>
-        <input class="field" id="apiUrlInput" placeholder="https://api.openai.com/v1" value="${escapeHTML(state.api.url)}">
-        <label class="label">模型名称</label>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
-          <input class="field" id="apiModelInput" placeholder="gpt-4.1-mini" value="${escapeHTML(state.api.model)}">
-          <button class="ghost-btn" onclick="pullModels()">拉取</button>
-        </div>
-        <select class="select" id="apiModelSelect" onchange="$('apiModelInput').value=this.value" style="margin-top:8px"><option value="">模型列表</option></select>
-        <label class="label">AI 预设</label>
-        <textarea class="textarea" id="apiPresetInput">${escapeHTML(state.api.preset)}</textarea>
-        <div class="grid2" style="margin-top:4px">
-          <button class="ghost-btn" onclick="testConnection()">测试连接</button>
-          <button class="primary-btn" id="saveApiBtn" onclick="saveApiConfig()">保存配置</button>
-        </div>
-        <div id="apiTestResult" class="subtle" style="margin-top:8px;min-height:16px"></div>
-      </div>
-      <div class="card">
-        <h2 class="section-title">💾 数据备份</h2>
-        <div class="grid2">
-          <button class="ghost-btn" onclick="exportAllData()">导出全部</button>
-          <button class="primary-btn" onclick="$('importDataFile').click()">导入备份</button>
-        </div>
-        <input id="importDataFile" type="file" accept="application/json,.json" style="display:none" onchange="importAllData(event)">
-        <button class="danger-btn" style="width:100%;margin-top:10px" onclick="resetAllData()">清空全部数据</button>
-      </div>
-      <div class="card subtle">提示：如果直接用浏览器打开 HTML，部分接口可能因为跨域策略被拦截。配置仍会保存，能用的中转接口或允许跨域的 API 可以直接聊天。</div>
-    </div>`;
-  const sel = $('apiModelSelect');
-  if (state.api.model) sel.innerHTML = `<option value="${escapeHTML(state.api.model)}">${escapeHTML(state.api.model)}</option>`;
+  var profiles = state.apiProfiles || [];
+  var activeId = state.activeApiProfile || '';
+  var activeProfile = profiles.find(function(p) { return p.id === activeId; });
+  var key = activeProfile ? activeProfile.key : state.api.key;
+  var url = activeProfile ? activeProfile.url : state.api.url;
+  var model = activeProfile ? activeProfile.model : state.api.model;
+  var cfgDone = key && url && model;
+  var d = activeProfile || state.api;
+
+  var h = '';
+  h += '<div class="stack">';
+  h += '<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;border-radius:10px;">';
+  h += '<span style="width:8px;height:8px;border-radius:50%;background:' + (cfgDone ? '#7aab7a' : '#c0b0a0') + ';flex:0 0 auto"></span>';
+  h += '<div style="flex:1;min-width:0"><div style="font-weight:500;font-size:13px;color:#4a3f35">' + (cfgDone ? '已连接' : '未连接') + '</div>';
+  h += '<div style="font-size:11px;color:#b8a99a;margin-top:1px">' + (cfgDone ? 'API 已配置' : '选择或新建一个配置') + '</div></div></div>';
+
+  h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px">';
+  h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">配置</div>';
+  h += '<div id="apiProfileList" style="display:flex;flex-wrap:wrap;gap:6px">';
+  profiles.forEach(function(p) {
+    h += '<span class="api-prof' + (p.id === activeId ? ' active' : '') + '" data-pid="' + p.id.replace(/"/g,'&quot;') + '">' + escapeHTML(p.name) + '</span>';
+  });
+  h += '<span class="api-prof-add">+ 新建</span>';
+  if (profiles.length) h += '<span class="api-prof-del" style="color:#c0392b">删除</span>';
+  h += '</div>';
+
+  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">配置名称</div><input class="field" id="apiProfileName" placeholder="例如：OpenAI、中转1、Claude" value="' + escapeHTML(activeProfile ? activeProfile.name : '') + '"></div>';
+  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">API Key</div><input class="field" type="password" id="apiKeyInput" placeholder="sk-..." value="' + escapeHTML(key) + '"></div>';
+  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">Base URL</div><input class="field" id="apiUrlInput" placeholder="https://api.openai.com/v1" value="' + escapeHTML(url) + '"></div>';
+  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">模型</div><div style="display:flex;gap:6px"><input class="field" id="apiModelInput" placeholder="gpt-4.1-mini" value="' + escapeHTML(model) + '" style="flex:1"><button class="ghost-btn" onclick="fetchModels()" style="padding:6px 10px;font-size:11px;white-space:nowrap">获取列表</button></div><div id="apiModelList" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px"></div></div>';
+
+  // 高级参数
+  h += '<div style="border-top:1px solid #f0ede8;padding-top:10px">';
+  h += '<div style="font-size:11px;font-weight:500;color:#c0b0a0;margin-bottom:6px;letter-spacing:.5px">PARAMETERS</div>';
+  var params = [
+    ['Temperature','apiTemp','vTemp',d.temp??0.75,0,2,0.05,2,'越小越保守，越大越发散'],
+    ['Top P','apiTopP','vTopP',d.topP??0.9,0,1,0.05,2,'和 temp 类似，通常保持 0.9 不动'],
+    ['Max Tokens','apiMaxTokens','vMT',d.maxTokens??500,64,2048,64,0,'AI 每次回复的最大字数'],
+    ['Presence Penalty','apiPresenceP','vPP',d.presencePenalty??0,-2,2,0.1,1,'越高越少重复已聊话题'],
+    ['Frequency Penalty','apiFreqP','vFP',d.frequencyPenalty??0,-2,2,0.1,1,'越高用词越不重复']
+  ];
+  params.forEach(function(p) {
+    var val = p[3];
+    var display = typeof val === 'number' ? val.toFixed(p[7]) : val;
+    h += '<div style="margin-bottom:6px">';
+    h += '<div style="display:flex;justify-content:space-between;font-size:10px;color:#b8a99a;margin-bottom:1px">';
+    h += '<span>' + p[0] + ' <span style="font-size:8px;color:#d0c8bc">' + p[8] + '</span></span><span id="' + p[2] + '" style="font-variant-numeric:tabular-nums">' + display + '</span></div>';
+    h += '<input type="range" min="' + p[4] + '" max="' + p[5] + '" step="' + p[6] + '" id="' + p[1] + '" value="' + val + '" oninput="document.getElementById(\'' + p[2] + '\').textContent=Number(this.value).toFixed(' + p[7] + ')">';
+    h += '</div>';
+  });
+  h += '</div>';
+
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h += '<button class="ghost-btn" onclick="testConnection()" style="justify-content:center">测试连接</button>';
+  h += '<button class="primary-btn" onclick="saveApiConfig()" style="justify-content:center">保存配置</button></div>';
+  h += '<div id="apiTestResult" style="font-size:12px;min-height:16px;color:#b8a99a"></div></div>';
+
+  h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
+  h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">数据</div>';
+  h += '<div style="font-size:11px;color:#b8a99a">导出备份包含全部角色、聊天记录和 API 配置</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  h += '<button class="ghost-btn" onclick="exportAllData()" style="justify-content:center">导出全部</button>';
+  h += '<button class="primary-btn" onclick="document.getElementById(\'importDataFile\').click()" style="justify-content:center">导入备份</button></div>';
+  h += '<input id="importDataFile" type="file" accept="application/json,.json" style="display:none" onchange="importAllData(event)">';
+  h += '<button class="danger-btn" style="width:100%;justify-content:center;margin-top:2px" onclick="resetAllData()">清空全部数据</button></div>';
+  h += '<div style="font-size:11px;color:#c0b0a0;line-height:1.5;padding:0 4px">如果直接用浏览器打开 HTML，部分接口可能因跨域策略被拦截。能用的中转接口或允许跨域的 API 可直接聊天。</div></div>';
+
+  c().innerHTML = h;
+  initApiSettings();
 }
 
 function saveApiConfig() {
-  state.api.key = $('apiKeyInput').value.trim();
-  state.api.url = $('apiUrlInput').value.trim() || defaultState.api.url;
-  state.api.model = $('apiModelInput').value.trim() || defaultState.api.model;
-  state.api.preset = $('apiPresetInput').value.trim() || defaultState.api.preset;
+  var name = $('apiProfileName').value.trim() || '未命名配置';
+  var key = $('apiKeyInput').value.trim();
+  var url = $('apiUrlInput').value.trim() || defaultState.api.url;
+  var model = $('apiModelInput').value.trim() || defaultState.api.model;
+  var temp = parseFloat($('apiTemp').value) || 0.75;
+  var topP = parseFloat($('apiTopP').value) || 0.9;
+  var maxT = parseInt($('apiMaxTokens').value) || 500;
+  var pp = parseFloat($('apiPresenceP').value) || 0;
+  var fp = parseFloat($('apiFreqP').value) || 0;
+  var profiles = state.apiProfiles || [];
+  var activeId = state.activeApiProfile || '';
+  var existing = profiles.findIndex(function(p) { return p.id === activeId; });
+  var profile;
+  if (existing >= 0) {
+    profile = profiles[existing];
+    profile.name = name; profile.key = key; profile.url = url;
+    profile.model = model; profile.temp = temp; profile.topP = topP;
+    profile.maxTokens = maxT; profile.presencePenalty = pp; profile.frequencyPenalty = fp;
+  } else {
+    profile = { id: 'api-' + Date.now(), name: name, key: key, url: url, model: model, preset: '',
+      temp: temp, topP: topP, maxTokens: maxT, presencePenalty: pp, frequencyPenalty: fp };
+    profiles.push(profile);
+    state.activeApiProfile = profile.id;
+  }
+  state.apiProfiles = profiles;
+  state.api.key = key; state.api.url = url; state.api.model = model; state.api.preset = '';
+  state.api.temp = temp; state.api.topP = topP; state.api.maxTokens = maxT;
+  state.api.presencePenalty = pp; state.api.frequencyPenalty = fp;
   saveState();
-  const btn = $('saveApiBtn');
-  if (btn) { btn.innerText = '已保存 ✓'; setTimeout(() => btn.innerText = '保存配置', 1500); }
+  var btn = $('saveApiBtn');
+  if (btn) { btn.innerText = '已保存 ✓'; setTimeout(function() { btn.innerText = '保存配置'; }, 1500); }
   renderApiSettings();
 }
 
-async function pullModels() {
-  saveApiConfig();
-  if (!state.api.key || !state.api.url) return alert('请先填写 Key 和 Base URL');
-  try {
-    const response = await fetch(joinUrl(state.api.url, 'models'), { headers: { Authorization: 'Bearer ' + state.api.key } });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || response.status);
-    const select = $('apiModelSelect');
-    select.innerHTML = '<option value="">选择模型</option>' + (data.data || []).map(m => `<option value="${escapeHTML(m.id)}">${escapeHTML(m.id)}</option>`).join('');
-    alert('模型已拉取');
-  } catch (err) {
-    alert('拉取失败：' + err.message);
-  }
-}
-
 async function testConnection() {
-  saveApiConfig();
+  var key = $('apiKeyInput').value.trim();
+  var url = $('apiUrlInput').value.trim();
+  var model = $('apiModelInput').value.trim();
   const box = $('apiTestResult');
-  if (!state.api.key || !state.api.url || !state.api.model) {
-    if (box) box.innerHTML = '<span style="color:#e53935">请先填好 Key、URL 和模型</span>';
+  if (!key || !url || !model) {
+    if (box) box.innerHTML = '<span style="color:#c0392b">请先填好 Key、URL 和模型</span>';
     return;
   }
   if (box) box.innerHTML = '连接测试中…';
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 12000);
   try {
-    const text = await callAI('测试连接，请只回复"连接成功"。', true);
-    if (box) box.innerHTML = '<span style="color:#31c45d">✓ 连接成功：' + escapeHTML(text) + '</span>';
+    var resp = await fetch(joinUrl(url, 'chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      body: JSON.stringify({ model: model, messages: [{ role: 'user', content: '回复"连接成功"四个字' }], max_tokens: 20 }),
+      signal: controller.signal
+    });
+    var data = await resp.json().catch(function() { return {}; });
+    if (!resp.ok) throw new Error(data.error && data.error.message || resp.status);
+    var text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (box) box.innerHTML = '<span style="color:#7aab7a">✓ 连接成功：' + escapeHTML((text || 'ok').trim()) + '</span>';
   } catch (err) {
-    if (box) box.innerHTML = '<span style="color:#e53935">✗ 连接失败：' + escapeHTML(err.message) + '</span>';
+    if (box) box.innerHTML = '<span style="color:#c0392b">✗ 连接失败：' + escapeHTML(err.message) + '</span>';
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+async function fetchModels() {
+  var key = $('apiKeyInput').value.trim();
+  var url = $('apiUrlInput').value.trim();
+  if (!key || !url) { alert('请先填写 Key 和 Base URL'); return; }
+  var box = $('apiModelList');
+  box.innerHTML = '<span style="font-size:11px;color:#b8a99a">获取中…</span>';
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 12000);
+  try {
+    const response = await fetch(joinUrl(url, 'models'), { headers: { Authorization: 'Bearer ' + key }, signal: controller.signal });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error && data.error.message || response.status);
+    var models = data.data || [];
+    if (!models.length) { box.innerHTML = '<span style="font-size:11px;color:#b8a99a">暂无可用模型</span>'; return; }
+    box.innerHTML = models.map(function(m) {
+      return '<span class="model-tag" data-model="' + m.id.replace(/"/g,'&quot;') + '">' + escapeHTML(m.id) + '</span>';
+    }).join('');
+  } catch (err) {
+    box.innerHTML = '<span style="font-size:11px;color:#c0392b">获取失败：' + escapeHTML(err.message) + '</span>';
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function initApiSettings() {
+  var list = $('apiModelList');
+  if (list) list.onclick = function(e) {
+    var tag = e.target.closest('.model-tag');
+    if (tag) { $('apiModelInput').value = tag.textContent; list.innerHTML = ''; }
+  };
+  var plist = $('apiProfileList');
+  if (plist) plist.onclick = function(e) {
+    var t = e.target;
+    if (t.classList.contains('api-prof-add')) {
+      state.activeApiProfile = '';
+      renderApiSettings();
+      $('apiProfileName').focus();
+    } else if (t.classList.contains('api-prof-del')) {
+      var activeId = state.activeApiProfile;
+      if (!activeId) return;
+      state.apiProfiles = (state.apiProfiles || []).filter(function(p) { return p.id !== activeId; });
+      state.activeApiProfile = '';
+      saveState();
+      renderApiSettings();
+    } else if (t.classList.contains('api-prof')) {
+      var pid = t.getAttribute('data-pid');
+      if (pid && pid !== state.activeApiProfile) {
+        state.activeApiProfile = pid;
+        saveState();
+        renderApiSettings();
+      }
+    }
+  };
 }
 
 function exportAllData() {
@@ -278,7 +382,7 @@ function filterContacts() {
 // ---------- 角色编辑器 ----------
 function renderCharacterEditor(id) {
   const isNew = id === 'new';
-  const char = isNew ? { id: 'char-' + Date.now(), memories: [], chat: [], unread: 0, read: true, name: '', avatar: '', aliases: '', relation: '', personality: '', style: '', background: '', prompt: '', greeting: '' } : getCharacter(id);
+  const char = isNew ? { id: 'char-' + Date.now(), memories: [], chat: [], unread: 0, read: true, name: '', avatar: '', aliases: '', relation: '', personality: '', style: '', background: '', prompt: '', greeting: '', autoPost: false, igPosts: [] } : getCharacter(id);
   const deleteButton = isNew ? '' : `<button class="danger-btn" style="width:100%;margin-top:10px" onclick="deleteCharacter('${char.id}')">删除角色</button>`;
   setTitle(isNew ? '新建角色' : '编辑角色');
   c().innerHTML = `
@@ -340,7 +444,7 @@ function renderMemoryEditor(char) {
 
 function saveCharacter(id) {
   const isNew = id === 'new';
-  const char = isNew ? { id: 'char-' + Date.now(), memories: [], chat: [], unread: 0, read: true } : getCharacter(id);
+  const char = isNew ? { id: 'char-' + Date.now(), memories: [], chat: [], unread: 0, read: true, autoPost: false, igPosts: [] } : getCharacter(id);
   char.avatar = $('charAvatar').value.trim();
   char.name = $('charName').value.trim() || '未命名角色';
   char.aliases = $('charAliases').value.trim();
@@ -818,21 +922,29 @@ function renderHome() {
   if (mc) { mc.style.padding = '0'; mc.style.height = '100%'; mc.style.overflow = 'hidden'; }
   const hdr = document.querySelector('.app-header');
   if (hdr) hdr.classList.add('hidden');
-  const h = state.home || (state.home = { bg: '', person: '', personPos: { x: 50, y: 72 }, furniture: [], logs: [] });
-  if (!h.furniture || !h.furniture.length) { h.furniture = (JSON.parse(JSON.stringify(defaultState)).home.furniture || []); saveState(); }
-  const furHtml = (h.furniture || []).map(f => `
-    <div class="home-fur" data-fid="${f.id}" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;background-image:url('${escapeHTML(f.img || '')}')">
+  const DEFAULT_PERSON = 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg';
+  var h = state.home;
+  if (!h || !h.rooms) { state.home = JSON.parse(JSON.stringify(defaultState.home)); h = state.home; saveState(); }
+  var activeId = h.activeRoom || 'living';
+  var room = h.rooms[activeId];
+  if (!room) { activeId = 'living'; room = h.rooms.living; h.activeRoom = 'living'; saveState(); }
+  var furHtml = (room.furniture || []).map(f => `
+    <div class="home-fur" data-fid="${f.id}" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;background-image:${f.img ? `url('${escapeHTML(f.img)}')` : 'none'}">
       <span class="home-fur-name">${escapeHTML(f.name)}</span>
     </div>`).join('');
-  const DEFAULT_PERSON = 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg';
+  var roomTabs = Object.keys(h.rooms).map(function(rid) {
+    var r = h.rooms[rid];
+    return '<div class="home-tab' + (rid === activeId ? ' active' : '') + '" onclick="switchRoom(\'' + rid + '\')">' + escapeHTML(r.name) + '</div>';
+  }).join('');
   c().innerHTML = `
-    <div class="stack" style="height:100%;margin:0;padding:0">
-      <div class="home-room">
-        <div class="home-bg" style="background-image:url('${escapeHTML(h.bg || '')}')"></div>
+    <div class="stack" style="height:100%;margin:0;padding:0;position:relative">
+      <div class="home-room${activeId === 'bathroom' ? ' bathroom' : ''}">
+        <div class="home-bg"${room.bg ? ` style="background-image:url('${escapeHTML(room.bg)}')"` : ''}></div>
         <div class="home-exit" onclick="closeApp()" title="退出">✕</div>
         <div class="home-log-btn" onclick="toggleHomeLog()" title="查看记录">📜</div>
         ${furHtml}
-        <div id="homePerson" class="home-person" style="left:${h.personPos.x}%;top:${h.personPos.y}%;background-image:url('${escapeHTML(h.person || DEFAULT_PERSON)}')"></div>
+        <div id="homePerson" class="home-person" style="left:${room.personPos.x}%;top:${room.personPos.y}%;background-image:url('${escapeHTML(room.person || DEFAULT_PERSON)}')"></div>
+        <div id="homeEffects" style="position:absolute;inset:0;pointer-events:none;z-index:6"></div>
         <div id="homePanel" class="home-panel" style="display:none">
           <div class="home-panel-head"><b id="homePanelTitle"></b><span onclick="closeHomePanel()" style="cursor:pointer;color:#9aa3af">✕</span></div>
           <div id="homePanelActions" class="home-panel-actions"></div>
@@ -844,18 +956,31 @@ function renderHome() {
           ${h.logs && h.logs.length ? h.logs.map(l => `<div class="card subtle" style="margin-bottom:8px;padding:10px 12px">· ${escapeHTML(l)}</div>`).join('') : '<div class="card subtle">还没有互动记录，点家具试试吧。</div>'}
         </div>
       </div>
+      <div class="home-tabs">${roomTabs}</div>
     </div>`;
-  const room = document.querySelector('.home-room');
-  if (room) {
-    room.onclick = function(ev) {
-      const fur = ev.target.closest('.home-fur');
-      if (fur) { const fid = fur.dataset.fid; if (fid) { openFurniture(fid); return; } }
-      if (ev.target === room || ev.target.classList.contains('home-bg')) {
-        const box = room.querySelector('.tv-watch-box');
+  const roomEl = document.querySelector('.home-room');
+  if (roomEl) {
+    roomEl.onclick = function(ev) {
+      const bubEl = ev.target.closest('.bath-bubble');
+      if (bubEl) { doFurnitureAction(bubEl.dataset.fid, parseInt(bubEl.dataset.idx)); return; }
+      const furEl = ev.target.closest('.home-fur');
+      if (furEl) { const fid = furEl.dataset.fid; if (fid) { openFurniture(fid); return; } }
+      if (ev.target === roomEl || ev.target.classList.contains('home-bg')) {
+        const box = roomEl.querySelector('.tv-watch-box');
         if (box) box.remove();
+        var bubbles = document.querySelectorAll('.bath-bubble');
+        bubbles.forEach(function(b) { b.remove(); });
       }
     };
   }
+}
+
+function switchRoom(id) {
+  var h = state.home;
+  if (!h || !h.rooms || !h.rooms[id]) return;
+  h.activeRoom = id;
+  saveState();
+  renderHome();
 }
 
 function toggleHomeLog() {
@@ -863,16 +988,56 @@ function toggleHomeLog() {
   if (v) v.classList.toggle('show');
 }
 
+function curRoomFur() {
+  var h = state.home; if (!h || !h.rooms) return [];
+  var room = h.rooms[h.activeRoom || 'living'];
+  return room ? (room.furniture || []) : [];
+}
+
 function openFurniture(id) {
   const h = state.home; if (!h) return;
-  const f = (h.furniture || []).find(x => x.id === id); if (!f) return;
+  var furn = curRoomFur();
+  const f = furn.find(x => x.id === id); if (!f) return;
+  var room = h.rooms[h.activeRoom || 'living'];
+  if (!room) return;
   const panel = $('homePanel'); if (!panel) return;
   if (id === 'fur-tvcabinet' || id === 'fur-table' || id === 'fur-painting') return;
-  if (h.personPos) {
-    h.personPos.x = Math.min(92, Math.max(4, f.x + (f.w / 2) - 6));
-    h.personPos.y = Math.min(82, Math.max(4, f.y + f.h - 12));
+  if (room.personPos) {
+    room.personPos.x = Math.min(92, Math.max(4, f.x + (f.w / 2) - 6));
+    room.personPos.y = Math.min(82, Math.max(4, f.y + f.h - 12));
     const p = $('homePerson');
-    if (p) { p.style.left = h.personPos.x + '%'; p.style.top = h.personPos.y + '%'; }
+    if (p) { p.style.left = room.personPos.x + '%'; p.style.top = room.personPos.y + '%'; }
+  }
+  /* 厕所：泡泡选项漂浮在家具周围 */
+  if (document.querySelector('.home-room.bathroom')) {
+    panel.style.display = 'none';
+    var acts = f.actions || [];
+    if (!acts.length) return;
+    /* 移除旧泡泡 */
+    var oldBubbles = document.querySelectorAll('.bath-bubble');
+    oldBubbles.forEach(function(b) { b.remove(); });
+    /* 在家具周围创建泡泡选项 */
+    var furEl = document.querySelector('.home-room.bathroom [data-fid="' + id + '"]');
+    if (furEl) {
+      var fr = furEl.getBoundingClientRect();
+      var pr = furEl.parentElement.getBoundingClientRect();
+      acts.forEach(function(a, i) {
+        var bub = document.createElement('div');
+        bub.className = 'bath-bubble';
+        bub.innerText = a.label;
+        var angle = -40 + i * (80 / (acts.length - 1 || 1));
+        var dist = 36 + Math.random() * 8;
+        var rad = angle * Math.PI / 180;
+        bub.style.left = (fr.left - pr.left + fr.width / 2 + Math.cos(rad) * dist - 30) + 'px';
+        bub.style.top = (fr.top - pr.top + Math.cos(rad) * dist * 0.5 - 8) + 'px';
+        bub.dataset.fid = f.id;
+        bub.dataset.idx = i;
+        furEl.parentElement.appendChild(bub);
+        /* 延迟触发动画 */
+        setTimeout(function() { bub.classList.add('show'); }, i * 60);
+      });
+    }
+    return;
   }
   if (id === 'fur-tv') {
     closeHomePanel();
@@ -924,14 +1089,86 @@ function plantWater() {
 
 function doFurnitureAction(furnitureId, idx) {
   const h = state.home; if (!h) return;
-  const f = (h.furniture || []).find(x => x.id === furnitureId); if (!f) return;
+  var furn = curRoomFur();
+  const f = furn.find(x => x.id === furnitureId); if (!f) return;
   const act = (f.actions || [])[idx]; if (!act) return;
   $('homePanelResult').innerText = act.result;
+  if (act.effect) spawnRoomEffect(furnitureId, act.effect);
   const time = new Date().toLocaleString();
   h.logs = h.logs || [];
   h.logs.unshift(time + ' · ' + f.name + '：' + act.label);
   if (h.logs.length > 50) h.logs.length = 50;
   saveState();
+  /* 厕所：清除泡泡，在相同位置显示结果 */
+  var bubbles = document.querySelectorAll('.bath-bubble');
+  var lastPos = null;
+  if (bubbles.length) {
+    var lastBubble = bubbles[0];
+    lastPos = { left: lastBubble.style.left, top: lastBubble.style.top };
+  }
+  bubbles.forEach(function(b) { b.remove(); });
+  if (document.querySelector('.home-room.bathroom')) {
+    var furEl = document.querySelector('.home-room.bathroom [data-fid="' + furnitureId + '"]');
+    if (furEl) {
+      var old = furEl.parentElement.querySelector('.home-panel-result');
+      if (old) old.remove();
+      var res = document.createElement('div');
+      res.className = 'home-panel-result';
+      res.innerText = act.result;
+      if (lastPos) {
+        res.style.left = lastPos.left;
+        res.style.top = lastPos.top;
+      } else if (furEl) {
+        var fr = furEl.getBoundingClientRect();
+        var pr = furEl.parentElement.getBoundingClientRect();
+        res.style.left = (fr.left - pr.left + fr.width / 2 - 60) + 'px';
+        res.style.top = (fr.top - pr.top - 8) + 'px';
+      }
+      furEl.parentElement.appendChild(res);
+      setTimeout(function() { if (res.parentNode) res.remove(); }, 3000);
+    }
+  }
+}
+
+function spawnRoomEffect(fid, type) {
+  var h = state.home; if (!h) return;
+  var room = h.rooms[h.activeRoom || 'living']; if (!room) return;
+  var f = (room.furniture || []).find(function(x) { return x.id === fid; }); if (!f) return;
+  var container = $('homeEffects'); if (!container) return;
+  var cx = f.x + f.w / 2;
+  var cy = f.y + 10;
+  if (type === 'steam') {
+    for (var si = 0; si < 8; si++) {
+      var el = document.createElement('div');
+      el.className = 'steam-particle';
+      el.style.left = (cx + (Math.random() - .5) * f.w * .6) + '%';
+      el.style.bottom = (100 - cy + Math.random() * 8) + '%';
+      el.style.animationDelay = (Math.random() * 2) + 's';
+      el.style.animationDuration = (2.5 + Math.random()) + 's';
+      container.appendChild(el);
+      setTimeout(function(e) { e.remove(); }, 4000, el);
+    }
+  } else if (type === 'bubble') {
+    for (var bi = 0; bi < 12; bi++) {
+      var el2 = document.createElement('div');
+      el2.className = 'bubble-particle';
+      el2.style.left = (cx + (Math.random() - .5) * f.w * .5) + '%';
+      el2.style.bottom = (100 - cy + Math.random() * 10) + '%';
+      el2.style.width = (8 + Math.random() * 10) + 'px';
+      el2.style.height = el2.style.width;
+      el2.style.animationDelay = (Math.random() * 3) + 's';
+      el2.style.animationDuration = (3 + Math.random() * 2) + 's';
+      container.appendChild(el2);
+      setTimeout(function(e) { e.remove(); }, 5000, el2);
+    }
+  } else if (type === 'candle') {
+    var glow = document.createElement('div');
+    glow.className = 'candle-glow';
+    glow.style.left = (f.x + f.w / 2 - 3) + '%';
+    glow.style.top = (f.y - 2) + '%';
+    container.appendChild(glow);
+    setTimeout(function(e) { e.remove(); }, 5000, glow);
+  }
 }
 
 // ---------- 日记 ----------

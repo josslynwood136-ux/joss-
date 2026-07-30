@@ -125,50 +125,184 @@ function switchProfileTab(tab) {
 }
 
 // ====== Feed / Home ======
-function renderFeed() {
-  const container = $('igFeedContainer');
-  if (!container) return;
-  const posts = state.profilePosts || [];
-  if (posts.length === 0) {
-    container.innerHTML = '<div class="feed-empty">📷 还没有帖子<br><span style="font-size:12px;color:#bbb;">点击底部 + 发布第一条动态</span></div>';
-    return;
-  }
-  const username = state.myProfile ? state.myProfile.username : '@user';
-  const avatarHtml = state.myProfile && state.myProfile.avatarImage
-    ? `<img src="${state.myProfile.avatarImage}" />`
-    : (state.myProfile ? state.myProfile.avatar || '👤' : '👤');
-
-  container.innerHTML = posts.map(post => `
-    <div class="feed-post">
-      <div class="feed-post-header">
-        <div class="feed-avatar">${avatarHtml}</div>
-        <span class="feed-username">${escapeHTML(username)}</span>
-        <button class="feed-more">⋯</button>
-      </div>
-      ${post.image ? `
-      <div class="feed-post-image">
-        <img src="${post.image}" style="filter:${post.filter || 'none'};" onclick="viewPost('${post.id}')" />
-      </div>` : ''}
-      <div class="feed-post-actions">
-        <button class="action-btn" onclick="toggleFeedLike('${post.id}')">♡</button>
-        <button class="action-btn" onclick="showIGToast('评论功能')">💬</button>
-        <button class="action-btn save-btn" onclick="showIGToast('已保存')">🏷️</button>
-      </div>
-      <div class="feed-post-likes">❤️ 0 次赞</div>
-      <div class="feed-post-caption">
-        <span class="cap-user">${escapeHTML(username)}</span>${escapeHTML(post.caption || '')}
-      </div>
-      <div class="feed-post-time">${formatPostTime(post.time)}</div>
-    </div>
-  `).join('');
+function getCharInfo(charId) {
+  return (state.roles || []).find(function(r) { return r.id === charId; });
 }
 
-function toggleFeedLike(postId) {
-  const btn = document.querySelector(`#igFeedContainer .feed-post:first-child .action-btn:first-child`);
-  if (btn) {
-    btn.classList.toggle('liked');
-    btn.textContent = btn.classList.contains('liked') ? '❤️' : '♡';
+var _genPostPending = false;
+
+function ensureCharAutoPosts() {
+  (state.roles || []).forEach(function(char) {
+    if (!char.autoPost) return;
+    if (!char.igPosts) char.igPosts = [];
+    var today = new Date().toDateString();
+    var hasToday = char.igPosts.some(function(p) { return new Date(p.time).toDateString() === today; });
+    if (hasToday) return;
+    generateCharPost(char);
+  });
+}
+
+async function generateCharPost(char) {
+  var ap = state.apiProfiles && state.activeApiProfile
+    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+  var cfg = ap || state.api;
+  if (!cfg.key || !cfg.url || !cfg.model) return;
+  var prompt = '你是一个角色。根据以下角色设定，发一条 Instagram 动态（一句话 + 一个emoji）。只输出动态内容，不要解释，不要加引号。\n\n角色名：' + char.name + '\n性格：' + (char.personality || '普通') + '\n说话风格：' + (char.style || '普通') + '\n背景：' + (char.background || '无') + '\n\n示例输出：\n今天天气真好，出去走走🌤️';
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 15000);
+  try {
+    var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 80,
+        temperature: 0.8
+      })
+    });
+    var data = await res.json().catch(function() { return {}; });
+    if (!res.ok) return;
+    var text = (data.choices?.[0]?.message?.content || '').trim();
+    if (!text) return;
+    var emojiMatch = text.match(/([\u2600-\u27ff\u{1F000}-\u{1FFFF}]|[\u2700-\u27BF])/u);
+    var caption = text;
+    var emoji = '💬';
+    if (emojiMatch) {
+      emoji = emojiMatch[0];
+      caption = text.replace(emoji, '').replace(/\s*\n\s*/g, ' ').trim();
+    }
+    if (!char.igPosts) char.igPosts = [];
+    char.igPosts.push({
+      id: 'cp_' + char.id + '_' + Date.now(),
+      caption: caption,
+      emoji: (emoji ? emoji[0] : '💬'),
+      time: Date.now() - Math.floor(Math.random() * 3600000),
+      likes: Math.floor(Math.random() * 18) + 1,
+      liked: false
+    });
+    saveState();
+    renderFeed();
+  } catch (e) {
+    // 忽略失败
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+function renderFeed() {
+  var container = $('igFeedContainer');
+  if (!container) return;
+  var chars = state.roles || [];
+  var myProfile = state.myProfile || {};
+
+  ensureCharAutoPosts();
+
+  // Stories
+  var storyUsers = [{ id: '_self', avatar: myProfile.avatarImage || myProfile.avatar || '👤', name: '你的快拍', isSelf: true }];
+  chars.forEach(function(char) {
+    if (char && char.name) storyUsers.push({ id: char.id, avatar: char.avatar, name: char.name });
+  });
+  var viewed = state.viewedStories || {};
+  var storiesHtml = '<div class="ig-stories"><div class="ig-stories-track">';
+  storyUsers.forEach(function(u) {
+    var isImg = u.avatar && u.avatar.startsWith && (u.avatar.startsWith('http') || u.avatar.startsWith('data:'));
+    var avatarContent = isImg ? '<img src="' + u.avatar + '" />' : escapeHTML(u.avatar || '👤');
+    var ringCls = u.isSelf ? 'story-ring-self' : (viewed[u.id] ? 'story-ring-viewed' : 'story-ring-new');
+    var clickHandler = u.isSelf ? '' : 'onclick="openIGStory(\'' + u.id + '\')"';
+    storiesHtml += '<div class="ig-story-item" ' + clickHandler + '><div class="ig-story-ring ' + ringCls + '"><div class="ig-story-avatar">' + avatarContent + '</div></div><div class="ig-story-name">' + escapeHTML(u.isSelf ? '你的快拍' : (u.name || '')) + '</div></div>';
+  });
+  storiesHtml += '</div></div>';
+
+  // 汇总所有帖子
+  var allPosts = [];
+  var myImg = myProfile.avatarImage || '';
+  var myAvatarHtml = myImg ? '<img src="' + myImg + '" />' : escapeHTML(myProfile.avatar || '👤');
+  var myDisplayName = myProfile.username || '@my_username';
+
+  (state.profilePosts || []).forEach(function(p) {
+    allPosts.push({
+      type: 'self', id: p.id,
+      avatarHtml: myAvatarHtml, displayName: myDisplayName,
+      content: p.image ? '<img src="' + p.image + '" style="filter:' + (p.filter || 'none') + '" />' : '<div style="font-size:80px;display:flex;align-items:center;justify-content:center;height:100%;background:var(--bg-gray,#f0ede8);">📝</div>',
+      caption: p.caption || '', time: p.time, likes: 0, liked: false
+    });
+  });
+
+  chars.forEach(function(char) {
+    if (!char.autoPost || !char.igPosts) return;
+    var isImg = char.avatar && char.avatar.startsWith && (char.avatar.startsWith('http') || char.avatar.startsWith('data:'));
+    var avatarHtml = isImg ? '<img src="' + char.avatar + '" />' : escapeHTML(char.avatar || '👤');
+    char.igPosts.forEach(function(p) {
+      allPosts.push({
+        type: 'char', id: p.id, charId: char.id,
+        avatarHtml: avatarHtml, displayName: char.name || char.username || '用户',
+        content: '<div style="font-size:80px;display:flex;align-items:center;justify-content:center;height:100%;background:var(--bg-gray,#f0ede8);">' + p.emoji + '</div>',
+        caption: p.caption || '', time: p.time, likes: p.likes, liked: p.liked
+      });
+    });
+  });
+
+  allPosts.sort(function(a, b) { return b.time - a.time; });
+
+  if (allPosts.length === 0) {
+    container.innerHTML = storiesHtml + '<div class="feed-empty">📷 还没有帖子<br><span style="font-size:12px;color:#bbb;">点击底部 + 发布第一条动态</span></div>';
+    return;
+  }
+
+  var feedHtml = '';
+  allPosts.forEach(function(post) {
+    var likeBtn = post.liked ? '❤️' : '♡';
+    var likeCls = post.liked ? 'action-btn liked' : 'action-btn';
+    var likeHandler = post.type === 'self'
+      ? 'showIGToast(\'❤️ 已赞\')'
+      : 'igLikeAutoPost(\'' + post.id + '\',\'' + post.charId + '\')';
+    feedHtml += '<div class="feed-post">';
+    feedHtml += '<div class="feed-post-header"><div class="feed-avatar">' + post.avatarHtml + '</div><span class="feed-username">' + escapeHTML(post.displayName) + '</span><button class="feed-more">⋯</button></div>';
+    feedHtml += '<div class="feed-post-image">' + post.content + '</div>';
+    feedHtml += '<div class="feed-post-actions"><button class="' + likeCls + '" onclick="' + likeHandler + '">' + likeBtn + '</button><button class="action-btn" onclick="showIGToast(\'💬 评论\')">💬</button><button class="action-btn save-btn" onclick="showIGToast(\'已保存\')">🏷️</button></div>';
+    feedHtml += '<div class="feed-post-likes">❤️ ' + post.likes + ' 次赞</div>';
+    feedHtml += '<div class="feed-post-caption"><span class="cap-user">' + escapeHTML(post.displayName) + '</span>' + escapeHTML(post.caption) + '</div>';
+    feedHtml += '<div class="feed-post-time">' + formatPostTime(post.time) + '</div></div>';
+  });
+  container.innerHTML = storiesHtml + feedHtml;
+}
+
+function igLikeAutoPost(postId, charId) {
+  var chars = state.roles || [];
+  for (var c = 0; c < chars.length; c++) {
+    var char = chars[c];
+    if (char.id !== charId || !char.igPosts) continue;
+    for (var i = 0; i < char.igPosts.length; i++) {
+      if (char.igPosts[i].id === postId) {
+        char.igPosts[i].liked = !char.igPosts[i].liked;
+        char.igPosts[i].likes += char.igPosts[i].liked ? 1 : -1;
+        saveState();
+        renderFeed();
+        return;
+      }
+    }
+  }
+}
+
+var IG_STORY_ITEMS = [
+  { emoji: '🌅', text: '早安' }, { emoji: '🍜', text: '美食' },
+  { emoji: '🏃', text: '运动' }, { emoji: '📖', text: '读书' },
+  { emoji: '🎵', text: '音乐' }, { emoji: '☕', text: '咖啡' },
+  { emoji: '🌙', text: '晚安' }, { emoji: '✈️', text: '旅行' }
+];
+function openIGStory(charId) {
+  if (!state.viewedStories) state.viewedStories = {};
+  state.viewedStories[charId] = true;
+  var char = getCharInfo(charId);
+  if (!char) return;
+  var overlay = document.createElement('div');
+  overlay.className = 'ig-story-viewer';
+  overlay.innerHTML = '<div class="ig-story-bg" style="background:' + (char.color || '#333') + '"></div><div class="ig-story-content"><div class="ig-story-top-bar"><span class="ig-story-top-name">' + escapeHTML(char.name || '') + '</span><button class="ig-story-close" onclick="this.closest(\'.ig-story-viewer\').remove()">✕</button></div><div class="ig-story-main" style="font-size:96px">' + IG_STORY_ITEMS[Math.floor(Math.random() * IG_STORY_ITEMS.length)].emoji + '</div><div class="ig-story-hint">点击关闭</div></div>';
+  overlay.onclick = function(e) { if (e.target === overlay || e.target.classList.contains('ig-story-bg') || e.target.classList.contains('ig-story-main') || e.target.classList.contains('ig-story-hint')) overlay.remove(); };
+  document.body.appendChild(overlay);
+  renderFeed();
 }
 
 // ====== 角色库 ======
@@ -317,7 +451,9 @@ function saveIGCharEditor() {
     unread: 0,
     read: true,
     pinned: false,
-    online: true
+    online: true,
+    autoPost: false,
+    igPosts: []
   } : state.roles.find(r => r.id === igEditingCharId);
   if (!char) return;
   char.avatar = igCharAvatarData;
@@ -362,20 +498,17 @@ function renderDmList() {
   }
   state.roles.forEach(char => {
     const last = (char.chat || [])[char.chat.length - 1];
-    const preview = last ? last.content.slice(0, 40) + (last.content.length > 40 ? '...' : '') : '还没有聊天记录';
+    const preview = last
+      ? last.type === 'redpacket'
+        ? '🧧 红包' + (last.note ? '：' + last.note.slice(0, 20) : '')
+        : last.content.slice(0, 40) + (last.content.length > 40 ? '...' : '')
+      : '还没有聊天记录';
     const time = last && last.time ? formatPostTime(last.time) : '';
     const div = document.createElement('div');
     div.className = 'dialog-item';
     div.onclick = (e) => {
       e.stopPropagation();
-      // 清空 IG 内容再开聊天，避免遮挡
-      const mc = c();
-      if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; }
-      mc.innerHTML = '';
-      setTitle('消息');
-      const ah = document.querySelector('.app-header');
-      if (ah) ah.style.display = '';
-      setTimeout(() => openChat(char.id), 30);
+      openChat(char.id);
     };
     div.innerHTML = `
       <div class="dialog-avatar">${renderAvatar(char.avatar, char.name)}</div>
@@ -515,6 +648,11 @@ function saveProfile() {
   state.myProfile.username = $('profileEditUsername').value.trim() || '@my_username';
   state.myProfile.bio = $('profileEditBio').value.trim() || '';
   state.myProfile.location = $('profileEditLocation').value.trim() || '';
+  var prof = activeProfile();
+  if (prof) {
+    prof.avatar = state.myProfile.avatarImage || state.myProfile.avatar || '🌸';
+    prof.name = state.myProfile.name;
+  }
   closeProfileEditor();
   renderMyProfileContent();
   saveState();
