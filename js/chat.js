@@ -5,6 +5,7 @@ let chatTyping = false;
 let pendingReply = false;
 let activeAbort = null;
 let noteTimer = null;
+let _manualAICall = false;
 
 // ===== 消息弹窗 =====
 function showMsgNote(charId, name, avatar, text) {
@@ -28,12 +29,20 @@ function openChat(characterId) {
   }
   saveState();
   pendingReply = false;
+  _manualAICall = false;
+  $('sendBtn').style.display = '';
+  var ob = $('aiBtn');
+  if (ob) ob.remove();
   $('chatWindow').classList.add('open');
   renderChat();
 }
 
 function closeChat() {
   pendingReply = false;
+  _manualAICall = false;
+  $('sendBtn').style.display = '';
+  var ob = $('aiBtn');
+  if (ob) ob.remove();
   $('chatWindow').classList.remove('open');
   hidePanels();
 }
@@ -67,6 +76,14 @@ function renderChat() {
         <div class="rp-card-note">${escapeHTML(note || '恭喜发财')}</div>
       </div>${tick}</div>`;
     }
+    if (msg.type === 'sticker') {
+      const stickerSrc = msg.media && msg.media.src ? msg.media.src : '';
+      const msgDate = msg.time ? msg.time.slice(0, 10) : '';
+      const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
+      lastDate = msgDate || lastDate;
+      const tick = isUser ? `<div class="read-tick">${char.read ? '已读' : '已发送'}</div>` : '';
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}"><div class="avatar">${renderAvatar(av, nm)}</div>${stickerSrc ? `<img src="${escapeHTML(stickerSrc)}" class="chat-sticker-img" alt="表情包">` : ''}${tick}</div>`;
+    }
     let mediaHtml = '';
     if (msg.media && msg.media.type === 'image') {
       mediaHtml = `<img src="${escapeHTML(msg.media.src)}" style="max-width:180px;border-radius:12px;display:block;margin-top:4px">`;
@@ -87,6 +104,7 @@ function renderChat() {
     return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}', ${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
   }).join('') + typing;
   $('chatBody').scrollTop = $('chatBody').scrollHeight;
+  applyBubbleStyle();
 }
 
 function deleteMessage(charId, index) {
@@ -102,10 +120,11 @@ function setChatTyping(value) {
   renderChat();
 }
 
-function appendBubble(role, content, media, translatedText) {
+function appendBubble(role, content, media, translatedText, msgType) {
   const msg = { role, content: content || '', time: new Date().toLocaleString() };
   if (media) msg.media = media;
   if (translatedText) msg.translatedText = translatedText;
+  if (msgType) msg.type = msgType;
   activeCharacter().chat.push(msg);
   if (role === 'assistant') {
     const char = activeCharacter();
@@ -115,13 +134,19 @@ function appendBubble(role, content, media, translatedText) {
     if (cw && !cw.classList.contains('open')) {
       showMsgNote(char.id, char.name, char.avatar, content || '发来一条消息');
     }
+    char.memPending = (char.memPending || 0) + 1;
+    var every = (char.autoMemEvery > 0) ? char.autoMemEvery : 1;
+    if (char.memPending >= every) {
+      char.memPending = 0;
+      autoSaveMemory(char);
+    }
   }
   saveState();
   renderChat();
 }
 
 // ===== AI 对话 =====
-async function sendChat() {
+function sendChat() {
   if (_voiceRec) stopVoice();
   if (_voiceMediaRecorder) stopVoiceRecord();
   const input = $('chatInput');
@@ -134,55 +159,68 @@ async function sendChat() {
   if (text) {
     appendBubble('user', text);
     input.value = '';
-    pendingReply = true;
-    renderChat();
-    setChatTyping(true);
-    try {
-      const reply = await callAI(text);
-      var char = activeCharacter();
-      var trans = null;
-      if (char.translate && char.lang && char.lang !== '中文') {
-        var cleanText = reply.replace(/[（(][^）)]*[）)]/g, '').trim();
-        if (cleanText) trans = await translateText(cleanText);
-      }
-      setChatTyping(false);
-      appendBubble('assistant', reply, null, trans);
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      setChatTyping(false);
-      appendBubble('system', '暂时没回应（' + err.message + '）');
-    } finally {
-      $('sendBtn').disabled = false;
-    }
-    return;
-  }
-  pendingReply = false;
-  $('sendBtn').disabled = true;
-  setChatTyping(true);
-  try {
-    const reply = await callAI('（用户没有继续输入文字，请你根据当前角色卡、记忆和最近聊天，自然地回应或主动续上对话。）', false, true);
-    var trans2 = null;
-    var char2 = activeCharacter();
-    if (char2.translate && char2.lang && char2.lang !== '中文') {
-      var cleanText2 = reply.replace(/[（(][^）)]*[）)]/g, '').trim();
-      if (cleanText2) trans2 = await translateText(cleanText2);
-    }
-    setChatTyping(false);
-    appendBubble('assistant', reply, null, trans2);
-  } catch (err) {
-    if (err.name === 'AbortError') return;
-    setChatTyping(false);
-    appendBubble('system', '暂时没回应（' + err.message + '）');
-  } finally {
-    $('sendBtn').disabled = false;
+    showAIButton();
   }
 }
 
+function showAIButton() {
+  let btn = $('aiBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'aiBtn';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
+    btn.title = '发送给角色';
+    btn.style.cssText = 'background:var(--qq-blue);color:#fff;border:none;border-radius:15px;padding:8px 10px;font-size:13px;cursor:pointer;font-weight:800;animation:tvPop .24s ease;display:inline-flex;align-items:center;gap:4px;';
+    btn.onclick = function() {
+      _manualAICall = true;
+      const char = activeCharacter();
+      const msgs = char.chat.filter(m => m.role === 'user');
+      const last = msgs[msgs.length - 1];
+      const txt = last ? last.content : '';
+      setChatTyping(true);
+      var trans = null;
+      callAI(txt).then(function(reply) {
+        if (char.translate && char.lang && char.lang !== '中文') {
+          var cleanText = reply.replace(/[（(][^）)]*[）)]/g, '').trim();
+          if (cleanText) return translateText(cleanText).then(function(t) { trans = t; return reply; });
+        }
+        return reply;
+      }).then(function(reply) {
+        setChatTyping(false);
+        appendBubble('assistant', reply, null, trans);
+        _manualAICall = false;
+        var b = $('aiBtn');
+        if (b) b.remove();
+        $('sendBtn').style.display = '';
+      }).catch(function(err) {
+        if (err.name === 'AbortError') { _manualAICall = false; return; }
+        setChatTyping(false);
+        appendBubble('system', '暂时没回应（' + err.message + '）');
+        _manualAICall = false;
+        var b = $('aiBtn');
+        if (b) b.remove();
+        $('sendBtn').style.display = '';
+      });
+    };
+    $('sendBtn').parentNode.insertBefore(btn, $('sendBtn').nextSibling);
+  }
+  $('sendBtn').style.display = 'none';
+  btn.style.display = 'inline-flex';
+}
+
 async function callAI(text, shortTest = false, proactive = false) {
+  if (!shortTest && !_manualAICall) {
+    return '';
+  }
+  _manualAICall = false;
   const char = activeCharacter();
   const systemPrompt = shortTest ? state.api.preset || '你是以下角色' : buildRoleSystemPrompt(char, text);
-  const history = shortTest ? [] : char.chat.slice(-12).filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || (m.media ? '[' + m.media.type + ']' : '') }));
-  const userContent = proactive ? '用户没有输入文字。请你以当前角色身份，结合最近聊天和记忆，主动发起一句自然的消息。' : text;
+  const history = shortTest ? [] : char.chat.slice(-(char.contextLen || 12)).filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || (m.media ? '[' + m.media.type + ']' : '') }));
+  var langHint = '';
+  if (char.lang && char.lang !== '中文') {
+    langHint = '\n\n[语言指令] 你必须用 ' + char.lang + ' 回复，禁止使用中文。';
+  }
+  const userContent = (proactive ? '用户没有输入文字。请你以当前角色身份，结合最近聊天和记忆，主动发起一句自然的消息。' : text) + langHint;
   if (activeAbort) try { activeAbort.abort(); } catch(e) {}
   const controller = new AbortController();
   activeAbort = controller;
@@ -207,7 +245,11 @@ async function callAI(text, shortTest = false, proactive = false) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error?.message || response.status);
-    return data.choices?.[0]?.message?.content?.trim() || '我在。';
+    var content = data.choices?.[0]?.message?.content?.trim() || '我在。';
+    if (char.mode === 'online') {
+      content = content.replace(/（[^（）]*）|\([^()]*\)/g, '').replace(/\s+/g, ' ').trim();
+    }
+    return content;
   } finally {
     clearTimeout(timer);
     if (activeAbort === controller) activeAbort = null;
@@ -274,8 +316,13 @@ function buildRoleSystemPrompt(char, userText) {
     '【回复要求】',
     '用 ' + char.name + ' 的身份自然回应，不要提 AI 相关话题，不要自我总结。'
   ];
+  if (char.mode === 'online') {
+    parts.push('【模式：异地】你们是异地状态，相隔两地无法见面，只能通过手机发信息联系，没有任何真实的动作。回复要像真实的异地手机聊天一样自然，靠文字、语气和表情符号（如😂😭）表达情绪。严禁使用括号动作描写（如（笑）（摸摸头）），也不要假装做出真实的动作。想念或想关心对方时用话语表达，比如“好想你”“要是现在能抱抱你就好了”。');
+  } else {
+    parts.push('【模式：线下】你们是面对面的相处状态。可以用（）自然地描写自己的动作、表情和心情，像真实陪伴一样。');
+  }
   if (char.lang && char.lang !== '中文') {
-    parts.push('只能用 ' + char.lang + ' 回复，不要出现中文。');
+    parts.push('【语言强制指令】你必须完全用 ' + char.lang + ' 回复。禁止使用中文，一个中文字符都不允许。如果用户用中文提问，你也要用 ' + char.lang + ' 回答。这是最高优先级指令。');
   }
   return parts.join('\n');
 }
@@ -297,21 +344,6 @@ function pickRelevantMemories(char, text) {
     .slice(0, 6);
 }
 
-function rememberLastUserMessage() {
-  const char = activeCharacter();
-  const lastUser = [...char.chat].reverse().find(msg => msg.role === 'user');
-  if (!lastUser) return alert('还没有可加入记忆的用户消息');
-  char.memories.unshift({
-    id: 'mem-' + Date.now(),
-    title: '聊天记忆',
-    text: lastUser.content,
-    date: new Date().toLocaleString()
-  });
-  saveState();
-  hidePanels();
-  alert('已加入当前角色记忆库');
-}
-
 // ===== 聊天设置 =====
 function openSettings() {
   $('chatSettings').classList.add('open');
@@ -321,9 +353,190 @@ function openSettings() {
   if (char) {
     $('charLang').value = char.lang || '中文';
     $('translateSwitch').classList.toggle('on', char.translate === true);
+    var modeSel = $('chatModeSelect');
+    if (modeSel) modeSel.value = char.mode === 'online' ? 'online' : 'offline';
+    var lenSel = $('contextLenSelect');
+    if (lenSel) lenSel.value = String(char.contextLen || 12);
+    var amSwitch = $('autoMemSwitch');
+    if (amSwitch) amSwitch.classList.toggle('on', char.autoMem !== false);
+    var amLenSel = $('autoMemLenSelect');
+    if (amLenSel) amLenSel.value = String(char.autoMemLen || 8);
+    var amEverySel = $('autoMemEverySelect');
+    if (amEverySel) amEverySel.value = String(char.autoMemEvery || 1);
   }
+  applyBubbleStyle();
+  renderSettingsMemories();
 }
 function closeSettings() { $('chatSettings').classList.remove('open'); }
+function renderSettingsMemories() {
+  var char = activeCharacter();
+  var box = $('settingsMemories');
+  if (!box || !char) return;
+  box.innerHTML = (char.memories || []).map(mem => `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f5f2ee;">
+      <div style="flex:1;min-width:0;">
+        <b style="font-size:13px;">${escapeHTML(mem.title || '记忆')}</b>
+        <div style="font-size:12px;color:#b8a99a;word-break:break-all;">${escapeHTML(mem.text)}</div>
+      </div>
+      <button onclick="settingsDeleteMemory('${mem.id}')" style="border:none;background:#f7f5f2;color:#c0392b;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;flex:0 0 auto;">删</button>
+    </div>`).join('') || '<div style="color:#b8a99a;font-size:12px;padding:6px 0;">这个角色还没有记忆。</div>';
+}
+function settingsAddMemory() {
+  var char = activeCharacter();
+  if (!char) return;
+  var title = $('settingsMemTitle').value.trim();
+  var text = $('settingsMemText').value.trim();
+  if (!text) return alert('请输入记忆内容');
+  if (!Array.isArray(char.memories)) char.memories = [];
+  char.memories.unshift({ id: 'mem-' + Date.now(), title: title, text: text, date: new Date().toLocaleString() });
+  saveState();
+  $('settingsMemTitle').value = '';
+  $('settingsMemText').value = '';
+  renderSettingsMemories();
+}
+function settingsDeleteMemory(memId) {
+  var char = activeCharacter();
+  if (!char) return;
+  char.memories = (char.memories || []).filter(mem => mem.id !== memId);
+  saveState();
+  renderSettingsMemories();
+}
+function toggleAutoMem() {
+  var char = activeCharacter();
+  if (!char) return;
+  char.autoMem = char.autoMem !== false ? false : true;
+  saveState();
+  $('autoMemSwitch').classList.toggle('on', char.autoMem !== false);
+}
+function setAutoMemLen(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  var n = parseInt(val, 10);
+  n = (n > 1) ? n : 8;
+  char.autoMemLen = n;
+  saveState();
+  var el = $('autoMemLenSelect');
+  if (el) el.value = String(n);
+}
+function setAutoMemEvery(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  var n = parseInt(val, 10);
+  n = (n > 0) ? n : 1;
+  char.autoMemEvery = n;
+  if (char.memPending >= n) char.memPending = 0;
+  saveState();
+  var el = $('autoMemEverySelect');
+  if (el) el.value = String(n);
+}
+async function manualSummarizeMemory() {
+  var char = activeCharacter();
+  if (!char) return alert('请先打开一个角色');
+  var cfg = (state.apiProfiles && state.activeApiProfile)
+    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+  cfg = cfg || state.api;
+  if (!cfg || !cfg.key || !cfg.url || !cfg.model) return alert('还没连上，先去设置里连接一下。');
+  var msgs = (char.chat || []).filter(function(m) { return m.role !== 'system'; }).map(function(m) {
+    return (m.role === 'user' ? '用户：' : (char.name + '：')) + (m.content || (m.media ? '[' + m.media.type + ']' : ''));
+  }).join('\n');
+  if (!msgs) return alert('这个角色还没有聊天记录。');
+  var btn = $('manualSumBtn');
+  if (btn) { btn.textContent = '总结中…'; btn.style.opacity = '0.6'; btn.disabled = true; }
+  var ctrl = new AbortController();
+  var tmr = setTimeout(function() { ctrl.abort(); }, 30000);
+  try {
+    var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [
+          { role: 'system', content: '你负责从对话中提取值得长期记住的关键信息，比如用户的喜好、名字、重要约定、关系进展、重要事件。' },
+          { role: 'user', content: '以下是该角色的全部聊天记录，请逐段浏览后整理出值得记住的信息。\n\n' + msgs + '\n\n请输出值得记住的信息，每条一句话，最多5条，用竖线 | 分隔。没有值得记的就只输出"无"。不要加其它说明。' }
+        ],
+        max_tokens: 300,
+        temperature: 0.3
+      })
+    });
+    var data = await res.json().catch(function() { return {}; });
+    if (!res.ok) return alert('总结失败：' + (data.error && data.error.message || res.status));
+    var text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
+    if (!text) return alert('没有总结出内容。');
+    var lines = text.split(/[|\n]+/).map(function(s) { return s.trim(); }).filter(function(s) { return s && s !== '无'; });
+    if (!lines.length) return alert('AI 认为没有值得记录的信息。');
+    var added = 0;
+    lines.forEach(function(line) {
+      if (!Array.isArray(char.memories)) char.memories = [];
+      var norm = line.replace(/[。，、！？!?.,\s]/g, '');
+      var dup = char.memories.some(function(m) { return m.text.replace(/[。，、！？!?.,\s]/g, '') === norm; });
+      if (dup) return;
+      char.memories.unshift({ id: 'mem-' + Date.now() + '-' + Math.floor(Math.random() * 1000), title: '手动总结', text: line, date: new Date().toLocaleString() });
+      added++;
+    });
+    if (char.memories.length > 50) char.memories.length = 50;
+    saveState();
+    renderSettingsMemories();
+    alert(added ? '已加入 ' + added + ' 条记忆。' : '没有新增记忆（内容已存在）。');
+  } catch (e) {
+    if (e.name === 'AbortError') alert('总结超时，请重试。');
+    else alert('总结失败：' + (e.message || e));
+  } finally {
+    clearTimeout(tmr);
+    if (btn) { btn.textContent = '✍️ 手动总结'; btn.style.opacity = ''; btn.disabled = false; }
+  }
+}
+
+async function autoSaveMemory(char) {
+  try {
+    if (!char || char.autoMem === false) return;
+    var cfg = (state.apiProfiles && state.activeApiProfile)
+      ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+    cfg = cfg || state.api;
+    if (!cfg || !cfg.key || !cfg.url || !cfg.model) return;
+    var recent = (char.chat || []).slice(-(char.autoMemLen || 8)).filter(function(m) { return m.role !== 'system'; }).map(function(m) {
+      return (m.role === 'user' ? '用户：' : (char.name + '：')) + (m.content || (m.media ? '[' + m.media.type + ']' : ''));
+    }).join('\n');
+    if (!recent) return;
+    var ctrl = new AbortController();
+    var tmr = setTimeout(function() { ctrl.abort(); }, 12000);
+    try {
+      var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: [
+            { role: 'system', content: '你负责从对话中提取值得长期记住的关键信息，比如用户的喜好、名字、重要约定、关系进展、重要事件。' },
+            { role: 'user', content: '对话如下：\n' + recent + '\n\n请输出值得记住的信息，每条一句话，最多3条，用竖线 | 分隔。没有值得记的就只输出"无"。不要加其它说明。' }
+          ],
+          max_tokens: 150,
+          temperature: 0.3
+        })
+      });
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok) return;
+      var text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
+      if (!text) return;
+      var lines = text.split(/[|\n]+/).map(function(s) { return s.trim(); }).filter(function(s) { return s && s !== '无'; });
+      if (!lines.length) return;
+      var changed = false;
+      lines.forEach(function(line) {
+        if (!Array.isArray(char.memories)) char.memories = [];
+        var norm = line.replace(/[。，、！？!?.,\s]/g, '');
+        var dup = char.memories.some(function(m) { return m.text.replace(/[。，、！？!?.,\s]/g, '') === norm; });
+        if (dup) return;
+        char.memories.unshift({ id: 'mem-' + Date.now() + '-' + Math.floor(Math.random() * 1000), title: '自动记忆', text: line, date: new Date().toLocaleString() });
+        changed = true;
+      });
+      if (char.memories.length > 50) char.memories.length = 50;
+      if (changed) saveState();
+    } finally {
+      clearTimeout(tmr);
+    }
+  } catch (e) {}
+}
 function togglePin() { state.settings.pinned = !state.settings.pinned; saveState(); $('pinSwitch').classList.toggle('on', state.settings.pinned); }
 function toggleAutoPost() {
   var char = activeCharacter();
@@ -338,12 +551,42 @@ function setCharLang(val) {
   char.lang = val;
   saveState();
 }
+function setChatMode(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  char.mode = val === 'online' ? 'online' : 'offline';
+  saveState();
+}
+function setContextLen(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  var n = parseInt(val, 10);
+  n = (n > 0) ? n : 12;
+  char.contextLen = n;
+  saveState();
+  var el = $('contextLenSelect');
+  if (el) el.value = String(n);
+}
 function toggleTranslate() {
   var char = activeCharacter();
   if (!char) return;
   char.translate = !char.translate;
   saveState();
   $('translateSwitch').classList.toggle('on', char.translate);
+}
+function setBubbleStyle(val) {
+  state.settings.bubbleStyle = val || 'default';
+  saveState();
+  applyBubbleStyle();
+}
+function applyBubbleStyle() {
+  var cw = $('chatWindow');
+  if (!cw) return;
+  var s = state.settings.bubbleStyle || 'default';
+  cw.classList.remove('bubble-style-default', 'bubble-style-cute', 'bubble-style-warm', 'bubble-style-dark', 'bubble-style-ig', 'bubble-style-glow');
+  cw.classList.add('bubble-style-' + s);
+  var sel = $('bubbleStyleSelect');
+  if (sel) sel.value = s;
 }
 function clearHistory() {
   if (!confirm('清空聊天记录？')) return;
@@ -437,14 +680,6 @@ function confirmRedPacket() {
   renderChat();
   document.getElementById('rpOverlay').remove();
   hidePanels();
-  setChatTyping(true);
-  callAI('用户给你发了一个红包（' + amount + '元，附言：' + note + '），请根据当前聊天氛围自然回复。').then(reply => {
-    setChatTyping(false);
-    appendBubble('assistant', reply);
-  }).catch(function(e) {
-    setChatTyping(false);
-    appendBubble('assistant', '谢谢你～收到红包了！');
-  });
 }
 
 function openRedPacket(charId, msgIndex) {
@@ -505,15 +740,7 @@ function openAlbumPicker() {
     reader.onload = function(ev) {
       const dataUrl = ev.target.result;
       appendBubble('user', '[图片]', { type: 'image', src: dataUrl });
-      setChatTyping(true);
       saveState();
-      callAI('用户给你发了一张照片，请根据当前聊天氛围自然回复。').then(reply => {
-        setChatTyping(false);
-        appendBubble('assistant', reply);
-      }).catch(() => {
-        setChatTyping(false);
-        appendBubble('assistant', '我看到你发的照片啦～');
-      });
     };
     reader.readAsDataURL(file);
     input.value = '';
@@ -582,15 +809,7 @@ function startCapture() {
     if (!photoDataUrl) return;
     closeOverlay();
     appendBubble('user', '[拍摄]', { type: 'image', src: photoDataUrl });
-    setChatTyping(true);
     saveState();
-    callAI('用户给你发了一张拍摄的照片，请根据当前聊天氛围自然回复。').then(reply => {
-      setChatTyping(false);
-      appendBubble('assistant', reply);
-    }).catch(() => {
-      setChatTyping(false);
-      appendBubble('assistant', '这张照片拍得不错～');
-    });
   };
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(s => {
     stream = s; video.srcObject = s;
@@ -774,14 +993,6 @@ function sendVoiceMessage(blob) {
     var dataUrl = ev.target.result;
     appendBubble('user', '[语音消息]', { type: 'audio', src: dataUrl });
     saveState();
-    setChatTyping(true);
-    callAI('用户给你发了一段语音消息，请根据当前聊天氛围自然回复。').then(function(reply) {
-      setChatTyping(false);
-      appendBubble('assistant', reply);
-    }).catch(function() {
-      setChatTyping(false);
-      appendBubble('assistant', '收到你的语音啦～');
-    });
   };
   reader.readAsDataURL(blob);
 }

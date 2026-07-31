@@ -12,7 +12,7 @@ const defaultState = {
   api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '', temp: 0.75, topP: 0.9, maxTokens: 500, presencePenalty: 0, frequencyPenalty: 0 },
   apiProfiles: [],
   activeApiProfile: '',
-  settings: { ai: true, pinned: false },
+  settings: { ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop' },
   activeRoleId: 'role-default',
   roles: [
     {
@@ -193,7 +193,13 @@ function ensureStateShape(next, saved) {
     pinned: role.pinned === true,
     online: role.online !== false,
     lang: role.lang || '中文',
-    translate: role.translate === true
+    translate: role.translate === true,
+    mode: role.mode === 'online' ? 'online' : 'offline',
+    contextLen: parseInt(role.contextLen) > 0 ? parseInt(role.contextLen) : 12,
+    autoMem: role.autoMem !== false,
+    autoMemLen: parseInt(role.autoMemLen) > 1 ? parseInt(role.autoMemLen) : 8,
+    autoMemEvery: parseInt(role.autoMemEvery) > 0 ? parseInt(role.autoMemEvery) : 1,
+    memPending: parseInt(role.memPending) || 0
   }));
   if (!next.activeRoleId || !next.roles.some(role => role.id === next.activeRoleId)) {
     next.activeRoleId = next.roles[0].id;
@@ -295,6 +301,27 @@ function ensureStateShape(next, saved) {
 }
 
 // ===== 本地存储 =====
+function estimateStateSize() {
+  try { return Math.round(JSON.stringify(state).length * 2 / 1024); } catch(e) { return 0; }
+}
+
+function cleanupChatImages(minLen) {
+  minLen = minLen || 50000;
+  var removed = 0;
+  var freed = 0;
+  (state.roles || []).forEach(function(role) {
+    (role.chat || []).forEach(function(msg) {
+      if (msg.media && msg.media.src && msg.media.src.length > minLen) {
+        freed += msg.media.src.length;
+        msg.media = null;
+        if (!msg.content) msg.content = '[图片已清理]';
+        removed++;
+      }
+    });
+  });
+  return { removed: removed, freedKB: Math.round(freed * 2 / 1024) };
+}
+
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -309,7 +336,20 @@ function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
   } catch (err) {
-    alert('保存失败：头像或数据太大，请换一张更小的图片后重试。');
+    var totalRemoved = 0;
+    var totalFreed = 0;
+    var thresholds = [50000, 30000, 15000];
+    for (var i = 0; i < thresholds.length; i++) {
+      var r = cleanupChatImages(thresholds[i]);
+      totalRemoved += r.removed;
+      totalFreed += r.freedKB;
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        alert('空间不足，已自动清理 ' + totalRemoved + ' 个大图/头像（释放约 ' + totalFreed + ' KB），保存成功。');
+        return true;
+      } catch (e) { }
+    }
+    alert('仍无法保存（当前约 ' + estimateStateSize() + ' KB）。请删除一些表情包或清空聊天记录后重试。');
     return false;
   }
 }

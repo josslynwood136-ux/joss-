@@ -27,6 +27,12 @@ function init() {
     state.checkins.push({ id: 'ck-water', name: '喝水打卡', start: fmt(today), end: fmt(weekLater), totalDays: 7, doneDays: 0, status: 'doing' });
     saveState();
   }
+  var _prof = activeProfile();
+  var _mp = state.myProfile || {};
+  if (_prof && !_prof.avatar && _mp.avatarImage) {
+    _prof.avatar = _mp.avatarImage;
+    saveState();
+  }
   renderChat();
   initDragDesktop();
   bindHotspots();
@@ -98,18 +104,18 @@ function initDragDesktop() {
 var _w = window;
 _w.toggleDebug = toggleDebug; _w.openApp = openApp; _w.closeApp = closeApp; _w.toggleHeaderMenu = toggleHeaderMenu; _w.quickNotice = quickNotice;
 _w.switchTab = switchTab; _w.openChat = openChat; _w.closeChat = closeChat; _w.openSettings = openSettings; _w.closeSettings = closeSettings;
-_w.togglePin = togglePin; _w.clearHistory = clearHistory; _w.toggleMore = toggleMore; _w.toggleEmoji = toggleEmoji;
+_w.togglePin = togglePin; _w.clearHistory = clearHistory; _w.toggleMore = toggleMore; _w.toggleEmoji = toggleEmoji; _w.toggleAutoMem = toggleAutoMem; _w.setAutoMemLen = setAutoMemLen; _w.setAutoMemEvery = setAutoMemEvery; _w.manualSummarizeMemory = manualSummarizeMemory;
 _w.sendChat = sendChat; _w.sendRed = sendRed; _w.selectRpAmount = selectRpAmount; _w.onRpAmountInput = onRpAmountInput; _w.confirmRedPacket = confirmRedPacket; _w.openRedPacket = openRedPacket; _w.toggleVoice = toggleVoice; _w.stopVoice = stopVoice; _w.voiceTouchStart = voiceTouchStart; _w.voiceTouchEnd = voiceTouchEnd; _w.saveApiConfig = saveApiConfig; _w.fetchModels = fetchModels;
 _w.testConnection = testConnection; _w.exportAllData = exportAllData; _w.importAllData = importAllData; _w.resetAllData = resetAllData;
 _w.renderCharacterEditor = renderCharacterEditor; _w.saveCharacter = saveCharacter; _w.deleteCharacter = deleteCharacter; _w.addMemory = addMemory;
-_w.deleteMemory = deleteMemory; _w.uploadAvatar = uploadAvatar; _w.postMoment = postMoment; _w.saveMyProfile = saveMyProfile; _w.rememberLastUserMessage = rememberLastUserMessage;
+_w.deleteMemory = deleteMemory; _w.uploadAvatar = uploadAvatar; _w.postMoment = postMoment; _w.saveMyProfile = saveMyProfile; _w.settingsAddMemory = settingsAddMemory; _w.settingsDeleteMemory = settingsDeleteMemory;
 _w.newProfile = newProfile; _w.editProfile = editProfile;
 _w.doCheckin = doCheckin; _w.deleteCheckin = deleteCheckin; _w.submitNewCheckin = submitNewCheckin; _w.submitEditCheckin = submitEditCheckin;
 _w.addDiary = addDiary; _w.setStudyMinutes = setStudyMinutes; _w.setBreak = setBreak;
 _w.toggleStudy = toggleStudy; _w.finishStudy = finishStudy; _w.companionSay = companionSay; _w.toggleCompanion = toggleCompanion; _w.refreshCompanion = refreshCompanion; _w.inviteStudy = inviteStudy;
 _w.addLedger = addLedger; _w.deleteLedger = deleteLedger; _w.editLedger = editLedger; _w.changeLedgerMonth = changeLedgerMonth;
 _w.clearCanvas = clearCanvas; _w.saveDoodle = saveDoodle; _w.undoDoodle = undoDoodle; _w.uploadDoodleBg = uploadDoodleBg;
-_w.playTone = playTone; _w.uploadMusic = uploadMusic; _w.playMusic = playMusic; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic;
+_w.uploadMusic = uploadMusic; _w.playSong = playSong; _w.playMusic = playSong; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic; _w.togglePlay = togglePlay; _w.nextSong = nextSong; _w.prevSong = prevSong; _w.cycleMode = cycleMode; _w.toggleFav = toggleFav; _w.setFavView = setFavView; _w.searchMusic = searchMusic; _w.clearSearch = clearSearch; _w.playSearch = playSearch;
 _w.addKiss = addKiss; _w.startGame = startGame; _w.hitTarget = hitTarget; _w.submitGuess = submitGuess; _w.resetGuess = resetGuess; _w.initSnake = initSnake; _w.saveSpace = saveSpace;
 _w.renderMQ = renderMQ; _w.mqSwitch = mqSwitch; _w.mqOpenChat = mqOpenChat; _w.mqSend = mqSend; _w.mqNewRole = mqNewRole; _w.mqEditRoleView = mqEditRoleView;
 _w.mqSaveRole = mqSaveRole; _w.mqDelRole = mqDelRole; _w.mqPublish = mqPublish; _w.mqInvite = mqInvite; _w.mqSaveMe = mqSaveMe; _w.mqShowMem = mqShowMem; _w.mqClearMem = mqClearMem;
@@ -125,6 +131,7 @@ _w.cakeNewOrder = cakeNewOrder; _w.cakePick = cakePick; _w.cakeNextStep = cakeNe
 _w.hidePanels = hidePanels; _w.toggleHabit = toggleHabit; _w.addHabit = addHabit; _w.delHabit = delHabit; _w.stopMusic = stopMusic;
 _w.renderIGProfile = renderIGProfile; _w.switchProfileTab = switchProfileTab; _w.renderFeed = renderFeed; _w.renderCharLibrary = renderCharLibrary; _w.openCharFromLib = openCharFromLib;
 _w.createCharFromLib = createCharFromLib; _w.renderIGCharEditor = renderIGCharEditor; _w.igHandleAvatarUpload = igHandleAvatarUpload; _w.igClearAvatar = igClearAvatar; _w.saveIGCharEditor = saveIGCharEditor; _w.deleteIGChar = deleteIGChar;
+_w.igAddMemory = igAddMemory; _w.igDeleteMemory = igDeleteMemory;
 _w.renderDmList = renderDmList; _w.renderMyProfileContent = renderMyProfileContent;
 _w.openProfileEditor = openProfileEditor; _w.closeProfileEditor = closeProfileEditor;
 _w.handleProfileAvatarUpload = handleProfileAvatarUpload; _w.handleProfileCoverUpload = handleProfileCoverUpload;

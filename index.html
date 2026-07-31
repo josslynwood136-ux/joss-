@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>仿真小手机</title>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260731g">
 </head>
 <body>
 
@@ -17,7 +17,7 @@
         <div class="hotspot" data-name="打卡" style="top:25%;left:4%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="设置" style="top:80%;left:8%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="家园" style="top:15%;left:16%;width:60px;height:60px;"></div>
-        <div class="hotspot" data-name="QQ" style="top:55%;left:26%;width:60px;height:60px;"></div>
+        <div class="hotspot" data-name="IG" style="top:55%;left:26%;width:60px;height:60px;"></div>
         <div class="hotspot" data-name="恋爱日记" style="top:83%;left:26%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="自习室" style="top:43%;left:80%;width:60px;height:60px;"></div>
         <div class="hotspot" data-name="养多肉" style="top:80%;left:60%;width:50px;height:80px;"></div>
@@ -39,12 +39,6 @@
       </div>
       <div class="header-menu" id="headerMenu"></div>
       <div class="app-content" id="m-content"></div>
-      <div class="tab-bar" id="qqTabs">
-        <div class="tab-item active" onclick="switchTab('msg', this)"><i>💬</i><span>消息</span></div>
-        <div class="tab-item" onclick="switchTab('contact', this)"><i>👥</i><span>联系人</span></div>
-        <div class="tab-item" onclick="switchTab('moment', this)"><i>⭐</i><span>动态</span></div>
-        <div class="tab-item" onclick="switchTab('me', this)"><i>👤</i><span>我的</span></div>
-      </div>
     </div>
 
     <div id="chatWindow">
@@ -68,7 +62,7 @@
           </div>
           <button class="icon-btn" id="voiceBtn" onclick="if(!window._voiceWasHold)toggleVoice();window._voiceWasHold=false" ontouchstart="voiceTouchStart()" ontouchend="voiceTouchEnd()" onmousedown="voiceTouchStart()" onmouseup="voiceTouchEnd()" title="点按转文字，长按发语音">🎤</button>
           <button class="icon-btn" onclick="toggleMore()">＋</button>
-          <button class="send-btn" id="sendBtn" onclick="sendChat()" title="发送"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
+          <button class="send-btn" id="sendBtn" title="发送" onclick="sendChat()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
         </div>
         <div class="emoji-panel" id="emojiPanel"></div>
         <div class="more-panel" id="morePanel">
@@ -76,7 +70,6 @@
           <div class="panel-item" onclick="openAlbumPicker()"><div class="panel-icon">🖼</div>相册</div>
           <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
           <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
-          <div class="panel-item" onclick="rememberLastUserMessage()"><div class="panel-icon">🧠</div>记忆</div>
           <div class="panel-item" onclick="inviteStudy()"><div class="panel-icon">🍅</div>邀TA自习</div>
           <div class="panel-item" onclick="sendLocation()"><div class="panel-icon">📍</div>位置</div>
           <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
@@ -87,7 +80,7 @@
     <div id="chatSettings">
       <div class="cs-header">
         <button class="cs-back" onclick="closeSettings()">‹</button>
-        <span class="cs-title">聊天设置</span>
+        <span class="cs-title">聊天设置 v26</span>
         <span></span>
       </div>
       <div class="cs-section">
@@ -137,11 +130,85 @@
           </div>
           <div class="switch" id="translateSwitch" onclick="toggleTranslate()"></div>
         </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 3l5 5-5 5M11 3l5 5-5 5"/></svg>
+            <div>
+              <span>聊天模式</span>
+              <div class="cs-hint">异地=只能发信息聊天，线下=面对面带动作描写</div>
+            </div>
+          </div>
+          <select id="chatModeSelect" onchange="setChatMode(this.value)" style="border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0">
+            <option value="offline">线下</option>
+            <option value="online">异地</option>
+          </select>
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/><path d="M8 13h4"/></svg>
+            <div>
+              <span>上下文条数</span>
+              <div class="cs-hint">发给 AI 的最近消息数量，越大越费 token</div>
+            </div>
+          </div>
+          <input id="contextLenSelect" type="number" min="1" onchange="setContextLen(this.value)" value="12" style="width:56px;border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0;text-align:right">
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 3h8a2 2 0 012 2v12l-3-2-3 2-3-2-3 2V5a2 2 0 012-2z"/></svg>
+            <div>
+              <span>自动记录记忆</span>
+              <div class="cs-hint">每次对话后自动提取值得记住的信息存入记忆库</div>
+            </div>
+          </div>
+          <div class="switch" id="autoMemSwitch" onclick="toggleAutoMem()"></div>
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/><path d="M8 13h4"/></svg>
+            <div>
+              <span>记忆总结条数</span>
+              <div class="cs-hint">每次自动总结最近多少条对话，越大越费 token</div>
+            </div>
+          </div>
+          <input id="autoMemLenSelect" type="number" min="2" onchange="setAutoMemLen(this.value)" value="8" style="width:56px;border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0;text-align:right">
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10c0 3.3 3.1 6 7 6 1.2 0 2.4-.2 3.4-.7l3.6 1.2-1.2-3.6c.4-.9.6-1.9.6-2.9 0-3.3-3.1-6-7-6s-7 2.7-7 6z"/><path d="M7 9h8M7 13h5"/></svg>
+            <div>
+              <span>总结频率</span>
+              <div class="cs-hint">每多少轮对话总结一次记忆</div>
+            </div>
+          </div>
+          <input id="autoMemEverySelect" type="number" min="1" onchange="setAutoMemEvery(this.value)" value="1" style="width:56px;border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0;text-align:right">
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 3h4v4H3z"/><path d="M13 3h4v4h-4z"/><path d="M3 13h4v4H3z"/><path d="M13 13h4v4h-4z"/></svg>
+            <div>
+              <span>气泡样式</span>
+              <div class="cs-hint">聊天界面的气泡外观</div>
+            </div>
+          </div>
+          <select id="bubbleStyleSelect" onchange="setBubbleStyle(this.value)" style="border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0">
+            <option value="default">默认 QQ 蓝</option>
+            <option value="cute">萌萌暖</option>
+            <option value="glow">流光</option>
+          </select>
+        </div>
       </div>
       <div class="cs-section">
-        <div class="cs-row cs-action" onclick="rememberLastUserMessage()">
-          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10c0 3.3 3.1 6 7 6 1.2 0 2.4-.2 3.4-.7l3.6 1.2-1.2-3.6c.4-.9.6-1.9.6-2.9 0-3.3-3.1-6-7-6s-7 2.7-7 6z"/></svg>
-          <span>把最后一句加入记忆</span>
+        <div class="cs-row" style="border-bottom:none;flex-direction:column;align-items:stretch;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 3h8a2 2 0 012 2v12l-3-2-3 2-3-2-3 2V5a2 2 0 012-2z"/></svg>
+            <span>记忆库</span>
+          </div>
+          <input id="settingsMemTitle" placeholder="记忆标题 / 标签" style="border:none;background:#f7f5f2;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;">
+          <textarea id="settingsMemText" placeholder="这个角色需要记住什么？" style="border:none;background:#f7f5f2;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;resize:none;min-height:44px;"></textarea>
+          <button onclick="settingsAddMemory()" style="border:none;background:#b8a99a;color:#fff;border-radius:8px;padding:9px 0;font-size:13px;cursor:pointer;">＋ 加入记忆</button>
+          <button id="manualSumBtn" onclick="manualSummarizeMemory()" style="border:none;background:#e8e2da;color:#7a6a5a;border-radius:8px;padding:9px 0;font-size:13px;cursor:pointer;">✍️ 手动总结</button>
+          <div id="settingsMemories" style="max-height:200px;overflow-y:auto;"></div>
         </div>
       </div>
       <div class="cs-section">
@@ -223,11 +290,11 @@
   <!-- IG Toast -->
   <div class="ig-toast" id="igToast"></div>
 
-  <script src="js/state.js"></script>
-  <script src="js/mq.js"></script>
-  <script src="js/chat.js"></script>
-  <script src="js/apps.js"></script>
-  <script src="js/profile-ig.js"></script>
-  <script src="js/init.js"></script>
+  <script src="js/state.js?v=20260731g"></script>
+  <script src="js/mq.js?v=20260731g"></script>
+  <script src="js/chat.js?v=20260731g"></script>
+  <script src="js/apps.js?v=20260731g"></script>
+  <script src="js/profile-ig.js?v=20260731g"></script>
+  <script src="js/init.js?v=20260731g"></script>
 </body>
 </html>
