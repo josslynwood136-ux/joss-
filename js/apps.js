@@ -37,7 +37,7 @@ function openApp(name) {
       'QQ': renderIGProfile,
       'IG': renderIGProfile
     };
-    if (map[name]) { map[name](); musicAppOpen = (name === '音乐'); updateMiniPlayer(); return; }
+    if (map[name]) { map[name](); musicAppOpen = (name === '音乐'); if (name === '音乐') { ncmProbedAt = 0; maybeProbeNcm(); } updateMiniPlayer(); return; }
     c().innerHTML = '<div class="card subtle">未找到「' + escapeHTML(name) + '」对应的应用。</div>';
   } catch (err) {
     console.error('openApp error:', err);
@@ -1710,6 +1710,88 @@ let musicAppOpen = false;
 let onlineResults = [];
 let searchKeyword = '';
 let searching = false;
+const NCM_BASE = 'http://127.0.0.1:3000';
+let ncmUp = false;
+let ncmProbedAt = 0;
+let ncmCookie = '';
+let ncmNick = '';
+let ncmQrTimer = null;
+
+function loadNcmState() {
+  ncmCookie = state.settings.ncmCookie || '';
+  ncmNick = state.settings.ncmNick || '';
+}
+function maybeProbeNcm() {
+  if (Date.now() - ncmProbedAt < 20000) return Promise.resolve(ncmUp);
+  ncmProbedAt = Date.now();
+  return fetch(NCM_BASE + '/banner?type=2', { signal: AbortSignal.timeout(3000) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      ncmUp = !!(d && d.banners);
+      if (musicAppOpen) renderMusic();
+      return ncmUp;
+    })
+    .catch(function() {
+      ncmUp = false;
+      if (musicAppOpen) renderMusic();
+      return false;
+    });
+}
+function ncmSearch(kw) {
+  return fetch(NCM_BASE + '/search?keywords=' + encodeURIComponent(kw) + '&limit=25&type=1', { signal: AbortSignal.timeout(8000) })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.status);
+      return res.json();
+    })
+    .then(function(d) {
+      const songs = (d.result && d.result.songs) || [];
+      if (!songs.length) throw new Error('empty');
+      return songs.map(function(s) {
+        return {
+          id: 'ncm-' + s.id,
+          name: s.name || '',
+          artist: (s.artists || []).map(function(a) { return a.name; }).join('/'),
+          album: (s.album && s.album.name) || '',
+          cover: '',
+          ncmId: s.id,
+          colors: MUS_GRADS[Math.floor(Math.random() * MUS_GRADS.length)],
+          duration: Math.round((s.duration || 0) / 1000),
+          online: true
+        };
+      }).filter(function(x) { return x.ncmId; });
+    });
+}
+function ncmCovers(songs) {
+  const ids = songs.map(function(s) { return s.ncmId; }).join(',');
+  if (!ids) return Promise.resolve(songs);
+  return fetch(NCM_BASE + '/song/detail?ids=' + ids, { signal: AbortSignal.timeout(8000) })
+    .then(function(res) { return res.json(); })
+    .then(function(d) {
+      const map = {};
+      (d.songs || []).forEach(function(s) {
+        if (s.al && s.al.picUrl) {
+          const p = s.al.picUrl;
+          map[s.id] = p.indexOf('?param=') >= 0 ? p.replace(/=\d+y\d+/, '=500y500') : p + '?param=500y500';
+        }
+      });
+      songs.forEach(function(s) { if (map[s.ncmId]) s.cover = map[s.ncmId]; });
+      return songs;
+    })
+    .catch(function() { return songs; });
+}
+function ncmUrl(id) {
+  const u = NCM_BASE + '/song/url/v1?id=' + id + '&level=exhigh' + (ncmCookie ? '&cookie=' + encodeURIComponent(ncmCookie) : '');
+  return fetch(u, { signal: AbortSignal.timeout(15000) })
+    .then(function(res) {
+      if (!res.ok) throw new Error(res.status);
+      return res.json();
+    })
+    .then(function(d) {
+      const data = (d.data || [])[0] || {};
+      if (!data.url || d.code !== 200) throw new Error('no-url');
+      return data.url;
+    });
+}
 
 function songCoverHtml(s) {
   if (s && s.cover) return `<img src="${escapeHTML(s.cover)}" alt="">`;
@@ -1733,6 +1815,7 @@ function fmtTime(sec) {
 function renderMusic() {
   if (!state.settings.musicMode) state.settings.musicMode = 'loop';
   playMode = state.settings.musicMode;
+  maybeProbeNcm();
   updateMiniPlayer();
   const q = getQueue();
   const list = favView ? q.filter(s => s.fav) : q;
@@ -1765,6 +1848,7 @@ function renderMusic() {
           <button class="mode-btn" onclick="cycleMode()" title="${modeText}">${modeIcon}<span>${modeText}</span></button>
         </div>
       </div>
+      ${ncmUp ? (ncmNick ? `<div class="ncm-pill" onclick="openNcmLogin()">👤 网易云 ${escapeHTML(ncmNick)} · 点此退出</div>` : `<div class="ncm-pill" onclick="openNcmLogin()">🔑 登录网易云 · 解锁 VIP 完整播放</div>`) : ''}
       <div class="music-toolbar">
         <input id="musicSearchInput" class="music-search" value="${escapeHTML(searchKeyword)}" placeholder="搜歌名 / 歌手" onkeydown="if(event.key==='Enter')searchMusic()">
         <button class="music-tab mus-search-btn" onclick="searchMusic()">搜索</button>
@@ -1878,7 +1962,7 @@ function renderSearchList() {
       <div class="music-mini" style="background:linear-gradient(135deg,${s.colors[0]},${s.colors[1]})">${songCoverHtml(s)}</div>
       <div class="music-info">
         <b>${escapeHTML(s.name)}</b>
-        <span>${escapeHTML(s.artist)}${s.album ? ' · ' + escapeHTML(s.album) : ''} · ${s.kuwoRid ? '全曲' : '预览30s'}</span>
+        <span>${escapeHTML(s.artist)}${s.album ? ' · ' + escapeHTML(s.album) : ''} · ${(s.ncmId || s.kuwoRid) ? '全曲' : '预览30s'}</span>
       </div>
       ${isCur && playing ? '<div class="eq"><span></span><span></span><span></span></div>' : ''}
     </div>`;
@@ -1896,9 +1980,19 @@ async function searchMusic() {
   let tracks = [];
   try {
     try {
-      tracks = await kwSearch(kw);
+      tracks = await ncmSearch(kw);
+      ncmUp = true;
+      await ncmCovers(tracks);
     } catch (e) {
+      ncmUp = false;
       tracks = [];
+    }
+    if (!tracks.length) {
+      try {
+        tracks = await kwSearch(kw);
+      } catch (e) {
+        tracks = [];
+      }
     }
     if (!tracks.length) {
       try {
@@ -1934,6 +2028,104 @@ function clearSearch() {
   onlineResults = [];
   searching = false;
   if (currentSong && currentSong.online) stopMusic(); else renderMusic();
+}
+
+function openNcmLogin() {
+  if (!ncmUp) {
+    alert('本机网易云助手未启动。\n\n请双击打开 server 文件夹里的「启动网易云音乐助手.bat」，等出现「已启动」后，再点这里登录。');
+    return;
+  }
+  if (ncmNick) {
+    if (!confirm('已登录网易云：' + ncmNick + '。要退出登录吗？')) return;
+    ncmCookie = ''; ncmNick = '';
+    state.settings.ncmCookie = ''; state.settings.ncmNick = '';
+    saveState();
+    renderMusic(); updateMiniPlayer();
+    return;
+  }
+  const phone = document.querySelector('.phone') || document.body;
+  if ($('ncmLoginMask')) $('ncmLoginMask').remove();
+  const mask = document.createElement('div');
+  mask.className = 'ncm-login-mask';
+  mask.id = 'ncmLoginMask';
+  mask.innerHTML = `
+    <div class="ncm-login-box">
+      <b>登录网易云</b>
+      <div class="ncm-qr" id="ncmQr">正在获取二维码…</div>
+      <p class="ncm-qr-status" id="ncmQrStatus">用手机网易云 App 扫码并点击确认</p>
+      <button class="music-tab" onclick="closeNcmLogin()">关闭</button>
+    </div>`;
+  phone.appendChild(mask);
+  ncmQrStep();
+}
+
+function closeNcmLogin() {
+  const m = $('ncmLoginMask');
+  if (m) m.remove();
+  if (ncmQrTimer) { clearTimeout(ncmQrTimer); ncmQrTimer = null; }
+}
+
+async function ncmQrStep() {
+  try {
+    const keyRes = await fetch(NCM_BASE + '/login/qr/key?timestamp=' + Date.now(), { signal: AbortSignal.timeout(10000) });
+    const keyData = await keyRes.json();
+    const key = keyData && keyData.data && keyData.data.unikey;
+    if (!key) throw new Error('no-key');
+    const crRes = await fetch(NCM_BASE + '/login/qr/create?key=' + encodeURIComponent(key) + '&qrimg=1&timestamp=' + Date.now(), { signal: AbortSignal.timeout(10000) });
+    const crData = await crRes.json();
+    const qr = crData && crData.data && crData.data.qrimg;
+    const qrEl = $('ncmQr');
+    if (qr && qrEl) {
+      qrEl.innerHTML = '<img src="' + qr + '" alt="二维码">';
+    } else {
+      const st = $('ncmQrStatus');
+      if (st) st.textContent = '二维码获取失败，请重试';
+      return;
+    }
+    ncmQrPoll(key);
+  } catch (e) {
+    const st = $('ncmQrStatus');
+    if (st) st.textContent = '获取二维码失败：请确认本机助手已启动';
+  }
+}
+
+function ncmQrPoll(key) {
+  if (!$('ncmLoginMask')) return;
+  ncmQrTimer = null;
+  fetch(NCM_BASE + '/login/qr/check?key=' + encodeURIComponent(key) + '&t=' + Date.now(), { signal: AbortSignal.timeout(10000) })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!$('ncmLoginMask')) return;
+      const st = $('ncmQrStatus');
+      if (d.code === 800) { if (st) st.textContent = '二维码已过期，请关闭后重试'; return; }
+      if (d.code === 801) { if (st) st.textContent = '等待扫码…'; ncmQrTimer = setTimeout(function() { ncmQrPoll(key); }, 1500); return; }
+      if (d.code === 802) { if (st) st.textContent = '已扫码，请在手机上点击确认'; ncmQrTimer = setTimeout(function() { ncmQrPoll(key); }, 1500); return; }
+      if (d.code === 803) {
+        ncmCookie = d.cookie || ncmCookie;
+        ncmNick = d.nickname || '';
+        if (ncmNick) { finishNcmLogin(); return; }
+        return fetch(NCM_BASE + '/user/account?cookie=' + encodeURIComponent(ncmCookie), { signal: AbortSignal.timeout(10000) })
+          .then(function(r) { return r.json(); })
+          .then(function(ac) { ncmNick = (ac.profile && ac.profile.nickname) || '网易云用户'; finishNcmLogin(); })
+          .catch(function() { ncmNick = '网易云用户'; finishNcmLogin(); });
+      }
+      if (st) st.textContent = '登录状态未知，请重试';
+    })
+    .catch(function() {
+      if (!$('ncmLoginMask')) return;
+      const st = $('ncmQrStatus');
+      if (st) st.textContent = '网络错误：请确认本机助手已启动';
+    });
+}
+
+function finishNcmLogin() {
+  state.settings.ncmCookie = ncmCookie;
+  state.settings.ncmNick = ncmNick || '网易云用户';
+  saveState();
+  closeNcmLogin();
+  renderMusic();
+  updateMiniPlayer();
+  alert('登录成功：' + (ncmNick || '网易云用户') + '\nVIP 歌曲现在可以完整播放了');
 }
 
 function updateProgress() {
@@ -2026,6 +2218,12 @@ function applySource(song) {
     document.querySelector('.phone').appendChild(audioEl);
   }
   if (song.online) {
+    if (song.ncmId) {
+      return ncmUrl(song.ncmId).then(function(url) {
+        song.playUrl = url;
+        audioEl.src = url;
+      });
+    }
     if (song.kuwoRid) {
       return kwPlayUrl(song.kuwoRid).then(function(url) {
         song.playUrl = url;
@@ -2175,7 +2373,7 @@ function updateMiniPlayer() {
   $('gmpCover').innerHTML = songCoverHtml(currentSong);
   $('gmpCover').style.background = 'linear-gradient(135deg,' + currentSong.colors[0] + ',' + currentSong.colors[1] + ')';
   $('gmpName').textContent = currentSong.name;
-  $('gmpArtist').textContent = currentSong.artist + (currentSong.online ? ' · ' + (currentSong.kuwoRid ? '全曲' : '预览') : '');
+  $('gmpArtist').textContent = currentSong.artist + (currentSong.online ? ' · ' + ((currentSong.ncmId || currentSong.kuwoRid) ? '全曲' : '预览') : '');
   $('gmpPlay').textContent = playing ? '❚❚' : '▶';
 }
 

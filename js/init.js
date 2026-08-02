@@ -36,6 +36,8 @@ function init() {
   renderChat();
   initDragDesktop();
   bindHotspots();
+  if (typeof loadNcmState === 'function') loadNcmState();
+  if (typeof maybeProbeNcm === 'function') maybeProbeNcm();
 }
 
 // 桌面热点绑定（兼容触摸 + 鼠标）
@@ -115,7 +117,7 @@ _w.addDiary = addDiary; _w.setStudyMinutes = setStudyMinutes; _w.setBreak = setB
 _w.toggleStudy = toggleStudy; _w.finishStudy = finishStudy; _w.companionSay = companionSay; _w.toggleCompanion = toggleCompanion; _w.refreshCompanion = refreshCompanion; _w.inviteStudy = inviteStudy;
 _w.addLedger = addLedger; _w.deleteLedger = deleteLedger; _w.editLedger = editLedger; _w.changeLedgerMonth = changeLedgerMonth;
 _w.clearCanvas = clearCanvas; _w.saveDoodle = saveDoodle; _w.undoDoodle = undoDoodle; _w.uploadDoodleBg = uploadDoodleBg;
-_w.uploadMusic = uploadMusic; _w.playSong = playSong; _w.playMusic = playSong; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic; _w.togglePlay = togglePlay; _w.nextSong = nextSong; _w.prevSong = prevSong; _w.cycleMode = cycleMode; _w.toggleFav = toggleFav; _w.setFavView = setFavView; _w.searchMusic = searchMusic; _w.clearSearch = clearSearch; _w.playSearch = playSearch;
+_w.uploadMusic = uploadMusic; _w.playSong = playSong; _w.playMusic = playSong; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic; _w.togglePlay = togglePlay; _w.nextSong = nextSong; _w.prevSong = prevSong; _w.cycleMode = cycleMode; _w.toggleFav = toggleFav; _w.setFavView = setFavView; _w.searchMusic = searchMusic; _w.clearSearch = clearSearch; _w.playSearch = playSearch; _w.openNcmLogin = openNcmLogin; _w.closeNcmLogin = closeNcmLogin;
 _w.addKiss = addKiss; _w.startGame = startGame; _w.hitTarget = hitTarget; _w.submitGuess = submitGuess; _w.resetGuess = resetGuess; _w.initSnake = initSnake; _w.saveSpace = saveSpace;
 _w.renderMQ = renderMQ; _w.mqSwitch = mqSwitch; _w.mqOpenChat = mqOpenChat; _w.mqSend = mqSend; _w.mqNewRole = mqNewRole; _w.mqEditRoleView = mqEditRoleView;
 _w.mqSaveRole = mqSaveRole; _w.mqDelRole = mqDelRole; _w.mqPublish = mqPublish; _w.mqInvite = mqInvite; _w.mqSaveMe = mqSaveMe; _w.mqShowMem = mqShowMem; _w.mqClearMem = mqClearMem;
