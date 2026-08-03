@@ -32,7 +32,7 @@ function openApp(name) {
       '设置': renderApiSettings, '打卡': renderCheckins,
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
       '养多肉': renderPlant, '多肉': renderPlant, '账本': renderLedger, '涂鸦': renderDoodle,
-      '音乐': renderMusic, '啵啵': renderKiss, '相册': renderAlbum, '表情包': renderStickerManager,
+      '音乐': renderMusic, '啵啵': renderLive, '啵啵间': renderLive, '相册': renderAlbum, '表情包': renderStickerManager,
       '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace,
       'QQ': renderIGProfile,
       'IG': renderIGProfile
@@ -47,6 +47,7 @@ function openApp(name) {
 
 function closeApp() {
   _tarotFogShown = false;
+  if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
   const m = $('appModal');
   if (m) { m.style.transition = ''; m.style.top = ''; }
   const mc = c();
@@ -2477,17 +2478,188 @@ function updateMiniPlayer() {
   $('gmpPlay').textContent = playing ? '❚❚' : '▶';
 }
 
-// ---------- 啵啵 ----------
-function renderKiss() {
+// ---------- 啵啵间 · 直播 ----------
+var _liveTimer = null;
+const LIVE_AUDIENCE = ['明月','阿紫','桃子','懒羊羊','小橘猫','鲸鱼','奶茶','Q酱','团团','阿澈','布丁','晚风'];
+const LIVE_AUDIENCE_MSGS = [
+  '主播好可爱～','前排前排！','啵啵啵','哈哈哈哈哈哈哈','好喜欢这个背景','来了来了','加油加油','么么哒','蹲一个','学到了','主播今天心情好好','真滴爱了','氛围感拉满','赞赞赞','等你开唱！','晚上好呀～'
+];
+const LIVE_ANCHOR_MSGS = [
+  '家人们晚上好，啵啵～','今天也要开开心心','来，给大家比个心 ❤','我刚写完作业，出来透透气','今天心情超好！','谢谢大家的点赞','想聊什么都可以','偷偷放一颗小星星 ✨','耶，人气又涨啦','么么么，爱你们'
+];
+const LIVE_GIFTS = [
+  { name: '小花花', icon: '🌹', cost: 10 },
+  { name: '爱心', icon: '💖', cost: 20 },
+  { name: '甜蛋糕', icon: '🍰', cost: 30 },
+  { name: '啵啵兔', icon: '🐰', cost: 52 },
+  { name: '大束花', icon: '🌷', cost: 66 },
+  { name: '白马火箭', icon: '🚀', cost: 99 }
+];
+function livePick(a) { return a[Math.floor(Math.random() * a.length)]; }
+
+function renderLive() {
+  if (!state.live) state.live = { viewer: 12, likes: 0, giftWorth: 0, gifts: 0, followers: 0 };
+  const hdr = document.querySelector('.app-header');
+  if (hdr) hdr.classList.add('hidden');
+  const mc = c();
+  if (mc) { mc.style.padding = '0'; mc.style.height = '100%'; mc.style.overflow = 'hidden'; mc.style.background = 'transparent'; }
+  const char = activeCharacter();
+  const now = state.live;
   c().innerHTML = `
-    <div class="card" style="text-align:center">
-      <div style="font-size:76px">💋</div>
-      <h2>啵啵间</h2>
-      <p>累计 ${state.space.kisses} 个啵啵</p>
-      <button class="primary-btn" style="width:100%" onclick="addKiss()">啵一下</button>
+    <div class="live-scroll">
+      <button class="live-close" onclick="closeApp()">◁</button>
+      <div class="live-top">
+        <span class="live-viewer-chip"><span class="live-dot"></span>LIVE</span>
+        <span class="live-viewer-chip">👀 <span id="liveViewerNum">${now.viewer}</span> 人在线</span>
+        <span class="live-viewer-chip">❤️ <span id="liveLikeNum">${now.likes}</span></span>
+        <span class="live-spacer"></span>
+        <span class="live-viewer-chip">🎁 ¥<span id="liveGiftWorth">${now.giftWorth}</span></span>
+      </div>
+      <div class="live-stage" id="liveStage">
+        <div class="live-aura"></div>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;text-align:center">
+          <div style="position:relative">
+            <div class="live-avatar">${renderAvatar(char.avatar, char.name)}</div>
+            <div class="live-badge">LIVE·${escapeHTML(char.name || '主播')}</div>
+          </div>
+          <div class="live-anchor-name">${escapeHTML(char.name || '主播')}<span style="font-size:12px;color:#ffd86b;margin-left:6px">☆ ${now.followers} 粉</span></div>
+          <div class="live-line" id="liveLine">正在营业，啵一个～</div>
+        </div>
+        <div class="live-follow-pop" id="liveFollowPop" style="display:none"></div>
+        <div class="live-chat" id="liveChat"></div>
+      </div>
+      <div class="live-gift-tray" id="liveGiftTray" style="display:none"></div>
+      <div class="live-growth" id="liveGrowth"></div>
+      <div class="live-bar">
+        <input class="live-input" id="liveInput" placeholder="说点什么…" onkeydown="if(event.key==='Enter')liveSay()">
+        <button class="live-act" title="点赞" onclick="liveHeart()">❤️</button>
+        <button class="live-act" title="礼物" onclick="toggleLiveGifts()">🎁</button>
+        <button class="live-act" title="关注" onclick="liveFollow()">➕</button>
+        <button class="live-send" onclick="liveSay()">发送</button>
+      </div>
     </div>`;
+  renderLiveGifts();
+  if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+  livePush('', 'system', '欢迎进入「啵啵间」· ' + escapeHTML(char.name) + ' 的直播间');
+  livePush(livePick(LIVE_AUDIENCE), 'a', livePick(LIVE_AUDIENCE_MSGS));
+  _liveTimer = setInterval(liveTick, 2400);
 }
-function addKiss() { state.space.kisses++; saveState(); renderKiss(); }
+function renderLiveGifts() {
+  const tray = $('liveGiftTray');
+  if (!tray) return;
+  tray.innerHTML = LIVE_GIFTS.map((g, i) => `
+    <button class="live-gift" onclick="liveGift(${i})">${g.icon}　${escapeHTML(g.name)} ¥${g.cost}</button>`).join('');
+}
+function toggleLiveGifts() {
+  const tray = $('liveGiftTray');
+  if (!tray) return;
+  tray.style.display = tray.style.display === 'none' ? 'grid' : 'none';
+  if (tray.style.display === 'none') renderLiveGifts();
+}
+function liveNum(n) { if (isNaN(n)) return; state.live.viewer = Math.max(0, n); const el = $('liveViewerNum'); if (el) el.innerText = state.live.viewer; }
+function livePush(text, who, html) {
+  const feed = $('liveChat');
+  if (!feed) return;
+  const item = document.createElement('div');
+  item.className = 'live-item';
+  if (who === 'me') item.innerHTML = '<b style="color:#6fd8ff">我：</b>' + text + '<span style="font-size:11px;color:#8a7a95">（发送）</span>';
+  else if (who === 'myheart') item.innerHTML = '<b style="color:#ff6b81">我：</b> ❤ ' + text;
+  else if (who === 'mygift') item.innerHTML = '<b style="color:#ffd86b">我：</b> 送出 ' + text;
+  else if (who === 'follow') item.innerHTML = '<b style="color:#7cc9ff">我：</b> 关注了主播～';
+  else if (who === 'system') item.innerHTML = '<b style="color:#8f7bb0">💬</b> ' + (html || text);
+  else item.innerHTML = html || escapeHTML(text);
+  feed.appendChild(item);
+  while (feed.children.length > 7) feed.removeChild(feed.firstChild);
+}
+function liveFloatHeart() {
+  const stage = $('liveStage');
+  if (!stage) return;
+  const h = document.createElement('div');
+  h.className = 'live-float-heart';
+  const em = ['❤️','💖','💛','💚','💜'][Math.floor(Math.random() * 5)];
+  h.textContent = em;
+  h.style.left = (20 + Math.random() * 60) + '%';
+  h.style.bottom = '40%';
+  stage.appendChild(h);
+  setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, 1100);
+}
+function liveGrowth() {
+  const g = $('liveGrowth');
+  if (!g) return;
+  const el = document.createElement('div');
+  el.className = 'live-follow-pop';
+  el.style.top = 'auto';
+  el.style.bottom = '74px';
+  el.textContent = '+1';
+  el.style.right = '30px';
+  g.appendChild(el);
+  setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1200);
+}
+function liveSay() {
+  const input = $('liveInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  livePush(text, 'me', escapeHTML(text));
+  liveNum(state.live.viewer + (Math.random() < 0.5 ? 1 : 0));
+  if (Math.random() < 0.3) livePush('', 'a', livePick(LIVE_AUDIENCE_MSGS));
+}
+function liveHeart() {
+  state.live.likes++;
+  var likeEl = $('liveLikeNum'); if (likeEl) likeEl.innerText = state.live.likes;
+  liveTick();
+  livePush('', 'myheart', '给主播比个心');
+  if (Math.random() < 0.34) livePush('', 'a', '謝謝主播～');
+  saveState();
+}
+function liveTick() {
+  if (!_liveTimer) return;
+  const r = Math.random();
+  if (r < 0.42) {
+    livePush('', 'a', livePick(LIVE_AUDIENCE_MSGS));
+    if (Math.random() < 0.18) liveNum(state.live.viewer + (Math.random() < 0.5 ? 1 : (state.live.viewer > 3 ? -1 : 1)));
+  } else if (r < 0.62) {
+    const line = $('liveLine');
+    if (line) line.textContent = livePick(LIVE_ANCHOR_MSGS);
+  } else if (r < 0.86) {
+    if (state.live.viewer > 2 && Math.random() < 0.5) liveNum(state.live.viewer - 1);
+  } else {
+    liveGrowth();
+  }
+}
+function liveFollow() {
+  state.live.followers++;
+  const pop = $('liveFollowPop');
+  if (pop) { pop.style.display = 'block'; pop.textContent = '🎉 感谢关注！粉丝 ' + state.live.followers; setTimeout(function () { pop.style.display = 'none'; }, 1800); }
+  livePush('', 'follow');
+  if (Math.random() < 0.5) livePush('', 'a', '主播人真的好好～');
+  saveState();
+}
+function liveGift(i) {
+  const g = LIVE_GIFTS[i];
+  if (!g) return;
+  if (parseFloat(state.profile.wallet) < g.cost) { alert('钱包余额不足，去账本看看啦～'); return; }
+  state.profile.wallet = parseFloat(state.profile.wallet || 0) - g.cost;
+  state.live.gifts++;
+  state.live.giftWorth += g.cost;
+  var worthEl = $('liveGiftWorth'); if (worthEl) worthEl.innerText = state.live.giftWorth;
+  const tray = $('liveGiftTray');
+  if (tray) tray.style.display = 'none';
+  livePush('', 'mygift', '<b style="color:#ffd86b">' + g.icon + ' ' + escapeHTML(g.name) + '</b>（¥' + g.cost + '）');
+  const burst = document.createElement('div');
+  burst.className = 'live-gift-burst';
+  burst.innerHTML = g.icon;
+  const stage = $('liveStage');
+  if (stage) stage.appendChild(burst);
+  setTimeout(function () { if (burst.parentNode) burst.parentNode.removeChild(burst); }, 1200);
+  const line = $('liveLine');
+  let thanks = '谢谢宝贝的' + g.name + '！';
+  const t = ['谢谢宝贝的' + g.name + '！','哇 ' + g.icon + ' 好喜欢，谢谢你～', '天哪 收到' + g.icon + '，今晚做梦都会笑','好宠我，爱你 ❤'];
+  if (line) line.textContent = livePick(t);
+  if (Math.random() < 0.5) livePush('', 'a', '哇，土豪出没！');
+  saveState();
+}
 
 // ---------- 相册 ----------
 let currentAlbumId = null;

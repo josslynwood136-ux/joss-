@@ -134,6 +134,7 @@ const defaultState = {
     logs: []
   },
   tarot: { step: 'start', major: null, minors: [] },
+  live: { viewer: 12, likes: 0, giftWorth: 0, gifts: 0, followers: 0 },
   qq: null,
   customStickers: [],
   call: { active: false, type: 'audio', startTime: 0, muted: false, speaker: false },
@@ -291,6 +292,12 @@ function ensureStateShape(next, saved) {
   }
   if (!Array.isArray(next.profilePosts)) next.profilePosts = [];
   if (!Array.isArray(next.customStickers)) next.customStickers = [];
+  if (!next.live || typeof next.live !== 'object') next.live = {};
+  next.live.viewer = Number(next.live.viewer) || 12;
+  next.live.likes = Number(next.live.likes) || 0;
+  next.live.giftWorth = Number(next.live.giftWorth) || 0;
+  next.live.gifts = Number(next.live.gifts) || 0;
+  next.live.followers = Number(next.live.followers) || 0;
   if (!next.call || typeof next.call !== 'object') next.call = {};
   next.call.active = next.call.active === true;
   next.call.type = next.call.type || 'audio';
