@@ -1710,7 +1710,7 @@ let musicAppOpen = false;
 let onlineResults = [];
 let searchKeyword = '';
 let searching = false;
-const NCM_BASE = 'http://127.0.0.1:3000';
+const NCM_BASE = 'https://yin-le-bu-shu.onrender.com';
 let ncmUp = false;
 let ncmProbedAt = 0;
 let ncmCookie = '';
@@ -1889,70 +1889,6 @@ function renderMusic() {
   updateProgress();
 }
 
-const KW_PROXY = 'https://api.allorigins.win/raw?url=';
-
-function kwSearch(kw) {
-  return fetch('https://music-api.gdstudio.xyz/api.php?types=search&source=kuwo&name=' + encodeURIComponent(kw) + '&count=25', { signal: AbortSignal.timeout(20000) }).then(function(res) {
-    if (!res.ok) throw new Error(res.status);
-    return res.json();
-  }).then(function(list) {
-    if (!(list instanceof Array) || !list.length) throw new Error('empty');
-    return list.map(function(t) {
-      return {
-        id: 'kw-' + t.id,
-        name: t.name || '',
-        artist: (t.artist || []).join('/'),
-        album: t.album || '',
-        cover: t.pic_id ? 'https://img1.kuwo.cn/star/albumcover/' + t.pic_id : '',
-        kuwoRid: 'MUSIC_' + t.id,
-        colors: MUS_GRADS[Math.floor(Math.random() * MUS_GRADS.length)],
-        duration: parseInt(t.duration, 10) || 0,
-        online: true
-      };
-    }).filter(function(x) { return x.kuwoRid && x.name; });
-  }).catch(function() {
-    const s = 'https://search.kuwo.cn/r.s?all=' + encodeURIComponent(kw) + '&ft=music&itemset=web_2013&client=kt&pn=0&rn=25&rformat=json&encoding=utf8&vipver=MUSIC_8.7.7.0_BCS2&mobi=1';
-    return fetch(KW_PROXY + encodeURIComponent(s), { signal: AbortSignal.timeout(25000) }).then(function(res) {
-      if (!res.ok) throw new Error(res.status);
-      return res.arrayBuffer();
-    }).then(function(buf) {
-      const data = JSON.parse(new TextDecoder('gbk').decode(buf));
-      return (data.abslist || []).map(function(t) {
-        const rid = t.MUSICRID || '';
-        return {
-          id: 'kw-' + (t.DC_TARGETID || rid.replace('MUSIC_', '')),
-          name: t.NAME || t.SONGNAME || '',
-          artist: (t.ARTIST || '').replace(/、/g, '/'),
-          album: t.ALBUM || '',
-          cover: t.web_albumpic_short ? 'https://img1.kuwo.cn/star/albumcover/' + t.web_albumpic_short : '',
-          kuwoRid: rid,
-          colors: MUS_GRADS[Math.floor(Math.random() * MUS_GRADS.length)],
-          duration: parseInt(t.DURATION, 10) || 0,
-          online: true
-        };
-      }).filter(function(x) { return x.kuwoRid && x.name; });
-    });
-  });
-}
-
-function kwPlayUrl(rid) {
-  const attempt = function(n) {
-    const s = 'https://antiserver.kuwo.cn/anti.s?type=convert_url&rid=' + encodeURIComponent(rid) + '&format=mp3&_t=' + Date.now();
-    return fetch(KW_PROXY + encodeURIComponent(s), { signal: AbortSignal.timeout(30000) }).then(function(res) {
-      if (!res.ok) throw new Error(res.status);
-      return res.text();
-    }).then(function(text) {
-      const url = (text || '').trim();
-      if (!/^https?:/.test(url)) throw new Error('unplayable');
-      return url;
-    }).catch(function(e) {
-      if (n > 1) return attempt(n - 1);
-      throw e;
-    });
-  };
-  return attempt(3);
-}
-
 function renderSearchList() {
   if (searching) return '<div class="music-empty">正在搜索“' + escapeHTML(searchKeyword) + '”…</div>';
   if (!onlineResults.length) return '<div class="music-empty">搜“' + escapeHTML(searchKeyword) + '”没找到，换个关键词试试</div>';
@@ -1962,7 +1898,7 @@ function renderSearchList() {
       <div class="music-mini" style="background:linear-gradient(135deg,${s.colors[0]},${s.colors[1]})">${songCoverHtml(s)}</div>
       <div class="music-info">
         <b>${escapeHTML(s.name)}</b>
-        <span>${escapeHTML(s.artist)}${s.album ? ' · ' + escapeHTML(s.album) : ''} · ${(s.ncmId || s.kuwoRid) ? '全曲' : '预览30s'}</span>
+        <span>${escapeHTML(s.artist)}${s.album ? ' · ' + escapeHTML(s.album) : ''} · ${s.ncmId ? '全曲' : '预览30s'}</span>
       </div>
       ${isCur && playing ? '<div class="eq"><span></span><span></span><span></span></div>' : ''}
     </div>`;
@@ -1986,13 +1922,6 @@ async function searchMusic() {
     } catch (e) {
       ncmUp = false;
       tracks = [];
-    }
-    if (!tracks.length) {
-      try {
-        tracks = await kwSearch(kw);
-      } catch (e) {
-        tracks = [];
-      }
     }
     if (!tracks.length) {
       try {
@@ -2224,12 +2153,6 @@ function applySource(song) {
         audioEl.src = url;
       });
     }
-    if (song.kuwoRid) {
-      return kwPlayUrl(song.kuwoRid).then(function(url) {
-        song.playUrl = url;
-        audioEl.src = url;
-      });
-    }
     audioEl.src = song.previewUrl;
     return Promise.resolve();
   }
@@ -2373,7 +2296,7 @@ function updateMiniPlayer() {
   $('gmpCover').innerHTML = songCoverHtml(currentSong);
   $('gmpCover').style.background = 'linear-gradient(135deg,' + currentSong.colors[0] + ',' + currentSong.colors[1] + ')';
   $('gmpName').textContent = currentSong.name;
-  $('gmpArtist').textContent = currentSong.artist + (currentSong.online ? ' · ' + ((currentSong.ncmId || currentSong.kuwoRid) ? '全曲' : '预览') : '');
+  $('gmpArtist').textContent = currentSong.artist + (currentSong.online ? ' · ' + (currentSong.ncmId ? '全曲' : '预览') : '');
   $('gmpPlay').textContent = playing ? '❚❚' : '▶';
 }
 
