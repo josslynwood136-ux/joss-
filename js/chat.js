@@ -26,6 +26,17 @@ function openChat(characterId) {
     const char = getCharacter(characterId);
     char.unread = 0;
     char.read = true;
+    // 兼容老存档：没有 status 的旧消息，若其后已有对方回复，则补标已读
+    const chat = char.chat || [];
+    let seenReply = false;
+    for (let i = chat.length - 1; i >= 0; i--) {
+      const m = chat[i];
+      if (m.role === 'assistant' || m.role === 'system') { seenReply = true; continue; }
+      if (m.role === 'user') {
+        if (!m.status) m.status = seenReply ? 'read' : 'sent';
+        if (m.status === 'sent' && seenReply) m.status = 'read';
+      }
+    }
   }
   saveState();
   pendingReply = false;
@@ -68,7 +79,7 @@ function renderChat() {
       const msgDate = msg.time ? msg.time.slice(0, 10) : '';
       const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
       lastDate = msgDate || lastDate;
-      const tick = isUser ? `<div class="read-tick">${char.read ? '已读' : '已发送'}</div>` : '';
+      const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
       return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}',${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="openRedPacket('${char.id}',${i})"` : ''}>
         <span class="rp-card-icon">🧧</span>
         <span class="rp-card-label">${isUser ? '你' : escapeHTML(nm)}</span>
@@ -81,7 +92,7 @@ function renderChat() {
       const msgDate = msg.time ? msg.time.slice(0, 10) : '';
       const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
       lastDate = msgDate || lastDate;
-      const tick = isUser ? `<div class="read-tick">${char.read ? '已读' : '已发送'}</div>` : '';
+      const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
       return `${divider}<div class="msg ${isUser ? 'right' : 'left'}"><div class="avatar">${renderAvatar(av, nm)}</div>${stickerSrc ? `<img src="${escapeHTML(stickerSrc)}" class="chat-sticker-img" alt="表情包">` : ''}${tick}</div>`;
     }
     let mediaHtml = '';
@@ -100,7 +111,7 @@ function renderChat() {
     const msgDate = msg.time ? msg.time.slice(0, 10) : '';
     const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
     lastDate = msgDate || lastDate;
-    const tick = isUser ? `<div class="read-tick">${char.read ? '已读' : '已发送'}</div>` : '';
+    const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
     return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}', ${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
   }).join('') + typing;
   $('chatBody').scrollTop = $('chatBody').scrollHeight;
@@ -117,6 +128,10 @@ function deleteMessage(charId, index) {
 
 function setChatTyping(value) {
   chatTyping = value;
+  if (value) {
+    const char = activeCharacter();
+    (char.chat || []).forEach(function(m) { if (m.role === 'user' && m.status === 'sent') m.status = 'read'; });
+  }
   renderChat();
 }
 
@@ -128,8 +143,10 @@ function appendBubble(role, content, media, translatedText, msgType) {
   activeCharacter().chat.push(msg);
   if (role === 'assistant') {
     const char = activeCharacter();
+    // 对方回复 → 把所有"已发送"的消息标记为已读
+    (char.chat || []).forEach(function(m) { if (m.role === 'user' && m.status === 'sent') m.status = 'read'; });
     char.unread = (char.unread || 0) + 1;
-    char.read = false;
+    char.read = true;
     var cw = $('chatWindow');
     if (cw && !cw.classList.contains('open')) {
       showMsgNote(char.id, char.name, char.avatar, content || '发来一条消息');
@@ -140,6 +157,9 @@ function appendBubble(role, content, media, translatedText, msgType) {
       char.memPending = 0;
       autoSaveMemory(char);
     }
+  } else if (role === 'user') {
+    msg.status = 'sent';
+    msg._sentTick = true;
   }
   saveState();
   renderChat();
@@ -672,6 +692,7 @@ function confirmRedPacket() {
     note: note,
     content: '[红包] ' + note + '：' + amount.toFixed(2) + '元',
     opened: true,
+    status: 'sent',
     time: new Date().toLocaleString()
   };
   activeCharacter().chat.push(msg);

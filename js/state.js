@@ -42,7 +42,7 @@ const defaultState = {
     { id: 'h-sport', name: '运动', icon: '🏃', done: {} }
   ],
   diary: [],
-  study: { running: false, seconds: 25 * 60, target: 25 * 60, subject: '英语', records: [], mode: 'focus', round: 0, breakMin: 5, companion: true, companionMsg: '' },
+  study: { running: false, seconds: 25 * 60, target: 25 * 60, subject: '英语', records: [], mode: 'focus', round: 0, breakMin: 5, focusMin: 25, companion: true, companionMsg: '' },
   plant: { water: 55, love: 30, level: 1, lastWater: '', lastCare: '', streak: 0, fertilizedDate: '', logs: [] },
   ledger: [],
   doodles: [],
@@ -134,7 +134,7 @@ const defaultState = {
     logs: []
   },
   tarot: { step: 'start', major: null, minors: [] },
-  live: { viewer: 12, likes: 0, giftWorth: 0, gifts: 0, followers: 0 },
+  live: { viewer: 12, likes: 0, giftWorth: 0, gifts: 0, followers: 0, intimacy: 0, coins: 0, lastSign: '', giftLog: [], song: '', flirt: 0 },
   qq: null,
   customStickers: [],
   call: { active: false, type: 'audio', startTime: 0, muted: false, speaker: false },
@@ -282,6 +282,7 @@ function ensureStateShape(next, saved) {
   next.study.mode = next.study.mode === 'break' ? 'break' : 'focus';
   next.study.round = Number(next.study.round) || 0;
   next.study.breakMin = Number(next.study.breakMin) || 5;
+  next.study.focusMin = Number(next.study.focusMin) || 25;
   next.study.companion = next.study.companion !== false;
   next.study.companionMsg = typeof next.study.companionMsg === 'string' ? next.study.companionMsg : '';
   if (!next.game || typeof next.game !== 'object') next.game = { score: 0, best: 0 };
@@ -298,6 +299,13 @@ function ensureStateShape(next, saved) {
   next.live.giftWorth = Number(next.live.giftWorth) || 0;
   next.live.gifts = Number(next.live.gifts) || 0;
   next.live.followers = Number(next.live.followers) || 0;
+  next.live.intimacy = Number(next.live.intimacy) || 0;
+  next.live.coins = Number(next.live.coins) || 0;
+  next.live.lastSign = next.live.lastSign || '';
+  if (!Array.isArray(next.live.giftLog)) next.live.giftLog = [];
+  next.live.giftLog = next.live.giftLog.slice(0, 30);
+  next.live.song = next.live.song || '';
+  next.live.flirt = Number(next.live.flirt) || 0;
   if (!next.call || typeof next.call !== 'object') next.call = {};
   next.call.active = next.call.active === true;
   next.call.type = next.call.type || 'audio';

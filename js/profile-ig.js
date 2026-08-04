@@ -21,6 +21,8 @@ function showIGToast(msg) {
 function renderIGProfile() {
   const mc = c();
   if (mc) { mc.style.padding = '0'; mc.style.height = '100%'; mc.style.overflow = 'hidden'; }
+  const ah = document.querySelector('.app-header');
+  if (ah) ah.classList.add('hidden');
   setTitle('Instagram');
   const p = state.myProfile || (state.myProfile = {
     avatar: '🌸', avatarImage: '', coverImage: '',
@@ -36,6 +38,7 @@ function renderIGProfile() {
       <!-- IG Header -->
       <div class="ig-profile-header">
         <div class="logo-area">
+          <svg class="ig-logo-glyph" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.5" cy="6.5" r="1.3" fill="currentColor" stroke="none"/></svg>
           <span class="logo-text">Instagram</span>
         </div>
         <div class="header-actions">
@@ -114,7 +117,7 @@ function switchProfileTab(tab) {
     renderFeed();
   } else if (tab === 'search') {
     $('igPanelSearch').classList.add('active');
-    renderCharLibrary();
+    renderIGLiveHall();
   } else if (tab === 'dm') {
     $('igPanelDm').classList.add('active');
     renderDmList();
@@ -122,6 +125,46 @@ function switchProfileTab(tab) {
     $('igPanelProfile').classList.add('active');
     renderMyProfileContent();
   }
+}
+
+// ====== IG 搜索页 = 直播间大厅 ======
+var _igHallTimer = null;
+function renderIGLiveHall() {
+  _igLiveMode = true;
+  const panel = $('igPanelSearch');
+  if (!panel) return;
+  const char = activeCharacter();
+  var cats = ['全部', '唱歌', '聊天', '美食', '学习'];
+  panel.innerHTML = `
+    <div class="hall-scroll ig-hall-embed">
+      <div class="hall-bg"></div>
+      <div class="hall-head">
+        <div class="hall-title">啵啵间${paperName()}</div>
+        <div class="hall-now">— · —</div>
+      </div>
+      <div class="hall-feature" onclick="openLiveRoom('')">
+        <div class="hall-feat-live">LIVE</div>
+        <div class="hall-feat-info">
+          <div class="hall-feat-avatar" onclick="event.stopPropagation();liveOpenProfile('')" title="我的主页">${renderAvatar(char.avatar, char.name)}</div>
+          <div class="hall-feat-mid">
+            <div class="hall-feat-head">今 日 头 条</div>
+            <div class="hall-feat-title">${escapeHTML(char.name)} 的直播间</div>
+            <div class="hall-feat-sub">${escapeHTML(char.relation || '我们的主播')} · 进去聊聊</div>
+          </div>
+          <div class="hall-feat-right">
+            <div class="hall-feat-viewers">观众 <b>${state.live.viewer || 12}</b> 人</div>
+            <button class="hall-enter-btn">进场</button>
+          </div>
+        </div>
+      </div>
+      <div class="hall-cats">${cats.map(function (c2) { return '<span class="hall-cat' + (c2 === '全部' ? ' on' : '') + '" data-cat="' + c2 + '" onclick="filterHall(\'' + c2 + '\')">' + c2 + '</span>'; }).join('')}</div>
+      <div class="hall-grid" id="hallGrid"></div>
+    </div>`;
+  updateRoomSchedule();
+  renderHallRooms('全部');
+  refreshHallMasthead();
+  if (_igHallTimer) clearInterval(_igHallTimer);
+  _igHallTimer = setInterval(hallTicker, 3200);
 }
 
 // ====== Feed / Home ======
@@ -191,6 +234,36 @@ async function generateCharPost(char) {
   }
 }
 
+function bindStoryItems() {
+  document.querySelectorAll('.ig-story-item[data-char]').forEach(function(item) {
+    if (item._igBound) return;
+    item._igBound = true;
+    var charId = item.getAttribute('data-char');
+    var timer = null, held = false;
+    function start(ev) {
+      if (ev.touches && ev.touches.length > 1) return;
+      held = false;
+      timer = setTimeout(function() { held = true; window._igHeld = true; openCharFromLib(charId); }, 520);
+    }
+    function cancel() {
+      if (timer) { clearTimeout(timer); timer = null; }
+    }
+    item.addEventListener('touchstart', start, { passive: true });
+    item.addEventListener('touchend', cancel);
+    item.addEventListener('touchmove', cancel);
+    item.addEventListener('touchcancel', cancel);
+    item.addEventListener('mousedown', start);
+    item.addEventListener('mouseup', cancel);
+    item.addEventListener('mouseleave', cancel);
+    item.addEventListener('click', function(ev) {
+      cancel();
+      if (window._igHeld) { window._igHeld = false; ev.preventDefault(); ev.stopPropagation(); return; }
+      ev.preventDefault();
+      openIGStory(charId);
+    });
+  });
+}
+
 function renderFeed() {
   var container = $('igFeedContainer');
   if (!container) return;
@@ -210,9 +283,11 @@ function renderFeed() {
     var isImg = u.avatar && u.avatar.startsWith && (u.avatar.startsWith('http') || u.avatar.startsWith('data:'));
     var avatarContent = isImg ? '<img src="' + u.avatar + '" />' : escapeHTML(u.avatar || '👤');
     var ringCls = u.isSelf ? 'story-ring-self' : (viewed[u.id] ? 'story-ring-viewed' : 'story-ring-new');
-    var clickHandler = u.isSelf ? '' : 'onclick="openIGStory(\'' + u.id + '\')"';
-    storiesHtml += '<div class="ig-story-item" ' + clickHandler + '><div class="ig-story-ring ' + ringCls + '"><div class="ig-story-avatar">' + avatarContent + '</div></div><div class="ig-story-name">' + escapeHTML(u.isSelf ? '你的快拍' : (u.name || '')) + '</div></div>';
+    var dataAttr = u.isSelf ? '' : 'data-char="' + u.id + '"';
+    storiesHtml += '<div class="ig-story-item" ' + dataAttr + '><div class="ig-story-ring ' + ringCls + '"><div class="ig-story-avatar">' + avatarContent + '</div></div><div class="ig-story-name">' + escapeHTML(u.isSelf ? '你的快拍' : (u.name || '')) + '</div></div>';
   });
+  // 加角色按钮（右侧）
+  storiesHtml += '<div class="ig-story-item" onclick="createCharFromLib()"><div class="ig-story-ring ig-story-ring-add"><div class="ig-story-avatar ig-story-add-avatar">＋</div></div><div class="ig-story-name">添加</div></div>';
   storiesHtml += '</div></div>';
 
   // 汇总所有帖子
@@ -248,6 +323,7 @@ function renderFeed() {
 
   if (allPosts.length === 0) {
     container.innerHTML = storiesHtml + '<div class="feed-empty">📷 还没有帖子<br><span style="font-size:12px;color:#bbb;">点击底部 + 发布第一条动态</span></div>';
+    bindStoryItems();
     return;
   }
 
@@ -267,6 +343,7 @@ function renderFeed() {
     feedHtml += '<div class="feed-post-time">' + formatPostTime(post.time) + '</div></div>';
   });
   container.innerHTML = storiesHtml + feedHtml;
+  bindStoryItems();
 }
 
 function igLikeAutoPost(postId, charId) {
@@ -355,7 +432,7 @@ function renderIGCharEditor() {
     <div class="ig-app">
       <div class="ig-profile-header">
         <div class="logo-area">
-          <span class="logo-text">${isNew ? '新角色' : '编辑角色'}</span>
+          <span class="logo-text ig-title">${isNew ? '新角色' : '编辑角色'}</span>
         </div>
         <div class="header-actions">
           <button class="header-action-btn" onclick="renderIGProfile()" title="返回">✕</button>
@@ -598,7 +675,7 @@ function renderMyProfileContent() {
     <div class="profile-posts-grid">
       ${state.profilePosts && state.profilePosts.length > 0
         ? state.profilePosts.slice(0, 9).map(p => `
-          <div class="profile-post" onclick="viewPost('${p.id}')" style="background:linear-gradient(135deg, #f093fb, #f5576c, #fda085);">
+          <div class="profile-post" onclick="viewPost('${p.id}')" style="background:#f7f5f0;">
             ${p.image ? `<img src="${p.image}" style="width:100%;height:100%;object-fit:cover;filter:${p.filter || 'none'};" />` : '<span style="font-size:24px;color:#fff;opacity:.6">📝</span>'}
           </div>
         `).join('')
@@ -632,7 +709,7 @@ function openProfileEditor() {
     if (p.coverImage) {
       coverPreview.style.backgroundImage = 'url(' + p.coverImage + ')';
     } else {
-      coverPreview.style.backgroundImage = 'linear-gradient(145deg,#f093fb,#f5576c,#fda085)';
+      coverPreview.style.backgroundImage = 'linear-gradient(180deg,#ffffff,#f7f5f0)';
     }
   }
   $('profileModal').classList.add('active');
