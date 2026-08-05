@@ -3,7 +3,8 @@
   "short_name": "小手机",
   "start_url": ".",
   "scope": ".",
-  "display": "standalone",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
   "background_color": "#F4FBF7",
   "theme_color": "#15516f",
   "icons": [
