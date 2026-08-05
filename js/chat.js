@@ -20,7 +20,7 @@ function showMsgNote(charId, name, avatar, text) {
   noteTimer = setTimeout(function() { var el = document.getElementById('msgNote'); if (el) el.remove(); noteTimer = null; }, 4000);
 }
 // ===== 聊天窗口 =====
-function openChat(characterId) {
+function openChat(characterId, skin) {
   if (characterId) {
     state.activeRoleId = characterId;
     const char = getCharacter(characterId);
@@ -45,6 +45,7 @@ function openChat(characterId) {
   var ob = $('aiBtn');
   if (ob) ob.remove();
   $('chatWindow').classList.add('open');
+  $('chatWindow').classList.toggle('comic-skin', skin === 'comic');
   renderChat();
 }
 
@@ -55,6 +56,7 @@ function closeChat() {
   var ob = $('aiBtn');
   if (ob) ob.remove();
   $('chatWindow').classList.remove('open');
+  $('chatWindow').classList.remove('comic-skin');
   hidePanels();
 }
 
@@ -603,7 +605,7 @@ function applyBubbleStyle() {
   var cw = $('chatWindow');
   if (!cw) return;
   var s = state.settings.bubbleStyle || 'default';
-  cw.classList.remove('bubble-style-default', 'bubble-style-cute', 'bubble-style-warm', 'bubble-style-dark', 'bubble-style-ig', 'bubble-style-glow');
+  cw.classList.remove('bubble-style-default', 'bubble-style-cute', 'bubble-style-warm', 'bubble-style-dark', 'bubble-style-ig', 'bubble-style-glow', 'bubble-style-comic');
   cw.classList.add('bubble-style-' + s);
   var sel = $('bubbleStyleSelect');
   if (sel) sel.value = s;
@@ -739,6 +741,7 @@ function inviteStudy() {
   closeChat();
   if (window.openApp) openApp('自习');
   state.study.companion = true;
+  if (char) state.study.companionRoleId = char.id;
   if (!state.study.companionMsg) {
     const pool = ['我陪你一起专注，開始吧～', '加油，我就在这儿。', '我在呢，放心。'];
     const prefix = char && char.name && char.name !== '未命名角色' ? char.name + '：' : '';

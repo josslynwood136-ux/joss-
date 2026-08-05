@@ -32,8 +32,8 @@ function openApp(name) {
       '设置': renderApiSettings, '打卡': renderCheckins,
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
       '养多肉': renderPlant, '多肉': renderPlant, '账本': renderLedger, '涂鸦': renderDoodle,
-      '音乐': renderMusic, '啵啵': renderLiveHall, '啵啵间': renderLiveHall, '相册': renderAlbum, '表情包': renderStickerManager,
-      '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace,
+      '音乐': renderMusic, '啵啵': renderLiveHall, '啵啵间': renderLiveHall, '线下': renderOffline, '相册': renderAlbum, '表情包': renderStickerManager,
+      '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace, '情侣空间': renderSpace,
       'QQ': renderIGProfile,
       'IG': renderIGProfile
     };
@@ -47,14 +47,18 @@ function openApp(name) {
 
 function closeApp() {
   _tarotFogShown = false;
+  if (spaceFxTimer) { clearInterval(spaceFxTimer); spaceFxTimer = null; }
   if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
   if (_liveBagTimer) { clearInterval(_liveBagTimer); _liveBagTimer = null; }
+  studySoundStop();
   const m = $('appModal');
   if (m) { m.style.transition = ''; m.style.top = ''; }
   const mc = c();
   if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; mc.style.filter = ''; mc.style.opacity = ''; mc.style.transition = ''; }
   const ah = document.querySelector('.app-header');
   if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; ah.style.height = ''; ah.style.flex = ''; ah.style.alignItems = ''; ah.style.padding = ''; }
+  const ha = document.querySelector('.header-action');
+  if (ha) ha.style.color = '';
   const hp = document.querySelector('.header-pill');
   if (hp && hp.style.display) hp.style.display = '';
   const hdr = document.querySelector('.app-header');
@@ -1200,84 +1204,277 @@ function addDiary() {
 
 // ---------- 自习室 ----------
 const COMPANION_LINES = {
-  focusStart: ['我陪你一起专注，開始吧～', '加油，我就在这儿。', '这段時間交給我守著，你只管學。', '深呼吸，我們開始吧。'],
-  focusDone: ['完成一個番茄啦，很棒！', '你看，堅持下來了吧～', '一個小目標達成，休息一下。', '我為你驕傲，真的。'],
-  breakStart: ['休息一下，別盯著屏幕啦。', '去倒杯水，我幫你記著時間。', '伸個懶腰，我也陪你發呆。', '休息也是努力的一部分。'],
-  idle: ['想學點什麼？我陪你。', '今天也要好好對待自己哦。', '隨時可以開始，我不催你。', '我在呢，放心。']
+  focusStart: ['我陪你一起专注，开始吧～', '加油，我就在这儿。', '这段时间交给我守着，你只管学。', '深呼吸，我们开始吧。'],
+  focusDone: ['完成一个番茄啦，很棒！', '你看，坚持下来了吧～', '一个小目标达成，休息一下。', '我为你骄傲，真的。'],
+  breakStart: ['休息一下，别盯着屏幕啦。', '去倒杯水，我帮你记着时间。', '伸个懒腰，我也陪你发呆。', '休息也是努力的一部分。'],
+  idle: ['想学点什么？我陪你。', '今天也要好好对待自己哦。', '随时可以开始，我不催你。', '我在呢，放心。'],
+  remind: ['第几个番茄了？我帮你看着时间。', '呼吸放慢，专注手里的书。', '距离目标又近了一步。', '别分心，我守着你。', '喝水，然后继续。']
 };
 
+const STUDY_DECOR = [
+  { id: 'window', icon: '🪟', name: '窗户', lv: 1 },
+  { id: 'plant', icon: '🪴', name: '桌边绿植', lv: 2 },
+  { id: 'lamp', icon: '🛋️', name: '落地灯', lv: 3 },
+  { id: 'shelf', icon: '📚', name: '书架', lv: 4 },
+  { id: 'poster', icon: '🖼️', name: '墙贴', lv: 5 },
+  { id: 'rug', icon: '🧶', name: '地毯', lv: 6 },
+  { id: 'cat', icon: '🐱', name: '小猫咪', lv: 8 },
+  { id: 'coffee', icon: '☕', name: '咖啡机', lv: 10 }
+];
+const STUDY_SOUNDS = [
+  { id: 'rain', name: '雨声', icon: '🌧️' },
+  { id: 'cafe', name: '咖啡店', icon: '☕' },
+  { id: 'forest', name: '森林', icon: '🌲' }
+];
+
 let studyTimer = null;
+let studyAudio = null;
+
+function studyLevelInfo() {
+  let lv = 1, need = 80, into = state.study.xp;
+  while (into >= need) { into -= need; lv++; need = 80 + (lv - 1) * 40; }
+  return { level: lv, into, need };
+}
+function studyCharPrefix() {
+  const char = studyCompanion();
+  return char && char.name && char.name !== '未命名角色' ? char.name + '：' : '';
+}
+function studyCompanion() {
+  if (state.study.companionRoleId) {
+    const r = state.roles.find(x => x.id === state.study.companionRoleId);
+    if (r) return r;
+  }
+  return activeRole();
+}
+function switchStudyCompanion() {
+  const roles = state.roles;
+  if (!roles.length) return;
+  const idx = Math.max(0, roles.findIndex(r => r.id === state.study.companionRoleId));
+  const next = roles[(idx + 1) % roles.length];
+  state.study.companion = true;
+  state.study.companionRoleId = next.id;
+  state.study.companionMsg = '';
+  companionSay('idle');
+  saveState();
+  renderStudy();
+}
+function ensureStudyDay() {
+  const k = localDateKey(new Date());
+  if (state.study.dailyDate !== k) {
+    state.study.dailyDate = k;
+    state.study.dailyMin = 0;
+  }
+}
+function studyGain(min) {
+  ensureStudyDay();
+  const m = Math.max(1, Math.round(min));
+  const st = state.study;
+  st.dailyMin += m;
+  st.xp += m * 2;
+  const info = studyLevelInfo();
+  if (info.level > st.level) {
+    const newly = STUDY_DECOR.filter(d => d.lv <= info.level && !st.decor.includes(d.id));
+    newly.forEach(d => st.decor.push(d.id));
+    st.level = info.level;
+    const names = newly.map(d => d.icon + d.name).join('、');
+    st.companionMsg = studyCharPrefix() + '🎉 升级啦！现在是 Lv.' + info.level + (names ? '，解锁了「' + names + '」' : '');
+  }
+}
+function studySoundStart(id) {
+  studySoundStop();
+  if (!id) { state.study.sound = ''; saveState(); renderStudy(); return; }
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const master = ctx.createGain();
+    master.gain.value = 0.22;
+    master.connect(ctx.destination);
+    const len = Math.floor(ctx.sampleRate * 2);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    let b = 0;
+    for (let i = 0; i < len; i++) {
+      const w = Math.random() * 2 - 1;
+      b = (b + 0.02 * w) / 1.02;
+      data[i] = (id === 'cafe') ? w * 0.28 + b * 2.2 : b * 3.4;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    if (id === 'rain') { f.type = 'lowpass'; f.frequency.value = 800; }
+    else if (id === 'cafe') { f.type = 'bandpass'; f.frequency.value = 1000; f.Q.value = 0.4; }
+    else { f.type = 'lowpass'; f.frequency.value = 1400; }
+    src.connect(f);
+    f.connect(master);
+    src.start();
+    studyAudio = ctx;
+    state.study.sound = id;
+  } catch (err) {
+    console.error('sound error', err);
+  }
+  saveState();
+  renderStudy();
+}
+function studySoundStop() {
+  if (studyAudio) { try { studyAudio.close(); } catch (e) {} studyAudio = null; }
+}
+function toggleStudySound(id) {
+  if (state.study.sound === id) studySoundStart('');
+  else studySoundStart(id);
+}
+function toggleStudyDecor(id) {
+  const info = studyLevelInfo();
+  const d = STUDY_DECOR.find(x => x.id === id);
+  if (!d || d.lv > info.level) return;
+  const i = state.study.decor.indexOf(id);
+  if (i >= 0) state.study.decor.splice(i, 1);
+  else state.study.decor.push(id);
+  saveState();
+  renderStudy();
+}
+function studySky() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 11) return 'linear-gradient(180deg,#ffdfb0,#ffeede)';
+  if (h >= 11 && h < 17) return 'linear-gradient(180deg,#a5d6f7,#e6f4fb)';
+  if (h >= 17 && h < 21) return 'linear-gradient(180deg,#ffb98a,#ffdbb8)';
+  return 'linear-gradient(180deg,#1f2b4d,#33406e)';
+}
+function studyRoomHTML() {
+  const st = state.study;
+  const char = studyCompanion();
+  const hour = new Date().getHours();
+  const night = hour >= 21 || hour < 5;
+  const sky = studySky();
+  const on = id => st.decor.includes(id);
+  const inFocus = st.running && st.mode === 'focus';
+  const deskBook = inFocus ? '📖' : (st.mode === 'break' && st.running ? '☕' : '📚');
+  return `
+    <div style="position:relative;height:236px;border-radius:20px;overflow:hidden;background:${sky};box-shadow:inset 0 0 42px rgba(0,0,0,.08);flex-shrink:0">
+      ${night ? '<div style="position:absolute;top:10px;left:0;right:0;text-align:center;font-size:10px;color:#fff;opacity:.75;letter-spacing:16px">✦ ✧ ✦ ✧ ✦ ✧</div>' : ''}
+      <div style="position:absolute;top:12px;right:18px;font-size:24px">${night ? '🌙' : '🌤️'}</div>
+      ${on('window') ? `<div style="position:absolute;top:12px;left:14px;width:96px;height:76px;border-radius:10px;border:5px solid #f7f1e6;background:${night ? '#24304f' : '#bfe6ff'};box-shadow:0 2px 6px rgba(0,0,0,.08);overflow:hidden">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 44px,#f7f1e6 44px 46px)"></div>
+        <div style="position:absolute;left:0;right:0;top:50%;height:2px;background:#f7f1e6"></div>
+        ${night ? '' : '<div style="position:absolute;top:8px;left:58px;font-size:16px">☁️</div>'}
+      </div>` : ''}
+      ${on('shelf') ? `<div style="position:absolute;top:14px;right:60px;width:64px;height:86px;border-radius:6px;background:#c9a97c;box-shadow:0 2px 6px rgba(0,0,0,.12);padding:6px">
+        <div style="display:flex;gap:2px;margin-bottom:4px">${['#e07a5f', '#3d405b', '#81b29a'].map(c => `<div style="flex:1;height:28px;background:${c};border-radius:2px"></div>`).join('')}</div>
+        <div style="display:flex;gap:2px">${['#5f9ea0', '#b5838d', '#ffd166'].map(c => `<div style="flex:1;height:20px;background:${c};border-radius:2px"></div>`).join('')}</div>
+      </div>` : ''}
+      ${on('poster') ? '<div style="position:absolute;top:16px;right:16px;width:38px;height:50px;border-radius:6px;background:#fdf6e3;border:3px solid #e8ddd0;display:flex;align-items:center;justify-content:center;font-size:16px">🏞️</div>' : ''}
+      ${on('plant') ? '<div class="study-float" style="position:absolute;bottom:48px;left:22px;font-size:38px;line-height:1">🪴</div>' : ''}
+      ${on('lamp') ? `<div style="position:absolute;bottom:42px;right:24px;text-align:center">
+        <div style="width:30px;height:16px;border-radius:10px 10px 3px 3px;background:${night ? '#ffd166' : '#b8a99a'};${night ? 'box-shadow:0 0 16px 5px rgba(255,209,102,.45)' : ''};margin:0 auto -2px"></div>
+        <div style="width:6px;height:34px;background:#8a7a66;border-radius:3px;margin:0 auto"></div>
+        <div style="width:26px;height:5px;background:#8a7a66;border-radius:3px;margin:0 auto"></div>
+      </div>` : ''}
+      ${on('cat') ? '<div class="study-float" style="position:absolute;bottom:44px;right:74px;font-size:28px;line-height:1">🐱</div>' : ''}
+      ${on('rug') ? '<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:156px;height:36px;border-radius:50%;background:#e8a87c;opacity:.9;box-shadow:inset 0 0 0 6px #d98e63"></div>' : ''}
+      <div style="position:absolute;left:0;right:0;bottom:0;height:66px;background:linear-gradient(180deg,#d9c6a9,#cfb997);border-top:3px solid #e6d7bd"></div>
+      <div style="position:absolute;bottom:32px;left:50%;transform:translateX(-50%);text-align:center;z-index:2">
+        <div class="study-bob" style="display:inline-block">
+          <div style="width:56px;height:56px;border-radius:50%;border:3px solid #fff;background:#fff;display:flex;align-items:center;justify-content:center;font-size:38px;line-height:1;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.12)">${renderAvatar(char.avatar, char.name)}</div>
+        </div>
+        <div style="width:128px;height:34px;border-radius:4px;background:#c08b5c;box-shadow:0 3px 0 #a06f47;margin:-4px auto 0;position:relative">
+          <div style="position:absolute;top:-5px;left:10px;width:34px;height:20px;border-radius:3px;background:#fff;border-left:3px solid #e07a5f"></div>
+          <div style="position:absolute;top:-7px;right:12px;font-size:17px">${deskBook}</div>
+        </div>
+      </div>
+      <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:74%;background:${night ? 'rgba(46,58,90,.92)' : '#fff'};color:${night ? '#fff' : '#5c4f42'};border-radius:14px;padding:6px 12px;font-size:12px;box-shadow:0 2px 10px rgba(0,0,0,.1);text-align:center;z-index:5">${escapeHTML(st.companionMsg || '我在呢～')}</div>
+    </div>`;
+}
 
 function renderStudy() {
-  const m = Math.floor(state.study.seconds / 60).toString().padStart(2, '0');
-  const s = (state.study.seconds % 60).toString().padStart(2, '0');
-  const isFocus = state.study.mode === 'focus';
-  const char = getRole(state.activeRoleId);
-  const today = new Date();
-  const todayMin = state.study.records
-    .filter(r => { const d = new Date(r.date); return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate(); })
-    .reduce((a, r) => a + (Number(r.minutes) || 0), 0);
-  const recs = state.study.records.slice(0, 8);
+  ensureStudyDay();
+  const st = state.study;
+  st.companion = true;
+  const cp = studyCompanion();
+  const m = Math.floor(st.seconds / 60).toString().padStart(2, '0');
+  const s = (st.seconds % 60).toString().padStart(2, '0');
+  const isFocus = st.mode === 'focus';
+  const info = studyLevelInfo();
+  const recs = st.records.slice(0, 6);
   const recordsHtml = recs.length === 0
-    ? '<div style="color:#d0c5b8;font-size:12px;padding:2px 2px 6px">还没有学习记录，开始第一个番茄吧～</div>'
-    : recs.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid #efe7dd">
+    ? '<div style="color:#d0c5b8;font-size:12px;padding:4px 2px 2px">还没有学习记录，开始第一个番茄吧～</div>'
+    : recs.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid #f0ece5">
         <span style="font-size:13px;color:#5c4f42;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(r.subject)}</span>
         <span style="font-size:12px;color:#b8a99a;flex-shrink:0">${r.minutes}分</span>
-        <span style="font-size:11px;color:#c9bcad;flex-shrink:0">${r.date}</span>
+        <span style="font-size:11px;color:#c9bcad;flex-shrink:0">${escapeHTML(r.date)}</span>
       </div>`).join('')
       + '<div style="text-align:right;padding:6px 0 0"><button onclick="clearStudyRecords()" style="background:none;border:none;color:#c9bcad;font-size:12px;cursor:pointer">清空记录</button></div>';
+  const soundHtml = STUDY_SOUNDS.map(sd =>
+    `<button onclick="toggleStudySound('${sd.id}')" style="flex:1;border:none;border-radius:12px;padding:9px 0;font-size:12px;cursor:pointer;${st.sound === sd.id ? 'background:#d4c5b3;color:#fff;font-weight:600' : 'background:#f0ece5;color:#7a6b5c'}">${sd.icon} ${sd.name}</button>`).join('')
+    + `<button onclick="toggleStudySound('')" style="flex:1;border:none;border-radius:12px;padding:9px 0;font-size:12px;cursor:pointer;${!st.sound ? 'background:#d4c5b3;color:#fff;font-weight:600' : 'background:#f0ece5;color:#7a6b5c'}">🔇 关</button>`;
+  const decorHtml = STUDY_DECOR.map(d => {
+    const unlocked = d.lv <= info.level;
+    const on = st.decor.includes(d.id);
+    return `<button onclick="${unlocked ? `toggleStudyDecor('${d.id}')` : ''}" style="border:1px solid ${on ? '#d4c5b3' : '#eee5da'};background:${on ? '#faf4ec' : '#fff'};border-radius:12px;padding:8px 10px;font-size:12px;color:#7a6b5c;cursor:${unlocked ? 'pointer' : 'not-allowed'};opacity:${unlocked ? 1 : .45};display:flex;align-items:center;gap:6px">
+      <span style="font-size:16px">${d.icon}</span>${d.name}
+      ${unlocked ? (on ? ' ✓' : '') : `<span style="font-size:10px;color:#c9bcad">Lv${d.lv}</span>`}
+    </button>`;
+  }).join('');
+  const extras = `
+    <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px">
+      <div style="font-size:13px;color:#7a6b5c;font-weight:600;margin-bottom:10px">🎵 环境音</div>
+      <div style="display:flex;gap:8px">${soundHtml}</div>
+    </div>
+    <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:13px;color:#7a6b5c;font-weight:600">🌱 学习成长</span>
+        <span style="font-size:12px;color:#b8a99a">Lv.${info.level} · ${info.into}/${info.need} XP</span>
+      </div>
+      <div style="height:8px;background:#f0ece5;border-radius:999px;overflow:hidden;margin:10px 0 4px">
+        <div style="height:100%;width:${Math.max(4, Math.round(info.into / info.need * 100))}%;background:linear-gradient(90deg,#81b29a,#5f9ea0);border-radius:999px;transition:width .5s"></div>
+      </div>
+      <div style="font-size:11px;color:#c9bcad;margin:6px 0 8px">专注 1 分钟 = 2 XP，升级解锁房间家具</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${decorHtml}</div>
+    </div>`;
   const el = c();
-  el.style.paddingBottom = '0';
-  el.style.display = 'flex';
-  el.style.flexDirection = 'column';
   el.style.background = '#f0ede8';
   el.innerHTML = `
-    <div style="flex:1;display:flex;flex-direction:column;background:#f0ede8;padding:4px 0">
-      <div style="text-align:center;flex-shrink:0">
-        <div style="font-size:12px;color:#b8a99a;letter-spacing:1px">${isFocus ? '🍅 专注中' : '☕ 休息中'} · 第 ${state.study.round} 个番茄</div>
-        <div style="font-size:48px;font-weight:300;margin:6px 0 4px;color:#5c4f42;letter-spacing:2px">${m}:${s}</div>
-        ${isFocus ? `<input class="field" id="studySubject" value="${escapeHTML(state.study.subject)}" placeholder="学习科目" style="border-color:#e8ddd0;background:#faf6f0;color:#5c4f42;text-align:center">` : '<div style="font-size:13px;color:#b8a99a;padding:2px 0">喝口水，伸个懒腰～</div>'}
+    <div class="stack" style="max-width:560px;margin:0 auto">
+      ${studyRoomHTML()}
+      <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px;border:1px solid #f0e8de">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:#b8a99a">${isFocus ? '🍅 专注中' : '☕ 休息中'} · 第 ${st.round} 个番茄</span>
+        </div>
+        <div style="text-align:center;font-size:50px;font-weight:300;color:#5c4f42;letter-spacing:3px;margin:6px 0 4px">${m}:${s}</div>
+        ${isFocus
+          ? `<input class="field" id="studySubject" value="${escapeHTML(st.subject)}" placeholder="学习科目" style="border-color:#e8ddd0;background:#faf6f0;color:#5c4f42;text-align:center">`
+          : '<div style="font-size:13px;color:#b8a99a;padding:2px 0;text-align:center">喝口水，伸个懒腰～</div>'}
         <div class="grid3" style="margin-top:8px;gap:6px">
           ${isFocus
-            ? `<button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setStudyMinutes(25)">25分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setStudyMinutes(45)">45分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setStudyMinutes(15)">15分</button>`
-            : `<button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setBreak(5)">5分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setBreak(10)">10分</button><button style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer" onclick="setBreak(15)">15分</button>`}
+            ? `<button onclick="setStudyMinutes(25)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">25分</button><button onclick="setStudyMinutes(45)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">45分</button><button onclick="setStudyMinutes(15)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">15分</button>`
+            : `<button onclick="setBreak(5)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">5分</button><button onclick="setBreak(10)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">10分</button><button onclick="setBreak(15)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">15分</button>`}
         </div>
         <div class="grid2" style="margin-top:10px;gap:8px">
-          <button style="background:#d4c5b3;color:#fff;border:none;border-radius:20px;padding:10px 0;font-size:14px;cursor:pointer;font-weight:600" onclick="toggleStudy()">${state.study.running ? '暂停' : '开始'}</button>
-          <button style="background:transparent;color:#b8a99a;border:1px solid #e0d5c8;border-radius:20px;padding:10px 0;font-size:13px;cursor:pointer" onclick="finishStudy(true)">结束</button>
+          <button onclick="toggleStudy()" style="background:#d4c5b3;color:#fff;border:none;border-radius:20px;padding:11px 0;font-size:14px;cursor:pointer;font-weight:600">${st.running ? '暂停' : '开始'}</button>
+          <button onclick="finishStudy(true)" style="background:transparent;color:#b8a99a;border:1px solid #e0d5c8;border-radius:20px;padding:11px 0;font-size:13px;cursor:pointer">结束</button>
         </div>
       </div>
-      <div style="margin:14px 0 0;border-top:1px solid #e8ddd0"></div>
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 4px 6px;flex-shrink:0">
-        <span style="font-size:13px;color:#b8a99a">🤗 角色陪伴</span>
-        <div class="switch${state.study.companion ? ' on' : ''}" onclick="toggleCompanion()" style="flex-shrink:0"></div>
-      </div>
-      ${state.study.companion ? `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:4px 0 12px">
-        <div style="position:relative;width:120px;height:120px">
-          <div style="position:absolute;top:-14px;right:0;background:#d4c5b3;color:#fff;border-radius:16px;padding:6px 12px;font-size:12px;line-height:1.4;max-width:160px;white-space:nowrap;z-index:1;box-shadow:0 2px 8px rgba(0,0,0,.06)">
-            ${escapeHTML(state.study.companionMsg || '我在呢～')}
-          </div>
-          <div style="position:absolute;bottom:0;left:0;width:80px;height:80px;border-radius:50%;border:2px solid #e0d5c8;display:flex;align-items:center;justify-content:center;font-size:64px;line-height:1;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.04);background:#fff">${renderAvatar(char.avatar, char.name)}</div>
+      ${extras}
+      <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;color:#7a6b5c;font-weight:600">🤗 角色陪伴</span>
+          <button onclick="switchStudyCompanion()" style="border:1px solid #eee5da;background:#fff;color:#7a6b5c;border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer">换人</button>
         </div>
-      </div>` : '<div style="flex:1;display:flex;align-items:center;justify-content:center"><span style="color:#d0c5b8;font-size:12px">开启陪伴，让 TA 陪你学习</span></div>'}
-      <div style="margin:0;border-top:1px solid #e8ddd0"></div>
-      <div style="flex-shrink:0;padding:12px 4px 8px">
-        <div style="display:flex;gap:8px">
-          <div style="flex:1;text-align:center;background:#fff;border-radius:14px;border:1px solid #e8ddd0;padding:10px">
-            <div style="font-size:11px;color:#b8a99a">今日专注</div>
-            <div style="font-size:22px;color:#5c4f42;font-weight:600">${todayMin}分</div>
-          </div>
-          <div style="flex:1;text-align:center;background:#fff;border-radius:14px;border:1px solid #e8ddd0;padding:10px">
-            <div style="font-size:11px;color:#b8a99a">累计番茄</div>
-            <div style="font-size:22px;color:#5c4f42;font-weight:600">${state.study.round}个</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0 10px">
+          <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:#fff;border:1px solid #eee5da;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">${renderAvatar(cp.avatar, cp.name)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:#5c4f42;font-weight:600">${escapeHTML(cp.name)}</div>
+            <div style="font-size:11px;color:#b8a99a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(cp.persona || '正在陪你学习')}</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin:14px 2px 4px">
+        <div class="grid3" style="gap:8px">
+          <div style="text-align:center;background:#faf6f0;border-radius:12px;padding:8px"><div style="font-size:11px;color:#b8a99a">今日专注</div><div style="font-size:17px;color:#5c4f42;font-weight:600">${st.dailyMin}分</div></div>
+          <div style="text-align:center;background:#faf6f0;border-radius:12px;padding:8px"><div style="font-size:11px;color:#b8a99a">累计番茄</div><div style="font-size:17px;color:#5c4f42;font-weight:600">${st.round}个</div></div>
+          <div style="text-align:center;background:#faf6f0;border-radius:12px;padding:8px"><div style="font-size:11px;color:#b8a99a">成长等级</div><div style="font-size:17px;color:#5c4f42;font-weight:600">Lv.${info.level}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px">
           <span style="font-size:13px;color:#7a6b5c;font-weight:600;flex-shrink:0">📋 学习记录</span>
-          <div style="flex:1;height:1px;background:#e8ddd0"></div>
+          <div style="flex:1;height:1px;background:#eee5da"></div>
         </div>
-        <div style="max-height:200px;overflow:auto">${recordsHtml}</div>
+        <div style="max-height:190px;overflow:auto">${recordsHtml}</div>
       </div>
     </div>`;
 }
@@ -1315,6 +1512,7 @@ function toggleStudy() {
         if (state.study.mode === 'focus') {
           state.study.records.unshift({ subject: state.study.subject, minutes: Math.round(state.study.target / 60), date: new Date().toLocaleString() });
           state.study.round += 1;
+          studyGain(Math.round(state.study.target / 60));
           state.study.mode = 'break';
           state.study.target = state.study.breakMin * 60;
           state.study.seconds = state.study.breakMin * 60;
@@ -1332,6 +1530,7 @@ function toggleStudy() {
           renderStudy();
         }
       } else {
+        if (state.study.mode === 'focus' && state.study.seconds % 600 === 0) companionSay('remind');
         renderStudy();
       }
     }, 1000);
@@ -1345,6 +1544,7 @@ function finishStudy(manual) {
   if (state.study.mode === 'focus') {
     const used = Math.max(1, Math.round((state.study.target - state.study.seconds) / 60));
     state.study.records.unshift({ subject: state.study.subject, minutes: manual ? used : Math.round(state.study.target / 60), date: new Date().toLocaleString() });
+    studyGain(used);
   }
   state.study.running = false;
   state.study.mode = 'focus';
@@ -1362,16 +1562,10 @@ function clearStudyRecords() {
 function companionSay(type) {
   if (!state.study.companion) return;
   const pool = COMPANION_LINES[type] || COMPANION_LINES.idle;
-  const char = activeCharacter();
+  const char = studyCompanion();
   const prefix = char && char.name && char.name !== '未命名角色' ? char.name + '：' : '';
   state.study.companionMsg = prefix + pool[Math.floor(Math.random() * pool.length)];
   saveState();
-}
-function toggleCompanion() {
-  state.study.companion = !state.study.companion;
-  if (state.study.companion && !state.study.companionMsg) companionSay('idle');
-  saveState();
-  renderStudy();
 }
 function refreshCompanion() {
   companionSay(state.study.running ? (state.study.mode === 'focus' ? 'focusStart' : 'breakStart') : 'idle');
@@ -4293,34 +4487,589 @@ function cakeRestart() {
 }
 
 // ---------- 情侣空间 ----------
+const SPACE_TASKS = [
+  { id: 'morning', icon: '☀️', name: '早安问候' },
+  { id: 'hug', icon: '🤗', name: '抱一下' },
+  { id: 'photo', icon: '📸', name: '拍张照片' },
+  { id: 'diary', icon: '📝', name: '写篇日记' },
+  { id: 'goodnight', icon: '🌙', name: '晚安吻' }
+];
+const SPACE_REWARD = 5;
+let spaceFxTimer = null;
+const SPACE_KISS_LINES = [
+  '· 心跳被你偷走了 ·',
+  '· 脸颊有点烫 ·',
+  '· 这一下，我要记很久 ·',
+  '· 还、还想再来一次吗 ·',
+  '· 你认真的样子好甜 ·',
+  '· 耳朵红到发烫了啦 ·',
+  '· 你把我的心掳走了 ·'
+];
+const SPACE_LINES = [
+  '遇见你之后，连风都变得软软的。',
+  '今天也想赖在你身边，哪里都不去。',
+  '我把月亮摘下来，别在你耳边啦。',
+  '你是我心里最软的那一块。',
+  '想和你把以后的每一次日落都看完。',
+  '你的名字，是我写过最甜的情书。',
+  '被你牵着手的时候，路再远都不怕。',
+  '想把我的糖分都给你，甜到你心坎里。',
+  '心跳扑通扑通，都是因为你。',
+  '晚安吻要放在眉心，梦才够甜。',
+  '你一来，花就全开了。',
+  '抱一下嘛，充电五分钟，甜一整天。'
+];
+function spaceLevelIndex(int) {
+  if (int >= 500) return 4;
+  if (int >= 300) return 3;
+  if (int >= 150) return 2;
+  if (int >= 60) return 1;
+  return 0;
+}
+function spaceLevel(int) {
+  if (int >= 500) return { name: '灵魂伴侣', icon: 'Ⅴ', need: 500 };
+  if (int >= 300) return { name: '心有灵犀', icon: 'Ⅳ', need: 300 };
+  if (int >= 150) return { name: '如胶似漆', icon: 'Ⅲ', need: 150 };
+  if (int >= 60) return { name: '甜蜜热恋', icon: 'Ⅱ', need: 60 };
+  return { name: '心动初识', icon: 'Ⅰ', need: 0 };
+}
+function spaceNext(int) {
+  const lv = spaceLevel(int);
+  const order = [0, 60, 150, 300, 500];
+  let next = order.find(n => n > lv.need && int < n);
+  if (int >= 500) return null;
+  return { level: lv, need: next };
+}
+function spaceFor(roleId) {
+  const rid = roleId || (activeRole() && activeRole().id);
+  if (!rid) return state.space.default;
+  if (!state.space.byRole[rid]) state.space.byRole[rid] = JSON.parse(JSON.stringify(state.space.default));
+  const sp = state.space.byRole[rid];
+  if (!sp.startDate) { sp.startDate = localDateKey(new Date()); saveState(); }
+  return sp;
+}
+function spaceDays(sp) {
+  sp = sp || state.space.default;
+  if (!sp.startDate) return 0;
+  return Math.max(1, Math.floor((new Date() - new Date(sp.startDate)) / 86400000));
+}
+function spaceDailyKey() { return localDateKey(new Date()); }
+function spaceCurrDaily() {
+  const sp = spaceFor(activeRole().id);
+  const k = spaceDailyKey();
+  if (!sp.daily[k]) sp.daily[k] = {};
+  return sp.daily[k];
+}
 function renderSpace() {
-  const days = Math.max(1, Math.ceil((new Date() - new Date(state.space.startDate)) / 86400000));
+  const role = activeRole();
+  const sp = spaceFor(role.id);
+  const days = spaceDays(sp);
+  const int = sp.intimacy;
+  const lv = spaceLevel(int);
+  const lvIdx = spaceLevelIndex(int);
+  const nxt = spaceNext(int);
+  const pct = nxt ? Math.min(100, Math.round(((int - lv.need) / (nxt.need - lv.need)) * 100)) : 100;
+  const day = sp.daily[spaceDailyKey()] || {};
+  const done = SPACE_TASKS.filter(t => day[t.id]).length;
+  const lover = sp.loverName ? ' · ' + escapeHTML(sp.loverName) : '';
+  const meAv = renderAvatar(state.myProfile && (state.myProfile.avatarImage || state.myProfile.avatar) || activeProfile().avatar, '我');
+  const roleAv = renderAvatar(role.avatar, role.name);
   c().innerHTML = `
-    <div class="stack">
-      <div class="card" style="text-align:center;background:linear-gradient(135deg,#fff2f5,#e9f8ff)">
-        <h2>情侣空间</h2>
-        <div style="font-size:46px;font-weight:900">${days}</div>
-        <p class="subtle">在一起的第 ${days} 天</p>
+    <div class="space-wrap">
+      <div class="space-hero2">
+        <div class="space-hero2-glow"></div>
+        <div class="space-hero2-top">
+          <button class="space-switch" onclick="spaceSwitchRole()" title="更换伴侣">⇄</button>
+        </div>
+        <div class="space-h2-couple">
+          <figure><span class="space-h2-av">${meAv}</span><figcaption>我</figcaption></figure>
+          <div class="space-h2-heart" id="spaceBeat" onclick="spaceKiss()">❤</div>
+          <figure><span class="space-h2-av">${roleAv}</span><figcaption>${escapeHTML(role.name)}</figcaption></figure>
+        </div>
+        <div class="space-h2-num">${days}<small>DAYS</small></div>
+        <div class="space-h2-sub">和 ${escapeHTML(role.name)} 在一起 · 第 ${days} 天${lover}</div>
+        <div class="space-h2-lv">
+          <span class="space-h2-lvname">${lv.icon} ${lv.name}</span>
+          <div class="space-h2-bar"><i style="width:${pct}%"></i></div>
+          <span class="space-h2-int">${int}</span>
+        </div>
+        <div class="space-kiss-reply" id="spaceKissReply"></div>
       </div>
-      <div class="grid3">
-        <div class="metric"><span class="subtle">啵啵</span><b>${state.space.kisses}</b></div>
-        <div class="metric"><span class="subtle">日记</span><b>${state.diary.length}</b></div>
-        <div class="metric"><span class="subtle">照片</span><b>${state.album.length}</b></div>
+
+      <div class="space-quote" id="spaceLineBox">${SPACE_LINES[Math.floor(Math.random() * SPACE_LINES.length)]}</div>
+      <button class="space-quote-btn" onclick="spaceLoveLine()">再听一句 · +1</button>
+
+      <div class="space-tasks">
+        <div class="space-tasks-head"><span>今日小事</span><span class="space-task-counter">${done}/${SPACE_TASKS.length}</span></div>
+        ${SPACE_TASKS.map(t => `
+          <div class="space-task${day[t.id] ? ' on' : ''}" onclick="spaceTask('${t.id}', this)">
+            <span class="space-task-dot${day[t.id] ? ' on' : ''}"></span>
+            <span class="space-task-name">${t.icon} ${t.name}</span>
+            <span class="space-task-pts">${day[t.id] ? '+' + SPACE_REWARD : ''}</span>
+          </div>`).join('')}
       </div>
-      <div class="card">
-        <label class="label">纪念日</label>
-        <input class="field" type="date" id="spaceStart" value="${escapeHTML(state.space.startDate)}">
-        <label class="label">留言板</label>
-        <textarea class="textarea" id="spaceMemo">${escapeHTML(state.space.memo)}</textarea>
-        <button class="primary-btn" style="width:100%;margin-top:8px" onclick="saveSpace()">保存空间</button>
+
+      <div class="space-notes2">
+        <div class="space-notes-head"><span>悄悄话</span><span>${(sp.notes || []).length}</span></div>
+        <textarea class="textarea" id="spaceMemo" placeholder="写一句悄悄话，寄给 TA...">${escapeHTML(sp.memo)}</textarea>
+        <button class="space-btn" onclick="saveSpace()">寄出</button>
+        ${(sp.notes || []).length ? `<div class="space-note-list">${sp.notes.slice(0, 6).map(n => `<div class="space-note"><p>${escapeHTML(n.text)}</p><time>${escapeHTML(n.date || '')}</time></div>`).join('')}</div>` : ''}
       </div>
     </div>`;
+  c().style.background = '#fdf6f7';
+  const ah = document.querySelector('.app-header');
+  if (ah) ah.style.background = '#fdf6f7';
+  const ha = document.querySelector('.header-action');
+  if (ha) ha.style.color = '#c2507d';
+  clearInterval(spaceFxTimer);
+  spaceFxTimer = setInterval(function () { spawnSpaceHearts(1 + (Math.random() < 0.5 ? 1 : 0)); }, 480);
 }
-function saveSpace() {
-  state.space.startDate = $('spaceStart').value || state.space.startDate;
-  state.space.memo = $('spaceMemo').value.trim();
+function spaceSwitchRole() {
+  const roles = state.roles;
+  if (!roles.length) return;
+  const idx = Math.max(0, roles.findIndex(r => r.id === activeRole().id));
+  const next = roles[(idx + 1) % roles.length];
+  state.activeRoleId = next.id;
   saveState();
   renderSpace();
+}
+function saveSpace() {
+  const sp = spaceFor(activeRole().id);
+  const t = $('spaceMemo').value.trim();
+  if (!t) return alert('写点想说的话再寄出吧');
+  sp.notes.unshift({ text: t, date: new Date().toLocaleString() });
+  sp.memo = '';
+  saveState();
+  renderSpace();
+  showIGToast('💌 悄悄话已寄出');
+}
+function spaceKiss() {
+  const sp = spaceFor(activeRole().id);
+  const k = spaceDailyKey();
+  const daily = sp.daily[k] || (sp.daily[k] = {});
+  if (sp.lastKissKey === k) {
+    const n = Number(daily.kissed) || 0;
+    if (n >= 10) { showIGToast('💋 今天啵够啦，明天再来～'); return; }
+    daily.kissed = n + 1;
+  } else {
+    sp.lastKissKey = k;
+    daily.kissed = 1;
+  }
+  sp.kisses += 1;
+  sp.intimacy += 2;
+  saveState();
+  spaceHeartBurst();
+  const beat = $('spaceBeat');
+  if (beat) { beat.classList.remove('pulse'); void beat.offsetWidth; beat.classList.add('pulse'); }
+  updateSpaceStats();
+  const reply = $('spaceKissReply');
+  if (reply) {
+    reply.textContent = SPACE_KISS_LINES[Math.floor(Math.random() * SPACE_KISS_LINES.length)];
+    reply.classList.remove('show'); void reply.offsetWidth; reply.classList.add('show');
+    clearTimeout(reply._t);
+    reply._t = setTimeout(function () { reply.classList.remove('show'); }, 2200);
+  }
+}
+function spaceLoveLine() {
+  const sp = spaceFor(activeRole().id);
+  const day = spaceCurrDaily();
+  const n = Number(day.lines) || 0;
+  if (n >= 5) { showIGToast('· 今天的情话听够啦，明天再来 ·'); return; }
+  day.lines = n + 1;
+  sp.intimacy += 1;
+  saveState();
+  const box = $('spaceLineBox');
+  if (box) { box.textContent = SPACE_LINES[Math.floor(Math.random() * SPACE_LINES.length)]; box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
+  spawnSpaceHearts(2);
+  updateSpaceStats();
+  showIGToast('· 收到一句甜甜的情话，+1 ·');
+}
+
+// ---------- 线下 · 今日见面 ----------
+const OFFLINE_SCENES = [
+  { id: 'cafe', icon: '☕', name: '街角咖啡馆', bg: 'linear-gradient(150deg,#fff6ef 0%,#ffe9dc 55%,#ffdccf 100%)', lines: ['TA 把最甜的奶盖轻轻推到你面前，说“小心烫”。', '窗边的位置正好有阳光，TA 笑起来的眼睛亮晶晶的。', '你们点了同一杯名字很好听的拿铁，喝到一半偷换了一下。'] },
+  { id: 'park', icon: '🌳', name: '傍晚公园', bg: 'linear-gradient(150deg,#f2fbee 0%,#dff3e0 55%,#cfe9d8 100%)', lines: ['沿着湖边慢慢走，TA 悄悄把手指扣进你的指缝。', '风把 TA 的头发吹乱了，你伸手帮她理了理。', '路灯亮起来的那一刻，TA 突然停下来看了你很久。'] },
+  { id: 'cinema', icon: '🎬', name: '深夜电影院', bg: 'linear-gradient(150deg,#f4effb 0%,#e7dcf6 55%,#dccff0 100%)', lines: ['电影放到煽情处，TA 把爆米花桶往你这边挪了挪。', '黑暗中，TA 的手轻轻搭在你的手背上。', '散场的时候，TA 说“刚刚那场，其实就是想和你一起看”。'] },
+  { id: 'night', icon: '🌙', name: '夜市小摊', bg: 'linear-gradient(150deg,#fff2e8 0%,#ffdfc4 55%,#f7c9ae 100%)', lines: ['TA 举着一串烤肠跑到你面前，烫得直吹气也要喂你。', '人潮里 TA 一直牵着你，怕你走散。', '你们并排坐在长椅上，夜市的风都是甜的。'] }
+];
+const OFFLINE_TIMES = ['今天下午', '今晚', '明天中午', '周末'];
+function offlineScene() {
+  const sp = spaceFor(activeRole().id);
+  const cur = (sp.offlineScene || 'cafe');
+  return OFFLINE_SCENES.find(s => s.id === cur) || OFFLINE_SCENES[0];
+}
+function offlineFx(n) {
+  const stage = document.querySelector('.offline-scene');
+  if (!stage) return;
+  for (let i = 0; i < n; i++) {
+    const h = document.createElement('div');
+    if (Math.random() < 0.3) {
+      h.className = 'space-fx-bubble';
+      h.style.left = (8 + Math.random() * 84) + '%';
+      h.style.animationDuration = (1.8 + Math.random() * 1.2) + 's';
+    } else {
+      h.className = 'space-scene-heart' + (Math.random() < 0.5 ? ' spin' : '');
+      h.textContent = SPACE_HEART_SYMS[Math.floor(Math.random() * SPACE_HEART_SYMS.length)];
+      h.style.fontSize = (9 + Math.random() * 5) + 'px';
+      h.style.left = (5 + Math.random() * 90) + '%';
+      h.style.animationDuration = (1.8 + Math.random() * 1.6) + 's';
+    }
+    stage.appendChild(h);
+    const dur = parseFloat(h.style.animationDuration || '1.8');
+    setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, (dur + 0.8) * 1000);
+  }
+}
+function offlineDate() {
+  const sp = spaceFor(activeRole().id);
+  if (!sp.offlineDate) sp.offlineDate = { state: 'none', sceneId: sp.offlineScene || 'cafe', atMsgIndex: 0 };
+  return sp.offlineDate;
+}
+function offlineAiCfg() {
+  var ap = state.apiProfiles && state.activeApiProfile
+    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+  return ap || state.api;
+}
+function offlineAiOk() {
+  const cfg = offlineAiCfg();
+  return cfg && cfg.key && cfg.url && cfg.model;
+}
+var offlineTyping = false;
+function offlineChatList() {
+  const sp = spaceFor(activeRole().id);
+  if (!Array.isArray(sp.offlineChat)) sp.offlineChat = [];
+  return sp.offlineChat;
+}
+function renderOffline() {
+  const role = activeRole();
+  const sp = spaceFor(role.id);
+  const sc = offlineScene();
+  const d = offlineDate();
+  const dating = d.state === 'dating';
+  const list = sp.offlineChat || [];
+  const meAv = renderAvatar(state.myProfile && (state.myProfile.avatarImage || state.myProfile.avatar) || activeProfile().avatar, '我');
+  const roleAv = renderAvatar(role.avatar, role.name);
+  const bub = function (m) {
+    const me = m.who === 'me';
+    if (m.type === 'invite') {
+      const is = OFFLINE_SCENES.find(s => s.id === m.sceneId) || OFFLINE_SCENES[0];
+      return `<div class="offline-msg me"><span class="offline-msg-av">${meAv}</span><div class="offline-invite-card"><div class="offline-invite-title">💌 约会邀请函</div><div class="offline-invite-row">📍 ${escapeHTML(is.name)}</div>${m.time ? `<div class="offline-invite-row">🕐 ${escapeHTML(m.time)}</div>` : ''}${m.note ? `<div class="offline-invite-note">${escapeHTML(m.note)}</div>` : ''}</div></div>`;
+    }
+    return `<div class="offline-msg ${me ? 'me' : ''}"><span class="offline-msg-av">${me ? meAv : roleAv}</span><div class="offline-msg-bub">${escapeHTML(m.text)}</div></div>`;
+  };
+  const chatHTML = list.length
+    ? list.map(bub).join('') + (offlineTyping ? `<div class="offline-msg"><span class="offline-msg-av">${roleAv}</span><div class="offline-msg-bub typing"><span class="comic-tdot"></span><span class="comic-tdot"></span><span class="comic-tdot"></span></div></div>` : '')
+    : `<div class="offline-chat-empty">选个地方，点「邀请见面」，TA 会在这里回复你。</div>`;
+  const zoneHTML = dating ? `
+    <div class="off-dialogue-input"><input id="offlineInput" placeholder="对 ${escapeHTML(role.name)} 说点什么…" onkeydown="if(event.key==='Enter')offlineSend()"><button onclick="offlineSend()">发送</button></div>
+    <button class="offline-cta ghost" onclick="offlineEnd()">🌙 结束约会 · AI 写进记忆</button>
+  ` : d.state === 'waiting' ? `
+    <div class="off-status">📨 邀请函已发出，等 ${escapeHTML(role.name)} 回复…</div>
+  ` : d.state === 'rejected' ? `
+    <div class="off-status">😢 ${escapeHTML(role.name)} 这次婉拒了，换个时间再战</div>
+    <button class="offline-cta" onclick="offlineInvite()">💌 再邀请一次</button>
+  ` : `
+    <div class="off-status">挑个地方，把 ${escapeHTML(role.name)} 约出来</div>
+    <button class="offline-cta" onclick="offlineInvite()">💌 邀请 ${escapeHTML(role.name)} 出来见面</button>
+  `;
+  setTitle('线下');
+  c().innerHTML = `
+    <div class="offline-wrap">
+      <div class="offline-scene" id="offlineScene" style="background:${sc.bg}">
+        <div class="comic-scene-overlay"></div>
+        <div class="off-hud">
+          <button class="off-loc"${dating ? ' disabled' : ''} onclick="toggleScenePicker()">${sc.icon} ${escapeHTML(sc.name)} <span class="off-caret">▾</span></button>
+          <div class="off-sweet">💖 <b id="offlineInt">${sp.intimacy}</b></div>
+        </div>
+        <div class="off-scene-picker" id="offScenePicker" style="display:none">
+          ${OFFLINE_SCENES.map(s => `<button class="off-scene-pick${s.id === sc.id ? ' on' : ''}"${dating ? ' disabled' : ''} onclick="offlinePickScene('${s.id}')"><span class="off-pick-icon">${s.icon}</span><span class="off-pick-name">${escapeHTML(s.name)}</span></button>`).join('')}
+        </div>
+        <div class="off-dialogue">
+          <div class="off-chat-head">${dating ? '约会中 · 此刻面对面' : (list.length ? '上次见面' : '线下约会 · 待开始')}</div>
+          <div class="offline-chat-list">${chatHTML}</div>
+          <div class="off-cta-zone">${zoneHTML}</div>
+          <div class="offline-tip">TA 会答应或婉拒；答应后进入约会，结束由 AI 把这次见面写进记忆。</div>
+        </div>
+      </div>
+    </div>`;
+  const mc = c();
+  mc.style.padding = '0';
+  mc.style.display = 'flex';
+  mc.style.flexDirection = 'column';
+  mc.style.overflow = 'hidden';
+  mc.style.background = '#f7eed8';
+  const ah = document.querySelector('.app-header');
+  if (ah) ah.style.background = '#f7eed8';
+  const ha = document.querySelector('.header-action');
+  if (ha) ha.style.color = '#2f2b28';
+  const ol = document.querySelector('.offline-chat-list');
+  if (ol) ol.scrollTop = ol.scrollHeight;
+}
+function offlinePick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function toggleScenePicker() {
+  const p = $('offScenePicker');
+  if (!p) return;
+  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+}
+function offlinePickScene(id) {
+  const sp = spaceFor(activeRole().id);
+  if (offlineDate().state === 'dating') return;
+  if (sp.offlineScene === id) return;
+  sp.offlineScene = id;
+  offlineDate().sceneId = id;
+  saveState();
+  renderOffline();
+  offlineFx(4);
+}
+async function offlineCallAI(text, hint) {
+  const role = activeRole();
+  const prevMode = role.mode;
+  role.mode = 'offline';
+  let systemPrompt;
+  try { systemPrompt = buildRoleSystemPrompt(role, text); } finally { role.mode = prevMode; }
+  const list = offlineChatList();
+  const history = list.slice(0, -1).slice(-12).map(m => ({ role: m.who === 'me' ? 'user' : 'assistant', content: m.text }));
+  const cfg = offlineAiCfg();
+  const ctrl = new AbortController();
+  const tmr = setTimeout(function() { ctrl.abort(); }, 90000);
+  try {
+    const res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [{ role: 'system', content: systemPrompt + (hint ? '\n[此刻提示] ' + hint : '') }, ...history, { role: 'user', content: text }],
+        max_tokens: cfg.maxTokens || 500,
+        temperature: cfg.temp ?? 0.75,
+        top_p: cfg.topP ?? 0.9
+      })
+    });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error((data.error && data.error.message) || res.status);
+    var content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '我在。').trim();
+    return content;
+  } finally {
+    clearTimeout(tmr);
+  }
+}
+async function offlineSend() {
+  if (!offlineAiOk()) return alert('还没连上 AI，先去设置里连接一下。');
+  const role = activeRole();
+  if (offlineDate().state !== 'dating') return;
+  const input = document.getElementById('offlineInput');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  offlineChatList().push({ who: 'me', text: text, time: new Date().toLocaleString() });
+  if (input) input.value = '';
+  saveState();
+  offlineTyping = true;
+  renderOffline();
+  try {
+    const reply = await offlineCallAI(text);
+    if (offlineDate().state === 'dating') {
+      offlineChatList().push({ who: 'role', text: reply, time: new Date().toLocaleString() });
+      saveState();
+    }
+  } catch (err) {
+    offlineChatList().push({ who: 'role', text: '（' + (err && err.message || err) + '）', time: new Date().toLocaleString() });
+    saveState();
+  }
+  offlineTyping = false;
+  renderOffline();
+}
+function offlineInvite(fromChat) {
+  const d = offlineDate();
+  if (d.state === 'dating') {
+    if (fromChat) { closeChat(); renderOffline(); showIGToast('你们已经在约会中啦 💕'); }
+    return;
+  }
+  if (d.state === 'waiting') {
+    if (fromChat) { closeChat(); hidePanels(); }
+    showIGToast('💌 邀请函已经发出啦，等 TA 回复中…');
+    return;
+  }
+  if (fromChat) {
+    closeChat();
+    hidePanels();
+    renderOffline();
+    toggleScenePicker();
+    showIGToast('先挑个地方，再点「邀请」～');
+    return;
+  }
+  renderOffline();
+  offlineSubmitInvite();
+}
+function offlineAccept(reply) {
+  const no = /下次|改天|不方便|没空|不了|抱歉|不好意思|没时间|不太行|先不了|算了吧|再说|以后再|别了吧|今天不行|这两天/;
+  return !no.test(reply || '');
+}
+async function offlineSubmitInvite() {
+  if (!offlineAiOk()) return alert('还没连上 AI，先去设置里连接一下。');
+  const role = activeRole();
+  const d = offlineDate();
+  if (d.state === 'dating' || d.state === 'waiting') return;
+  const scene = OFFLINE_SCENES.find(s => s.id === (d.sceneId || offlineScene().id)) || OFFLINE_SCENES[0];
+  const time = OFFLINE_TIMES[0];
+  const note = '';
+  d.state = 'waiting'; d.sceneId = scene.id;
+  offlineChatList().push({ who: 'me', type: 'invite', text: '发来一封约会邀请函', sceneId: scene.id, time: time, note: note, ts: Date.now() });
+  saveState();
+  renderOffline();
+  offlineTyping = true;
+  renderOffline();
+  const ask = '我约你去' + scene.name + (time ? '（' + time + '）' : '') + (note ? '，' + note : '') + '，你有空来吗？';
+  let reply = '';
+  try {
+    reply = await offlineCallAI(ask, '对方给你发来一份线下约会邀请函（地点、时间、附言），你可以答应也可以礼貌婉拒。若答应，用线下面对面的语气开心回应；若婉拒，温和地说出理由。');
+  } catch (err) {
+    reply = '（' + (err && err.message || err) + '）';
+  }
+  offlineTyping = false;
+  offlineChatList().push({ who: 'role', text: reply, time: new Date().toLocaleString() });
+  if (offlineAccept(reply)) {
+    d.state = 'dating';
+    saveState();
+    renderOffline();
+    showIGToast('🎉 ' + role.name + ' 答应啦，约会开始！');
+  } else {
+    d.state = 'rejected';
+    saveState();
+    renderOffline();
+    showIGToast('😢 ' + role.name + ' 这次婉拒了，换个时间再试试');
+  }
+}
+async function offlineEnd() {
+  if (!offlineAiOk()) return alert('还没连上 AI，无法生成约会回忆。');
+  const role = activeRole();
+  const sp = spaceFor(role.id);
+  const d = offlineDate();
+  if (d.state !== 'dating') return;
+  const sc = OFFLINE_SCENES.find(s => s.id === d.sceneId) || OFFLINE_SCENES[0];
+  const msgs = (sp.offlineChat || []).map(m => (m.who === 'me' ? '我：' : role.name + '：') + m.text).join('\n');
+  showIGToast('🧠 AI 正在把这次约会写进记忆…');
+  let summary = null;
+  try { summary = await offlineSummarize(msgs, role, sc); } catch (e) {}
+  if (!Array.isArray(role.memories)) role.memories = [];
+  if (summary) {
+    role.memories.unshift({ id: 'mem-offline-' + Date.now(), title: '线下约会 · ' + sc.name, text: summary, date: new Date().toLocaleString() });
+  } else {
+    role.memories.unshift({ id: 'mem-offline-' + Date.now(), title: '线下约会 · ' + sc.name, text: '今天和' + role.name + '在' + sc.name + '度过了一段甜甜的时光。', date: new Date().toLocaleString() });
+  }
+  if (role.memories.length > 50) role.memories.length = 50;
+  d.state = 'none';
+  saveState();
+  renderOffline();
+  showIGToast(summary ? '💾 这次见面已写进 ' + role.name + ' 的记忆库' : '已写入记忆（AI 未响应，用了备用文案）');
+}
+async function offlineSummarize(msgs, role, sc) {
+  if (!msgs) return null;
+  const cfg = offlineAiCfg();
+  if (!cfg || !cfg.key || !cfg.url || !cfg.model) return null;
+  const ctrl = new AbortController();
+  const tmr = setTimeout(function() { ctrl.abort(); }, 15000);
+  try {
+    const res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [
+          { role: 'system', content: '你是回忆记录器。把一次线下约会的对话浓缩成一句' + role.name + '视角的甜蜜回忆，20~45字，一句话，不要引号，不要解释。' },
+          { role: 'user', content: '约会地点：' + sc.name + '\n对话：\n' + (msgs || '（没有对话）') + '\n请只输出那句回忆。' }
+        ],
+        max_tokens: 100,
+        temperature: 0.8
+      })
+    });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) return null;
+    const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
+    return text || null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(tmr);
+  }
+}
+const SPACE_HEART_SYMS = ['♡', '♥', '·', '✦'];
+function spawnSpaceHearts(n) {
+  const stage = document.querySelector('.space-hero2');
+  if (!stage) return;
+  for (let i = 0; i < n; i++) {
+    const h = document.createElement('div');
+    const roll = Math.random();
+    if (roll < 0.22) {
+      h.className = 'space-fx-bubble';
+      h.style.left = (8 + Math.random() * 84) + '%';
+      h.style.animationDuration = (1.8 + Math.random() * 1.2) + 's';
+      h.style.animationDelay = (Math.random() * 0.5) + 's';
+    } else {
+      h.className = 'space-scene-heart' + (roll < 0.5 ? ' spin' : '');
+      h.textContent = SPACE_HEART_SYMS[Math.floor(Math.random() * SPACE_HEART_SYMS.length)];
+      h.style.fontSize = (9 + Math.random() * 5) + 'px';
+      h.style.left = (5 + Math.random() * 90) + '%';
+      h.style.animationDuration = (1.8 + Math.random() * 1.6) + 's';
+      h.style.animationDelay = (Math.random() * 0.4) + 's';
+    }
+    stage.appendChild(h);
+    const dur = parseFloat(h.style.animationDuration || '1.8');
+    setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, (dur + 0.8) * 1000);
+  }
+}
+function spaceHeartBurst() {
+  const stage = document.querySelector('.space-hero2');
+  if (!stage) return;
+  const ring = document.createElement('div');
+  ring.className = 'space-beat-ring';
+  stage.appendChild(ring);
+  setTimeout(function () { if (ring.parentNode) ring.parentNode.removeChild(ring); }, 900);
+  for (let i = 0; i < 9; i++) {
+    const h = document.createElement('div');
+    h.className = 'space-burst-heart';
+    h.textContent = i % 2 ? '♥' : '♡';
+    h.style.setProperty('--dx', (Math.random() * 130 - 65) + 'px');
+    h.style.setProperty('--dy', (-60 - Math.random() * 80) + 'px');
+    h.style.animationDelay = (Math.random() * 0.12) + 's';
+    stage.appendChild(h);
+    setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, 1500);
+  }
+}
+function updateSpaceStats() {
+  const sp = spaceFor(activeRole().id);
+  const int = sp.intimacy;
+  const lv = spaceLevel(int);
+  const nxt = spaceNext(int);
+  const nameEl = document.querySelector('.space-h2-lvname');
+  const intEl = document.querySelector('.space-h2-int');
+  const bar = document.querySelector('.space-h2-bar i');
+  if (nameEl) nameEl.textContent = lv.icon + ' ' + lv.name;
+  if (intEl) intEl.textContent = int;
+  if (bar) bar.style.width = (nxt ? Math.min(100, Math.round(((int - lv.need) / (nxt.need - lv.need)) * 100)) : 100) + '%';
+}
+function spaceTask(id, el) {
+  const sp = spaceFor(activeRole().id);
+  const day = spaceCurrDaily();
+  if (day[id]) { showIGToast('· 今天已经做过啦，明天再甜一次 ·'); return; }
+  day[id] = true;
+  sp.intimacy += SPACE_REWARD;
+  saveState();
+  spawnSpaceHearts(2);
+  updateSpaceStats();
+  const row = el && el.closest ? el.closest('.space-task') : null;
+  if (row) {
+    row.classList.add('on');
+    const dot = row.querySelector('.space-task-dot');
+    if (dot) dot.classList.add('on');
+    const pts = row.querySelector('.space-task-pts');
+    if (pts) pts.textContent = '+' + SPACE_REWARD;
+  }
+  const doneEl = document.querySelector('.space-task-counter');
+  if (doneEl) {
+    const m = doneEl.textContent.match(/(\d+)\/(\d+)/);
+    if (m) doneEl.textContent = (parseInt(m[1], 10) + 1) + '/' + m[2];
+  }
+  showIGToast('· 完成，甜度 +' + SPACE_REWARD + ' ·');
 }
 
 // ===== 自定义表情包 =====

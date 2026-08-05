@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -13,7 +13,7 @@
 
     <div class="panorama-container" id="slider">
       <div class="panorama-content" id="contentArea">
-        <img class="wallpaper" alt="手机桌面壁纸" src="https://img.facfox.com/imgs/2026/07/21/ca7e52f015267b44.jpg" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjZmN2Y5Ii8+PHJlY3QgeD0iNTAiIHk9IjUwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RlY2lkZSIvPjwvc3ZnPg=='">
+        <img class="wallpaper" alt="手机桌面壁纸" src="https://img.facfox.com/imgs/2026/07/21/ca7e52f015267b44.jpg" onerror="this.src=&#39;data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjZmN2Y5Ii8+PHJlY3QgeD0iNTAiIHk9IjUwIiB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2RlY2lkZSIvPjwvc3ZnPg==&#39;">
         <div class="hotspot" data-name="打卡" style="top:25%;left:4%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="设置" style="top:80%;left:8%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="家园" style="top:15%;left:16%;width:60px;height:60px;"></div>
@@ -24,7 +24,7 @@
         <div class="hotspot" data-name="账本" style="top:80%;left:52%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="涂鸦" style="top:45%;left:60%;width:55px;height:55px;"></div>
         <div class="hotspot" data-name="音乐" style="top:35%;left:82%;width:55px;height:30px;"></div>
-        <div class="hotspot" data-name="啵啵间" style="top:15%;left:70%;width:65px;height:65px;"></div>
+        <div class="hotspot" data-name="线下" style="top:15%;left:70%;width:65px;height:65px;"></div>
         <div class="hotspot" data-name="相册" style="top:55%;left:74%;width:50px;height:50px;"></div>
         <div class="hotspot" data-name="塔罗牌" style="top:13%;left:38%;width:50px;height:80px;"></div>
         <div class="hotspot" data-name="游戏房" style="top:80%;left:78%;width:50px;height:50px;"></div>
@@ -43,10 +43,10 @@
 
     <div id="chatWindow">
       <div class="chat-header">
-        <button class="header-action" onclick="closeChat()">返回</button>
-        <div style="text-align:center;min-width:0">
+        <button class="header-action" onclick="closeChat()">◁</button>
+        <div class="chat-title-box" style="text-align:center;min-width:0">
           <b id="chatName" style="display:block">角色</b>
-          <span id="chatRel" class="subtle" style="font-size:12px;font-weight:400"></span>
+          <span id="chatRel" class="subtle"></span>
         </div>
         <div style="display:flex;gap:4px;justify-self:end">
           <button class="icon-btn" onclick="startCall('audio')" title="语音通话">📞</button>
@@ -71,6 +71,7 @@
           <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
           <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
           <div class="panel-item" onclick="inviteStudy()"><div class="panel-icon">🍅</div>邀TA自习</div>
+          <div class="panel-item" onclick="offlineInvite(true)"><div class="panel-icon">💌</div>邀TA线下</div>
           <div class="panel-item" onclick="sendLocation()"><div class="panel-icon">📍</div>位置</div>
           <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
         </div>
@@ -195,6 +196,7 @@
             <option value="default">默认 QQ 蓝</option>
             <option value="cute">萌萌暖</option>
             <option value="glow">流光</option>
+            <option value="comic">正统美漫</option>
           </select>
         </div>
       </div>

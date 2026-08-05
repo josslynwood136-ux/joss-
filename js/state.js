@@ -42,14 +42,14 @@ const defaultState = {
     { id: 'h-sport', name: '运动', icon: '🏃', done: {} }
   ],
   diary: [],
-  study: { running: false, seconds: 25 * 60, target: 25 * 60, subject: '英语', records: [], mode: 'focus', round: 0, breakMin: 5, focusMin: 25, companion: true, companionMsg: '' },
+  study: { running: false, seconds: 25 * 60, target: 25 * 60, subject: '英语', records: [], mode: 'focus', round: 0, breakMin: 5, focusMin: 25, companion: true, companionRoleId: '', companionMsg: '', xp: 0, level: 1, dailyDate: '', dailyMin: 0, sound: '', decor: ['window'] },
   plant: { water: 55, love: 30, level: 1, lastWater: '', lastCare: '', streak: 0, fertilizedDate: '', logs: [] },
   ledger: [],
   doodles: [],
   music: [],
   album: [],
   albums: [],
-  space: { startDate: '2026-01-01', memo: '把每天的小事都装进这里。', kisses: 0 },
+  space: { default: { startDate: '', memo: '', notes: [], kisses: 0, intimacy: 0, loverName: '', lastKissKey: '', daily: {} }, byRole: {} },
   mq: {
     me: { name: '我', avatar: '' },
     roles: [],
@@ -172,6 +172,23 @@ function cloneDefaultState() {
   return JSON.parse(JSON.stringify(defaultState));
 }
 
+function normalizeSpace(s) {
+  if (!s || typeof s !== 'object') s = {};
+  s.startDate = (s.startDate && s.startDate !== '2026-01-01') ? s.startDate : '';
+  s.memo = typeof s.memo === 'string' ? s.memo : '';
+  if (!Array.isArray(s.notes)) {
+    s.notes = [];
+    if (s.memo.trim() && s.memo !== '把每天的小事都装进这里。') s.notes.push({ text: s.memo, date: '' });
+  }
+  s.notes = s.notes.slice(0, 20);
+  s.kisses = Number(s.kisses) || 0;
+  s.intimacy = Number(s.intimacy) || 0;
+  s.loverName = typeof s.loverName === 'string' ? s.loverName : '';
+  s.lastKissKey = s.lastKissKey || '';
+  if (!s.daily || typeof s.daily !== 'object') s.daily = {};
+  return s;
+}
+
 function ensureStateShape(next, saved) {
   if (!Array.isArray(next.roles) || !next.roles.length) {
     next.roles = cloneDefaultState().roles;
@@ -231,6 +248,14 @@ function ensureStateShape(next, saved) {
   next.plant.streak = Number(next.plant.streak) || 0;
   next.plant.fertilizedDate = next.plant.fertilizedDate || '';
   next.plant.logs = Array.isArray(next.plant.logs) ? next.plant.logs : [];
+  if (!next.space || typeof next.space !== 'object') next.space = {};
+  if (!next.space.default || typeof next.space.default !== 'object') next.space.default = {};
+  ['startDate', 'memo', 'kisses', 'intimacy', 'loverName', 'lastKissKey', 'daily'].forEach(function (k) {
+    if (next.space[k] !== undefined && next.space.default[k] === undefined) next.space.default[k] = next.space[k];
+  });
+  normalizeSpace(next.space.default);
+  if (!next.space.byRole || typeof next.space.byRole !== 'object') next.space.byRole = {};
+  Object.keys(next.space.byRole).forEach(function (id) { normalizeSpace(next.space.byRole[id]); });
   if (!next.home || typeof next.home !== 'object') next.home = {};
   if (!next.home.rooms || typeof next.home.rooms !== 'object') {
     var def = cloneDefaultState().home.rooms;
@@ -284,7 +309,14 @@ function ensureStateShape(next, saved) {
   next.study.breakMin = Number(next.study.breakMin) || 5;
   next.study.focusMin = Number(next.study.focusMin) || 25;
   next.study.companion = next.study.companion !== false;
+  next.study.companionRoleId = typeof next.study.companionRoleId === 'string' ? next.study.companionRoleId : '';
   next.study.companionMsg = typeof next.study.companionMsg === 'string' ? next.study.companionMsg : '';
+  next.study.xp = Number(next.study.xp) || 0;
+  next.study.level = Math.max(1, Number(next.study.level) || 1);
+  next.study.dailyDate = next.study.dailyDate || '';
+  next.study.dailyMin = Number(next.study.dailyMin) || 0;
+  next.study.sound = next.study.sound || '';
+  next.study.decor = Array.isArray(next.study.decor) && next.study.decor.length ? next.study.decor.filter(Boolean) : ['window'];
   if (!next.game || typeof next.game !== 'object') next.game = { score: 0, best: 0 };
   if (typeof next.game.score !== 'number') next.game.score = 0;
   if (typeof next.game.best !== 'number') next.game.best = 0;

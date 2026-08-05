@@ -624,7 +624,7 @@ function renderDmList() {
     div.className = 'dialog-item';
     div.onclick = (e) => {
       e.stopPropagation();
-      openChat(char.id);
+      openChat(char.id, 'comic');
     };
     div.innerHTML = `
       <div class="dialog-avatar">${renderAvatar(char.avatar, char.name)}</div>
