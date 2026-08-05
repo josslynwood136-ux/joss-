@@ -1539,6 +1539,154 @@ button { border: 0; cursor: pointer; }
 .tarot-fog-particle { position:absolute; font-size:18px; opacity:0; animation:twinkle 2.5s ease-in-out infinite; pointer-events:none }
 .tarot-sparkle { position:absolute; font-size:12px; animation:twinkle 2s ease-in-out infinite,float 3s ease-in-out infinite; pointer-events:none; z-index:2 }
 
+/* ===== 塔罗牌 · 复古羊皮纸哥特风 ===== */
+#appModal.tarot-gothic .app-header { display:none; }
+#appModal.tarot-gothic #m-content {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(90,60,30,.18), transparent 55%),
+    radial-gradient(circle at 50% 100%, rgba(60,35,20,.25), transparent 60%),
+    linear-gradient(180deg,#1a120c,#241a10 55%,#181008);
+}
+#appModal.tarot-gothic .tarot-gothic-header {
+  display:flex; align-items:center; gap:10px; padding:12px 14px 10px;
+  border-bottom:2px solid #7a5a2e;
+}
+#appModal.tarot-gothic .tarot-gothic-back {
+  width:32px; height:32px; border-radius:50%;
+  background:transparent; color:#caa86b; border:1.5px solid #7a5a2e;
+  font-size:14px; display:grid; place-items:center; flex:0 0 auto;
+}
+#appModal.tarot-gothic .tarot-gothic-title {
+  flex:1; text-align:center; color:#caa86b;
+  font-family:'Cinzel','Songti SC','STSong',serif; font-weight:600;
+  font-size:17px; letter-spacing:6px; text-indent:6px;
+}
+#appModal.tarot-gothic .tarot-stage { display:flex; flex-direction:column; align-items:center; padding-top:14px; }
+#appModal.tarot-gothic .tarot-stage-desc {
+  color:#a08a5c; font-size:13px; text-align:center; line-height:1.7;
+  font-family:'Songti SC','STSong',serif; letter-spacing:2px; margin-bottom:8px;
+}
+#appModal.tarot-gothic .tarot-deck { margin-top:4px; }
+#appModal.tarot-gothic .tarot-hint {
+  color:#6f5c3b; font-size:12px; letter-spacing:3px; margin-top:14px;
+  font-family:'Cinzel',serif;
+}
+/* 洗牌：轻缓呼吸 */
+@keyframes tarotBreathe {
+  0%,100% { transform:scale(1) rotate(0deg); }
+  50% { transform:scale(1.035) rotate(-1.5deg); }
+}
+#appModal.tarot-gothic #tarotDeckWrap.shuffling { animation:tarotBreathe .8s ease-in-out 2; }
+
+/* 牌位：哥特四叶草边框 */
+#appModal.tarot-gothic .tarot-spots {
+  display:flex; gap:10px; justify-content:center; margin-top:8px;
+}
+#appModal.tarot-gothic .tarot-spot {
+  width:84px; height:124px; position:relative;
+  border:1.5px dashed rgba(202,168,107,.45); border-radius:6px;
+}
+#appModal.tarot-gothic .tarot-deal-in { opacity:0; animation:tarotReveal .5s ease forwards; animation-delay:.15s; }
+@keyframes tarotReveal { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+/* 卡牌基座 */
+#appModal.tarot-gothic .tarot-card { border-radius:8px; }
+/* 牌背：深酒红羊皮 + 金线 + 月纹 */
+#appModal.tarot-gothic .tarot-back {
+  background:
+    radial-gradient(circle at 32% 22%, rgba(190,120,70,.28), transparent 55%),
+    radial-gradient(circle at 68% 80%, rgba(120,60,40,.3), transparent 55%),
+    linear-gradient(150deg,#3a1e14,#2a1410 60%,#3a1e14);
+  border:2px solid #a5823f;
+  box-shadow:inset 0 0 0 3px rgba(202,168,107,.28), inset 0 0 0 4px rgba(20,10,6,.6);
+  z-index:1; cursor:pointer; overflow:hidden;
+}
+#appModal.tarot-gothic .tarot-back::before {
+  content:''; position:absolute; inset:7px;
+  border:1px solid rgba(202,168,107,.35); border-radius:4px;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(202,168,107,.14) 0 22%, transparent 23%);
+}
+#appModal.tarot-gothic .tarot-back::after {
+  content:'✣'; font-size:30px; color:rgba(212,180,120,.85);
+  text-shadow:0 0 14px rgba(212,180,120,.45); z-index:1;
+}
+#appModal.tarot-gothic .tarot-back i {
+  position:absolute; font-style:normal; font-size:9px; color:rgba(212,180,120,.5);
+}
+/* 牌面：羊皮纸 + 哥特描边 */
+#appModal.tarot-gothic .tarot-front {
+  background:
+    radial-gradient(circle at 20% 15%, rgba(120,90,50,.1), transparent 50%),
+    radial-gradient(circle at 85% 85%, rgba(120,90,50,.12), transparent 55%),
+    linear-gradient(160deg,#e8d8b4,#d9c49b 55%,#e3d0a6);
+  border:2px solid #a5823f;
+  box-shadow:inset 0 0 0 3px rgba(255,248,228,.45), inset 0 0 0 5px rgba(120,85,40,.25);
+  transform:rotateY(180deg); padding:12px;
+}
+#appModal.tarot-gothic .tarot-front .num {
+  font-size:11px; color:#6b4f24; letter-spacing:2px; font-weight:700;
+  font-family:'Cinzel',serif;
+}
+#appModal.tarot-gothic .tarot-front .symbol { font-size:36px; margin:4px 0; filter:drop-shadow(0 2px 3px rgba(60,40,15,.25)); }
+#appModal.tarot-gothic .tarot-front .name {
+  font-size:14px; color:#3a2812; font-weight:700; letter-spacing:1px;
+  font-family:'Songti SC','STSong',serif;
+}
+#appModal.tarot-gothic .tarot-front .subtle2 {
+  font-size:9px; color:#7a5f32; margin-top:3px; letter-spacing:2px;
+  font-family:'Cinzel',serif;
+}
+#appModal.tarot-gothic .tarot-front .text {
+  font-size:11px; color:#5a421f; line-height:1.6; margin-top:6px; padding-top:6px;
+  border-top:1px solid rgba(122,95,50,.4); font-family:'Songti SC','STSong',serif;
+}
+/* 结果页 */
+#appModal.tarot-gothic .tarot-result-title {
+  color:#caa86b; font-family:'Cinzel','Songti SC',serif; font-size:14px;
+  letter-spacing:5px; text-align:center; padding:2px 0 10px;
+}
+#appModal.tarot-gothic .tarot-spread {
+  display:flex; gap:8px; justify-content:center; flex-wrap:wrap; padding:6px 0 4px;
+}
+/* 解读按钮 */
+#appModal.tarot-gothic .tarot-btn {
+  margin-top:14px; min-height:42px; padding:0 22px; width:auto;
+  background:transparent; color:#caa86b;
+  border:1.5px solid #a5823f; border-radius:4px;
+  font-size:14px; font-weight:600; letter-spacing:3px; text-indent:3px;
+  font-family:'Songti SC','STSong',serif;
+}
+#appModal.tarot-gothic .tarot-btn:active { background:rgba(202,168,107,.15); }
+/* 完整解读页 */
+#appModal.tarot-gothic .tarot-reading-title {
+  color:#caa86b; font-family:'Cinzel','Songti SC',serif; font-size:14px;
+  letter-spacing:5px; text-align:center; padding:2px 0 8px;
+}
+#appModal.tarot-gothic .tarot-reading-card {
+  background:linear-gradient(160deg,#e8d8b4,#d9c49b);
+  border:1.5px solid #a5823f; border-radius:6px;
+  box-shadow:inset 0 0 0 3px rgba(255,248,228,.4), 0 4px 12px rgba(0,0,0,.35);
+  padding:12px 14px; margin-bottom:10px;
+}
+#appModal.tarot-gothic .tarot-reading-tag {
+  font-size:11px; color:#8a6a35; letter-spacing:2px; margin-bottom:6px;
+  font-family:'Cinzel','Songti SC',serif;
+}
+#appModal.tarot-gothic .tarot-reading-head {
+  display:flex; align-items:center; gap:10px; margin-bottom:6px;
+}
+#appModal.tarot-gothic .tarot-reading-sym { font-size:26px; }
+#appModal.tarot-gothic .tarot-reading-name {
+  flex:1; font-size:16px; color:#3a2812; font-weight:700; letter-spacing:1px;
+  font-family:'Songti SC','STSong',serif;
+}
+#appModal.tarot-gothic .tarot-reading-num { font-size:13px; color:#8a6a35; font-family:'Cinzel',serif; }
+#appModal.tarot-gothic .tarot-reading-text {
+  font-size:13px; color:#4a3a1e; line-height:1.7;
+  font-family:'Songti SC','STSong',serif;
+}
+
 /* ===== 角色库 ===== */
 .char-lib-container { flex:1;overflow-y:auto;background:#f5f5f5; }
 .char-lib-container::-webkit-scrollbar { width:0; }

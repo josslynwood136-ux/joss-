@@ -63,6 +63,8 @@ function closeApp() {
   if (hp && hp.style.display) hp.style.display = '';
   const hdr = document.querySelector('.app-header');
   if (hdr) hdr.classList.remove('hidden');
+  const amd = $('appModal');
+  if (amd) amd.classList.remove('tarot-gothic');
   $('appModal').classList.remove('active');
   musicAppOpen = false;
   updateMiniPlayer();
@@ -4064,69 +4066,83 @@ function showTarotPortal() {
     if (svg) svg.remove();
   }
 }
+function tarotComicHeader() {
+  return '<div class="tarot-gothic-header"><button class="tarot-gothic-back" onclick="closeApp()" title="返回">✕</button><div class="tarot-gothic-title">🔮 塔罗牌</div></div>';
+}
+
 function renderTarot() {
+  var am = $('appModal'); if (am) am.classList.add('tarot-gothic');
+  var ah = document.querySelector('.app-header'); if (ah) ah.classList.add('hidden');
   var t = state.tarot;
   var cards = (t && t.cards) || [];
-  var prog = cards.length;
-  var done = prog >= 4;
   
-  if (prog === 0) {
-    c().innerHTML = '<div class="stack" style="align-items:center;padding-top:10px"><div style="font-size:22px;margin-bottom:2px">🔮</div><div style="font-size:13px;color:#7a6b5c;text-align:center;margin-bottom:10px">集中精神，想好你的问题</div><div class="tarot-glow" style="position:relative;width:320px;height:200px;cursor:pointer;margin:0 auto" onclick="tarotDraw()">' + spreadDecks(20, 320, 200) + sparkles(8, 320, 200) + '</div></div>';
+  if (!cards.length) {
+    c().innerHTML = tarotComicHeader() + '<div class="tarot-stage"><div class="tarot-stage-desc">集中精神，默念你的问题<br>然后轻触牌堆开始洗牌</div><div class="tarot-glow tarot-deck" id="tarotDeckWrap" style="position:relative;width:320px;height:200px;cursor:pointer;margin:14px auto 0" onclick="tarotShuffle()">' + spreadDecks(20, 320, 200) + sparkles(8, 320, 200) + '</div><div class="tarot-hint">✦ 命运之轮在等你 ✦</div></div>';
     return;
   }
-  
-  var deckHtml = '<div class="tarot-glow" style="position:relative;width:320px;height:200px;cursor:pointer;margin:0 auto" onclick="' + (done ? '' : 'tarotDraw()') + '">' + spreadDecks(20, 320, 200) + sparkles(6, 320, 200) + '</div>';
-  
-  var cardW = cards.length > 3 ? 74 : 110;
-  var cardH = cards.length > 3 ? 80 : 160;
-  var symSize = cards.length > 3 ? 22 : 24;
-  var nameSize = cards.length > 3 ? 10 : 11;
+  renderTarotResult(cards);
+}
+function tarotShuffle() {
+  var wrap = document.getElementById('tarotDeckWrap');
+  if (wrap) { wrap.classList.add('shuffling'); wrap.style.pointerEvents = 'none'; }
+  setTimeout(function() {
+    if (wrap) { wrap.style.display = 'none'; }
+    var fullDeck = [].concat(TAROT_DECK, MINOR_DECK);
+    var drawn = [];
+    var guard = 0;
+    while (drawn.length < 4 && guard < 600) {
+      var b = fullDeck[Math.floor(Math.random() * fullDeck.length)];
+      var rev = Math.random() < 0.5;
+      var taken = drawn.some(function(d) { return d.name === b[0] && d.reverse === rev; });
+      if (!taken) {
+        var idx = TAROT_DECK.indexOf(b);
+        var isMajor = idx >= 0;
+        drawn.push({ name: b[0], reverse: rev, text: rev ? b[2] : b[1], idx: idx, symbol: isMajor ? MAJOR_SYMBOLS[idx] : '✦', roman: isMajor ? ROMAN[idx] : '' });
+      }
+      guard++;
+    }
+    state.tarot = { cards: drawn };
+    saveState();
+    tarotDeal(drawn);
+  }, 700);
+}
+function tarotDeal(cards) {
+  c().innerHTML = tarotComicHeader() + '<div class="tarot-stage"><div class="tarot-stage-desc" style="margin-bottom:6px">正在为你展开牌阵…</div><div class="tarot-spots">' + cards.map(function() { return '<div class="tarot-spot"></div>'; }).join('') + '</div></div>';
+  c().style.overflow = 'hidden';
+  var cw = 84, ch = 124;
+  cards.forEach(function(crd, i) {
+    var spot = c().querySelectorAll('.tarot-spot')[i];
+    var wrap = document.createElement('div');
+    wrap.className = 'tarot-wrap tarot-deal-in';
+    wrap.style.width = cw + 'px'; wrap.style.height = ch + 'px';
+    wrap.innerHTML = '<div class="tarot-card" style="width:100%;height:100%"><div class="tarot-back"></div><div class="tarot-front"><div class="num">' + (crd.roman || '✦') + '</div><div class="symbol" style="font-size:22px">' + (crd.symbol || '✦') + '</div><div class="name" style="font-size:11px">' + escapeHTML(crd.name) + '</div><div class="subtle2" style="font-size:7px">' + (crd.reverse ? '逆' : '正') + '</div></div></div>';
+    spot.appendChild(wrap);
+    var cardEl = wrap.querySelector('.tarot-card');
+    setTimeout(function() { if (cardEl) cardEl.classList.add('flipped'); }, 500 + i * 400);
+  });
+  setTimeout(function() {
+    state.tarot = { cards: cards, dealt: true };
+    saveState();
+    renderTarotResult(cards);
+  }, 650 + cards.length * 420);
+}
+function renderTarotResult(cards) {
+  c().style.overflow = '';
+  var cardW = 74, cardH = 110, symSize = 22, nameSize = 10;
   var cardsRow = cards.map(function(c, i) {
-    var id = i === 0 ? ' id="tarotMain"' : '';
-    var faceDown = i === cards.length - 1;
-    var flip = faceDown ? '' : ' flipped';
-    var numHtml = '<div class="num" style="font-size:' + (cards.length > 3 ? 7 : 11) + 'px">' + (c.roman || '✦') + '</div>';
-    var textHtml = i === 0 && cards.length <= 3 ? '<div class="text" style="font-size:10px;padding-top:4px">' + escapeHTML(c.text) + '</div>' : '';
-    return '<div class="tarot-wrap"><div class="tarot-card' + flip + '"' + id + ' style="width:' + cardW + 'px;height:' + cardH + 'px"><div class="tarot-back"></div><div class="tarot-front">' + numHtml + '<div class="symbol" style="font-size:' + symSize + 'px">' + (c.symbol || '✦') + '</div><div class="name" style="font-size:' + nameSize + 'px">' + escapeHTML(c.name) + '</div><div class="subtle2" style="font-size:7px">' + (c.reverse ? '逆' : '正') + '</div>' + textHtml + '</div></div></div>';
+    return '<div class="tarot-wrap" style="width:' + cardW + 'px;height:' + cardH + 'px"><div class="tarot-card flipped" style="width:100%;height:100%"><div class="tarot-back"></div><div class="tarot-front"><div class="num">' + (c.roman || '✦') + '</div><div class="symbol" style="font-size:' + symSize + 'px">' + (c.symbol || '✦') + '</div><div class="name" style="font-size:' + nameSize + 'px">' + escapeHTML(c.name) + '</div><div class="subtle2" style="font-size:7px">' + (c.reverse ? '逆' : '正') + '</div></div></div></div>';
   }).join('');
-  
-  var btnHtml = done ? '<div style="margin-top:8px"><button class="primary-btn" onclick="tarotShowAll()">查看完整解读</button></div>' : '';
-  
-  c().innerHTML = '<div class="stack" style="align-items:center;padding-top:10px">' + deckHtml + '<div style="margin-top:12px;width:100%"><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">' + cardsRow + '</div></div>' + btnHtml + '</div>';
+  c().innerHTML = tarotComicHeader() + '<div class="stack" style="align-items:center;padding-top:6px"><div class="tarot-result-title">— 命运已揭晓 —</div><div class="tarot-spread">' + cardsRow + '</div><button class="tarot-btn" onclick="tarotShowAll()">查看完整解读</button></div>';
 }
 function tarotShowAll() {
   if (!state.tarot || !state.tarot.cards || !state.tarot.cards.length) return;
+  var am = $('appModal'); if (am) am.classList.add('tarot-gothic');
+  var ah = document.querySelector('.app-header'); if (ah) ah.classList.add('hidden');
   var cards = state.tarot.cards;
   var html = cards.map(function(c, i) {
-    return '<div class="tarot-wrap" style="animation:fadeIn .3s ease;animation-delay:' + (i * 0.08) + 's"><div class="tarot-card flipped" style="width:120px;height:180px"><div class="tarot-back"></div><div class="tarot-front"><div class="num">' + (c.roman || '✦') + '</div><div class="symbol" style="font-size:28px">' + (c.symbol || '✦') + '</div><div class="name" style="font-size:12px">' + escapeHTML(c.name) + '</div><div class="subtle2" style="font-size:9px">' + (c.reverse ? '逆位' : '正位') + '</div><div class="text" style="font-size:10px;padding-top:4px;margin-top:4px">' + escapeHTML(c.text) + '</div></div></div></div>';
+    return '<div class="tarot-reading-card"><div class="tarot-reading-tag">第 ' + (i + 1) + ' 张 · ' + (c.reverse ? '逆位' : '正位') + '</div><div class="tarot-reading-head"><span class="tarot-reading-sym">' + (c.symbol || '✦') + '</span><span class="tarot-reading-name">' + escapeHTML(c.name) + '</span><span class="tarot-reading-num">' + (c.roman || '') + '</span></div><div class="tarot-reading-text">' + escapeHTML(c.text) + '</div></div>';
   }).join('');
-  c().innerHTML = '<div class="stack" style="padding-top:8px"><div style="font-size:14px;color:#7a6b5c;font-weight:600;text-align:center;padding:4px 0 2px">🔮 占卜解读</div><div class="tarot-spread">' + html + '</div><button style="background:transparent;border:1px solid #d4c9bc;color:#7a6b5c;border-radius:14px;padding:10px;font-size:13px;cursor:pointer" onclick="tarotReset()">重新占卜</button></div>';
-}
-function tarotDraw() {
-  if (!state.tarot || !state.tarot.cards) state.tarot = { cards: [] };
-  if (state.tarot.cards.length >= 4) return;
-  var taken = state.tarot.cards.map(function(x) { return x.name + ':' + x.reverse; });
-  var fullDeck = [].concat(TAROT_DECK, MINOR_DECK);
-  var base, reverse, idx, isMajor, guard = 0;
-  do {
-    base = fullDeck[Math.floor(Math.random() * fullDeck.length)];
-    reverse = Math.random() < 0.5;
-    guard++;
-  } while (taken.includes(base[0] + ':' + reverse) && guard < 200);
-  idx = TAROT_DECK.indexOf(base);
-  isMajor = idx >= 0;
-  var card = { name: base[0], reverse: reverse, text: reverse ? base[2] : base[1], idx: idx, symbol: isMajor ? MAJOR_SYMBOLS[idx] : '✦', roman: isMajor ? ROMAN[idx] : '' };
-  state.tarot.cards.push(card);
-  saveState();
-  renderTarot();
-  setTimeout(function() {
-    var wraps = document.querySelectorAll('.tarot-wrap');
-    var last = wraps[wraps.length - 1];
-    if (last) {
-      var c = last.querySelector('.tarot-card');
-      if (c && !c.classList.contains('flipped')) c.classList.add('flipped');
-    }
-  }, 50);
+  c().innerHTML = tarotComicHeader() + '<div class="stack" style="padding-top:6px"><div class="tarot-reading-title">— 完整解读 —</div>' + html + '<button class="tarot-btn" onclick="tarotReset()">重新占卜</button></div>';
 }
 function tarotReset() {
   state.tarot = { cards: [] };
