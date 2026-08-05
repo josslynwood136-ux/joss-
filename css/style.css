@@ -2359,7 +2359,8 @@ button { border: 0; cursor: pointer; }
 /* ===== 气泡样式 · 正统美漫分镜格（每条消息 = 一块漫画格） ===== */
 #chatWindow.bubble-style-comic .chat-body {
   counter-reset: panel;
-  gap:30px;
+  gap:22px;
+  padding:18px 14px;
   background-color:#fdf8ec;
   background-image:
     radial-gradient(circle at 14% 12%, rgba(255,216,77,.4), transparent 34%),
@@ -2397,9 +2398,9 @@ button { border: 0; cursor: pointer; }
 /* 面板宽度参差，分镜错落 */
 #chatWindow.bubble-style-comic .msg:nth-child(5n+1) .bubble { max-width:56%; }
 #chatWindow.bubble-style-comic .msg:nth-child(5n+2) .bubble { max-width:68%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+3) .bubble { max-width:48%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n+3) .bubble { max-width:50%; }
 #chatWindow.bubble-style-comic .msg:nth-child(5n+4) .bubble { max-width:60%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n) .bubble { max-width:52%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n) .bubble { max-width:54%; }
 /* 格角装饰：左上角彩色小三角 */
 #chatWindow.bubble-style-comic .bubble::before {
   content:''; position:absolute; left:-2px; top:-2px;
