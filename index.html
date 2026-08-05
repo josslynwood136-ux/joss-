@@ -306,20 +306,25 @@
   <script src="js/profile-ig.js?v=20260731h"></script>
   <script src="js/init.js?v=20260803b"></script>
   <script>
-  /* 整页默认全屏：加载即请求；被浏览器安全策略拒绝时，首次触摸/点击静默进入 */
-  function enterFullscreen() {
+  /* 整页全屏：加载即尝试；浏览器要求用户手势，故任何首次交互都自动进入 */
+  var fsPending = false;
+  function tryEnterFullscreen() {
+    if (fsPending) return;
     var d = document, de = d.documentElement;
+    if (d.fullscreenElement || d.webkitFullscreenElement) return;
     var req = de.requestFullscreen || de.webkitRequestFullscreen;
-    if (req && !d.fullscreenElement && !d.webkitFullscreenElement) {
-      var p = req.call(de);
-      if (p && p.catch) p.catch(function() {});
-    }
+    if (!req) return;
+    fsPending = true;
+    var p = req.call(de);
+    if (p && p.catch) p.catch(function() { fsPending = false; });
+    setTimeout(function() { fsPending = false; }, 300);
   }
   window.addEventListener('load', function() {
-    enterFullscreen();
-    var once = function() { enterFullscreen(); document.removeEventListener('touchstart', once); document.removeEventListener('click', once); };
-    document.addEventListener('touchstart', once);
-    document.addEventListener('click', once);
+    tryEnterFullscreen();
+    document.addEventListener('pointerdown', tryEnterFullscreen);
+    document.addEventListener('touchstart', tryEnterFullscreen);
+    document.addEventListener('click', tryEnterFullscreen);
+    document.addEventListener('keydown', tryEnterFullscreen);
   });
   </script>
 </body>
