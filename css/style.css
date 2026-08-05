@@ -1212,7 +1212,7 @@ button { border: 0; cursor: pointer; }
 }
 .ig-app .ig-profile-header .logo-text {
   font-size:21px;font-weight:400;color:#000;
-  font-family:'Segoe Script','Brush Script MT','Segoe Print',cursive;
+  font-family:'Pacifico','Segoe Script','Brush Script MT','Chalkboard SE',cursive;
   letter-spacing:-.5px;
 }
 .ig-app .ig-profile-header .logo-text.ig-title {
@@ -2384,8 +2384,8 @@ button { border: 0; cursor: pointer; }
   padding:9px 12px;
   counter-increment: panel;
 }
-#chatWindow.bubble-style-comic .bubble.left { background:#fff; }
-#chatWindow.bubble-style-comic .bubble.right { background:#fff; }
+#chatWindow.bubble-style-comic .bubble.left { background:#fff; min-width:30%; max-width:78%; }
+#chatWindow.bubble-style-comic .bubble.right { background:#fff; min-width:30%; max-width:78%; }
 /* 格面底色循环，像不同分格 */
 #chatWindow.bubble-style-comic .msg:nth-child(4n+1) .bubble { background:#fff; }
 #chatWindow.bubble-style-comic .msg:nth-child(4n+2) .bubble { background:#ffe89a; }
@@ -2396,12 +2396,6 @@ button { border: 0; cursor: pointer; }
 #chatWindow.bubble-style-comic .msg:nth-child(even) .bubble.left { transform:rotate(.9deg); }
 #chatWindow.bubble-style-comic .msg:nth-child(odd) .bubble.right { transform:rotate(1.1deg); }
 #chatWindow.bubble-style-comic .msg:nth-child(even) .bubble.right { transform:rotate(-.9deg); }
-/* 面板宽度参差，分镜错落 */
-#chatWindow.bubble-style-comic .msg:nth-child(5n+1) .bubble { max-width:52%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+2) .bubble { max-width:64%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+3) .bubble { max-width:46%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+4) .bubble { max-width:56%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n) .bubble { max-width:50%; }
 /* 格角装饰：左上角彩色小三角 */
 #chatWindow.bubble-style-comic .bubble::before {
   content:''; position:absolute; left:-2px; top:-2px;

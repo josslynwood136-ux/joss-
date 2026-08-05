@@ -65,9 +65,6 @@ function renderIGProfile() {
         </div>
         <!-- Panel 3: DM -->
         <div class="profile-panel" id="igPanelDm">
-          <div class="dm-header-bar">
-            <span class="dm-title">私信</span>
-          </div>
           <div class="dm-container" id="igDmContainer"></div>
         </div>
         <!-- Panel 4: Profile -->
