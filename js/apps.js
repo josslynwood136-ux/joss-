@@ -154,6 +154,14 @@ function renderApiSettings() {
   h += '<button class="primary-btn" onclick="document.getElementById(\'importDataFile\').click()" style="justify-content:center">导入备份</button></div>';
   h += '<input id="importDataFile" type="file" accept="application/json,.json" style="display:none" onchange="importAllData(event)">';
   h += '<button class="danger-btn" style="width:100%;justify-content:center;margin-top:2px" onclick="resetAllData()">清空全部数据</button></div>';
+
+  h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
+  h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">显示</div>';
+  h += '<div style="display:flex;align-items:center;gap:10px">';
+  h += '<div style="flex:1"><div style="font-size:13px;color:#4a3f35">全屏显示</div><div style="font-size:11px;color:#b8a99a;margin-top:1px">在浏览器里全屏运行，Esc 退出</div></div>';
+  h += '<div class="switch' + (isFullscreen() ? ' on' : '') + '" id="fsSwitch" onclick="toggleFullscreen()"></div>';
+  h += '</div></div>';
+
   h += '<div style="font-size:11px;color:#c0b0a0;line-height:1.5;padding:0 4px">如果直接用浏览器打开 HTML，部分接口可能因跨域策略被拦截。能用的中转接口或允许跨域的 API 可直接聊天。</div></div>';
 
   c().innerHTML = h;

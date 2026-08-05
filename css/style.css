@@ -2380,7 +2380,8 @@ button { border: 0; cursor: pointer; }
 #chatWindow.bubble-style-comic .bubble {
   border:3px solid #1c1c1c; border-radius:4px;
   box-shadow:0 0 0 2px #fff, 0 0 0 4px #1c1c1c, 6px 6px 0 rgba(28,28,28,.28);
-  font-weight:800; color:#1c1c1c; font-size:14.5px; line-height:1.5;
+  font-weight:800; color:#1c1c1c; font-size:13px; line-height:1.4;
+  padding:9px 12px;
   counter-increment: panel;
 }
 #chatWindow.bubble-style-comic .bubble.left { background:#fff; }
@@ -2396,11 +2397,11 @@ button { border: 0; cursor: pointer; }
 #chatWindow.bubble-style-comic .msg:nth-child(odd) .bubble.right { transform:rotate(1.1deg); }
 #chatWindow.bubble-style-comic .msg:nth-child(even) .bubble.right { transform:rotate(-.9deg); }
 /* 面板宽度参差，分镜错落 */
-#chatWindow.bubble-style-comic .msg:nth-child(5n+1) .bubble { max-width:56%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+2) .bubble { max-width:68%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+3) .bubble { max-width:50%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n+4) .bubble { max-width:60%; }
-#chatWindow.bubble-style-comic .msg:nth-child(5n) .bubble { max-width:54%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n+1) .bubble { max-width:52%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n+2) .bubble { max-width:64%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n+3) .bubble { max-width:46%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n+4) .bubble { max-width:56%; }
+#chatWindow.bubble-style-comic .msg:nth-child(5n) .bubble { max-width:50%; }
 /* 格角装饰：左上角彩色小三角 */
 #chatWindow.bubble-style-comic .bubble::before {
   content:''; position:absolute; left:-2px; top:-2px;
