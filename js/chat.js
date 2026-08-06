@@ -197,7 +197,7 @@ function showAIButton() {
     btn.id = 'aiBtn';
     btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
     btn.title = '发送给角色';
-    btn.style.cssText = 'background:var(--qq-blue);color:#fff;border:none;border-radius:15px;padding:8px 10px;font-size:13px;cursor:pointer;font-weight:800;animation:tvPop .24s ease;display:inline-flex;align-items:center;gap:4px;';
+    btn.style.cssText = 'background:var(--qq-blue);color:#fff;border:none;border-radius:15px;padding:8px 10px;font-size:13px;cursor:pointer;font-weight:800;animation:tvPop .24s ease;display:inline-flex;align-items:center;gap:4px;order:5;';
     btn.onclick = function() {
       _manualAICall = true;
       const char = activeCharacter();
@@ -359,7 +359,13 @@ function buildRoleSystemPrompt(char, userText) {
     parts.push('【语言强制指令】你必须完全用 ' + char.lang + ' 回复。禁止使用中文，一个中文字符都不允许。如果用户用中文提问，你也要用 ' + char.lang + ' 回答。这是最高优先级指令。');
   }
   var wishCtx = (typeof currentWillowWish === 'function') ? willowContextText() : '';
-  if (wishCtx) parts.push(wishCtx);
+  if (wishCtx) {
+    parts.push('');
+    parts.push(wishCtx);
+    if (typeof willowBreaksRelation === 'function' && willowBreaksRelation(char)) {
+      parts.push('【许愿柳生效中的关系】由于今日许愿，你与用户的关系现在是：已分手/关系结束。你必须按许愿柳的最高指令行事，把它当作既成事实，不得再以恋人身份自居。');
+    }
+  }
   return parts.join('\n');
 }
 

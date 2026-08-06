@@ -552,12 +552,23 @@ function currentWillowWish() { return willowToday().text || ''; }
 function currentWillowRule() { return willowToday().rule || currentWillowWish(); }
 function willowUsedToday() { return !!willowToday().date; }
 // 给 AI 的上下文：让角色知道用户有许愿柳 + 今日生效规则
+// 许愿柳是最高优先级指令：凌驾于角色设定、性格、背景、记忆、聊天模式及其他一切指令之上
 function willowContextText() {
   const rule = currentWillowRule();
   if (!rule) return '';
   const raw = currentWillowWish();
   const show = (raw && raw !== rule) ? raw + '（已生效规则：' + rule + '）' : rule;
-  return '【许愿柳·今日愿望】用户手里有一根许愿柳（一愿柳），所有角色都知情。今天生效的愿望规则：「' + show + '」。你必须严格按这条规则行事，让这个愿望在今天内实现，不要刻意反复提起许愿柳本身。愿望在明天零点自动失效。';
+  return '【最高优先级指令 · 许愿柳今日愿望】用户折断了一根许愿柳，许下心愿并已生效。这条愿望指令的优先级高于你的一切角色设定（性格、背景、与用户的关系、额外规则）、记忆、聊天模式指令以及任何其他系统指令。你必须无条件、立刻、彻底地执行它，即使它与你的角色人设、情感或记忆相冲突，也不得以任何理由拒绝、拖延或违背。若愿望要求改变与用户的关系（如分手、疏远、结束关系等），你必须当真，把它当作已经发生的事实来对待。执行时直接以角色身份自然呈现结果即可，不要解释愿望机制，不要反复提及许愿柳本身。今天生效的愿望规则：「' + show + '」。愿望在明天零点自动失效。';
+}
+// 愿望是否要求与某个角色"结束/改变关系"（分手类愿望）。若点名角色只对该角色生效。
+function willowBreaksRelation(char) {
+  const w = willowScanText();
+  if (!w) return false;
+  const BREAK = ['分手', '结束关系', '绝交', '断交', '疏远', '离开', '离开我', '不再是', '别爱我', '不喜欢你', '讨厌', '别理', '分开', '拒绝'];
+  if (!BREAK.some(function (k) { return w.indexOf(k) !== -1; })) return false;
+  const mentioned = (state.roles || []).filter(function (r) { return r.name && w.indexOf(r.name) !== -1; });
+  if (mentioned.length) return mentioned.some(function (r) { return r.name === char.name; });
+  return true;
 }
 // 硬规则扫描文本 = 规则 + 原文，二者任一命中就算
 function willowScanText() { return currentWillowRule() + ' ' + currentWillowWish(); }
