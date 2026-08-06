@@ -11,6 +11,7 @@ function openApp(name) {
     const dbg = document.querySelector('.debug-btn');
     if (dbg) dbg.style.display = 'none';
     hidePanels();
+    if (name !== '许愿柳' && name !== '许愿流') { const mc0 = c(); if (mc0) mc0.classList.remove('willow-fit'); }
     setTitle(name === 'QQ' ? '' : name);
     const ah = document.querySelector('.app-header');
     if (ah) {
@@ -54,9 +55,11 @@ function closeApp() {
   const m = $('appModal');
   if (m) { m.style.transition = ''; m.style.top = ''; }
   const mc = c();
-  if (mc) { mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; mc.style.filter = ''; mc.style.opacity = ''; mc.style.transition = ''; }
+  if (mc) { mc.classList.remove('willow-fit'); mc.style.padding = ''; mc.style.height = ''; mc.style.overflow = ''; mc.style.display = ''; mc.style.flexDirection = ''; mc.style.background = ''; mc.style.filter = ''; mc.style.opacity = ''; mc.style.transition = ''; }
   const ah = document.querySelector('.app-header');
-  if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; ah.style.height = ''; ah.style.flex = ''; ah.style.alignItems = ''; ah.style.padding = ''; }
+  if (ah) { ah.style.background = ''; ah.style.gridTemplateColumns = ''; ah.style.height = ''; ah.style.flex = ''; ah.style.alignItems = ''; ah.style.padding = ''; ah.style.borderBottom = ''; }
+  const mtit = document.getElementById('m-tit');
+  if (mtit) mtit.style.color = '';
   const ha = document.querySelector('.header-action');
   if (ha) ha.style.color = '';
   const hp = document.querySelector('.header-pill');
@@ -3943,16 +3946,6 @@ function viewPhoto(enc) {
 
 var _willowFogShown = false;
 function showWillowPortal() {
-  // SVG 置换滤镜（裂缝扭曲）
-  var svgEl = document.getElementById('warpFSvg');
-  if (!svgEl) {
-    svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svgEl.id = 'warpFSvg';
-    svgEl.style.cssText = 'position:absolute;width:0;height:0';
-    svgEl.innerHTML = '<filter id="warpF"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" result="n"/><feDisplacementMap id="warpMap" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>';
-    document.body.appendChild(svgEl);
-  }
-
   // 柳枝 + 金色裂缝
   var branchSvg = '<svg viewBox="0 0 160 220" width="150" height="206">' +
     '<defs><radialGradient id="crackGlow" cx="50%" cy="50%" r="50%">' +
@@ -3964,7 +3957,7 @@ function showWillowPortal() {
       '<path d="M81 132 Q 96 118 114 112" stroke-width="5"/>' +
       '<path d="M79 62 Q 90 52 104 54" stroke-width="4"/>' +
     '</g>' +
-    '<g fill="#6f8f3f">' +
+    '<g id="leafG" fill="#6f8f3f">' +
       '<ellipse cx="103" cy="110" rx="9" ry="4.5" transform="rotate(-20 103 110)"/>' +
       '<ellipse cx="117" cy="110" rx="8" ry="4" transform="rotate(-34 117 110)"/>' +
       '<ellipse cx="54" cy="67" rx="8" ry="4" transform="rotate(24 54 67)"/>' +
@@ -3991,80 +3984,103 @@ function showWillowPortal() {
   }
   d.innerHTML =
     '<div class="wp-fog" id="wpFog"></div>' +
-    '<div class="wp-glow"></div>' +
+    '<div class="wp-mist wp-mist1"></div>' +
+    '<div class="wp-mist wp-mist2"></div>' +
+    '<div class="wp-mist wp-mist3"></div>' +
+    '<div class="wp-glow"><span class="wp-glow-pulse"></span></div>' +
     '<div class="wp-warm" id="wpWarm"></div>' +
     '<div class="wp-sparks">' + particles + '</div>' +
     '<div class="wp-branch" id="wpBranch">' + branchSvg + '</div>' +
     '<div class="wp-text" id="wpText">折断 · 许一个愿</div>' +
-    '<div class="wp-flash" id="wpFlash"></div>';
+    '<div class="wp-burst" id="wpBurst"></div>';
   document.body.appendChild(d);
+
+  // 折断迸散的金屑
+  var burstEl = d.querySelector('#wpBurst');
+  var burstParts = [];
+  for (var bi0 = 0; bi0 < 12; bi0++) {
+    var bp = document.createElement('span');
+    bp.className = 'wp-bpart';
+    bp.style.left = '50%';
+    bp.style.top = '46%';
+    bp.style.background = (bi0 % 2 === 0) ? '#ffd06b' : '#9ab459';
+    burstEl.appendChild(bp);
+    burstParts.push({ el: bp, ang: (bi0 / 12) * Math.PI * 2 + Math.random() * 0.6, sp: 42 + Math.random() * 58, size: 3 + Math.random() * 4 });
+  }
 
   var step = 0;
   var appOpened = false;
+  var snapped = false;
+  var leafData = null;
   var timer = setInterval(function () {
     step++;
-    if (step >= 60) { clearInterval(timer); cleanup(); return; }
+    if (step >= 48) { clearInterval(timer); cleanup(); return; }
 
     var branch = $('wpBranch');
     var fog = $('wpFog');
     var text = $('wpText');
-    var flash = $('wpFlash');
     var warm = $('wpWarm');
     var crack = d.querySelector('#crackWrap');
+    var leafG = d.querySelector('#leafG');
     var portal = d;
+    var k, t2, p3;
 
-    if (step <= 8) {
-      // 入场：柳枝自雾中浮现
-      var k = step / 8;
-      if (branch) { branch.style.opacity = k; branch.style.transform = 'translateY(' + ((1 - k) * 10) + 'px) scale(' + (0.72 + k * 0.28) + ') rotate(' + (-3 + k * 2) + 'deg)'; }
+    if (step <= 10) {
+      // 入场：柳枝自雾中浮现，薄雾缓动
+      k = step / 10;
+      if (branch) { branch.style.opacity = k; branch.style.transform = 'translateY(' + ((1 - k) * 12) + 'px) scale(' + (0.7 + k * 0.3) + ') rotate(' + ((-3 + k * 2) + Math.sin(step * 0.7) * 1.6) + 'deg)'; }
       if (fog) fog.style.opacity = k;
-      if (text) text.style.opacity = 0;
-    } else if (step <= 24) {
+    } else if (step <= 26) {
       // 裂缝凝聚 · 金色裂纹爬满枝干
-      var t2 = (step - 8) / 16;
+      t2 = (step - 10) / 16;
       var scaleC = Math.min(1, t2 * 1.4);
       if (crack) { crack.setAttribute('opacity', t2); crack.setAttribute('transform', 'translate(80 148) scale(' + scaleC + ')'); }
-      if (branch) branch.style.transform = 'rotate(' + (Math.sin(step * 0.3) * 1.5 - 1) + 'deg)';
-      if (text) text.style.opacity = Math.min(1, t2 * 0.9);
-      var warp = Math.round(30 * t2 * t2);
-      var map = $('warpMap'); if (map) map.setAttribute('scale', warp);
-      if (fog) fog.style.backdropFilter = 'blur(' + (warp * 0.12) + 'px)';
-    } else if (step <= 28) {
-      // 白光一闪 · 枝断（这一刻打开应用，冷色渐暖）
-      if (flash) flash.style.opacity = 0.9;
-      if (warm) warm.style.opacity = Math.min(1, (step - 24) / 4);
-      if (!appOpened) {
-        appOpened = true;
-        _willowFogShown = true;
-        var m = $('appModal');
-        if (m) { m.style.transition = 'none'; m.style.top = '0'; m.style.filter = 'url(#warpF)'; m.style.opacity = '0.5'; }
-        openApp('许愿柳');
-        var tc = $('m-content');
-        if (tc) { tc.style.filter = 'blur(8px)'; tc.style.opacity = '0.6'; }
-        if (m) setTimeout(function () { m.style.transition = ''; }, 50);
+      if (branch) branch.style.transform = 'rotate(' + (Math.sin(step * 0.3) * 1.5 + t2 * 2 - 1) + 'deg)';
+      if (text) text.style.opacity = Math.min(1, t2);
+    } else if (step <= 32) {
+      // 张力：裂纹急促脉动、枝条发颤
+      var pu = 1 + Math.sin(step * 1.3) * 0.07;
+      if (crack) { crack.setAttribute('opacity', 0.95); crack.setAttribute('transform', 'translate(80 148) scale(' + pu + ')'); }
+      if (branch) branch.style.transform = 'rotate(' + (Math.sin(step * 1.7) * 2.4) + 'deg)';
+      if (text) text.style.opacity = 1;
+    } else if (step <= 40) {
+      // 折断：叶簇迸散、金环炸开，同时页面开始淡入（交叉过渡）
+      if (!snapped) {
+        snapped = true;
+        leafData = { sx: (Math.random() * 2 - 1) * 80, sy: -55 - Math.random() * 25 };
+        if (!appOpened) {
+          appOpened = true;
+          _willowFogShown = true;
+          var m0 = $('appModal');
+          // 不走“下往上弹”，直接原位就位（随后被奶油色盖住，撤层时无缝显现）
+          if (m0) { m0.style.transition = 'none'; m0.style.top = '0'; m0.style.opacity = '1'; }
+          openApp('许愿柳');
+          var tc0 = $('m-content');
+          if (tc0) { tc0.style.opacity = '1'; }
+          if (m0) setTimeout(function () { m0.style.transition = ''; }, 120);
+        }
       }
-    } else if (step <= 34) {
-      // 画面整块裂开、往外崩
-      if (flash) flash.style.opacity = Math.max(0, 0.9 - (step - 28) * 0.3);
-      if (portal) { portal.style.transform = 'scale(' + (1 + (step - 28) * 0.05) + ')'; portal.style.opacity = Math.max(0, 1 - (step - 28) * 0.12); }
-    } else if (step <= 52) {
-      // 外层散去 · 内层解扭归位
-      if (portal) { portal.style.transform = 'scale(' + (1.3 + (step - 34) * 0.1) + ')'; portal.style.opacity = Math.max(0, 1 - (step - 28) * 0.14); }
-      var p2 = (step - 34) / 18;
-      var m2 = $('appModal');
-      if (m2) { m2.style.filter = 'url(#warpF)'; m2.style.opacity = Math.min(1, 0.5 + p2 * 0.5); }
-      var tc2 = $('m-content');
-      if (tc2) { tc2.style.filter = 'blur(' + Math.max(0, (1 - p2) * 8) + 'px)'; tc2.style.opacity = Math.min(1, 0.6 + p2 * 0.4); }
-      var map2 = $('warpMap'); if (map2) map2.setAttribute('scale', Math.round(30 * (1 - p2)));
-      if (fog) fog.style.backdropFilter = 'blur(' + Math.max(0, (1 - p2) * 3) + 'px)';
-    } else if (step <= 58) {
-      // 稳定
-      var p3 = (step - 52) / 6;
-      var m3 = $('appModal');
-      if (m3) { m3.style.filter = 'none'; m3.style.opacity = 1; }
-      var tc3 = $('m-content');
-      if (tc3) { tc3.style.filter = 'none'; tc3.style.opacity = 1; }
-      if (portal) portal.style.opacity = Math.max(0, 1 - p3);
+      p3 = (step - 32) / 9;
+      if (leafG) {
+        leafG.setAttribute('transform', 'translate(' + (leafData.sx * p3) + ' ' + (leafData.sy * p3) + ') rotate(' + (leafData.sx * 0.35 * p3) + ')');
+        leafG.setAttribute('opacity', Math.max(0, 1 - p3 * 1.15));
+      }
+      if (branch) branch.style.transform = 'rotate(' + (-7 + Math.sin(step * 1.4) * 1.5) + 'deg)';
+      if (crack) { crack.setAttribute('transform', 'translate(80 148) scale(' + (1 + 3.2 * p3) + ')'); crack.setAttribute('opacity', Math.max(0, 1 - p3)); }
+      for (var bi = 0; bi < burstParts.length; bi++) {
+        var bpart = burstParts[bi];
+        var dx = Math.cos(bpart.ang) * bpart.sp * p3;
+        var dy = Math.sin(bpart.ang) * bpart.sp * p3 + 24 * p3 * p3;
+        bpart.el.style.transform = 'translate(calc(-50% + ' + dx + 'px) calc(-50% + ' + dy + 'px))';
+        bpart.el.style.opacity = Math.max(0, 1 - p3);
+      }
+      // 过渡：破裂、叶簇散开的同时，奶油色从内铺满整个画面，化进同色系的许愿柳页面
+      if (warm) warm.style.opacity = Math.min(1, p3 * 1.3);
+      var mF = $('appModal');
+      if (mF) mF.style.opacity = 1;
+      var tcF = $('m-content');
+      if (tcF) tcF.style.opacity = 1;
+      if (step >= 40) { clearInterval(timer); cleanup(); return; }
     }
   }, 20);
 
@@ -4075,8 +4091,6 @@ function showWillowPortal() {
     if (m) { m.style.filter = ''; m.style.opacity = ''; }
     var tc = $('m-content');
     if (tc) { tc.style.filter = ''; tc.style.opacity = ''; }
-    var svg = document.getElementById('warpFSvg');
-    if (svg) svg.remove();
   }
 }
 function makeWish() {
@@ -4126,7 +4140,14 @@ function clearWishToday() {
   alert('愿望已被撕掉。今天许愿柳不再受理新愿望。');
 }
 function renderWillow() {
+  c().classList.add('willow-fit');
   c().style.background = 'radial-gradient(120% 100% at 50% 18%, #f8eed8 0%, #eaddc0 45%, #d4bd97 100%)';
+  const hdr = document.querySelector('.app-header');
+  if (hdr) { hdr.style.background = 'linear-gradient(180deg,#f5e7c9 0%,#e9d6ae 100%)'; hdr.style.borderBottom = '1px solid #d9c199'; }
+  const tit = document.getElementById('m-tit');
+  if (tit) tit.style.color = '#7a3a28';
+  const bak = document.querySelector('.app-header .header-action');
+  if (bak) bak.style.color = '#8a4a2a';
   const wish = currentWillowWish();
   const hasWish = !!wish;
   const stickSvg = '<svg class="wl-stick" viewBox="0 0 140 100" aria-hidden="true">' +
