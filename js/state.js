@@ -461,6 +461,33 @@ function joinUrl(base, path) {
   return base.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '');
 }
 
+// AI 请求：优先走同源 /relay 转发访客填的网址（规避跨域）；若本站没有转发（纯静态托管）则直连
+var __relayProbe = null;
+function relayAvailable() {
+  if (__relayProbe !== null) return Promise.resolve(__relayProbe);
+  if ((typeof location === 'undefined') || location.protocol === 'file:') {
+    __relayProbe = false;
+    return Promise.resolve(false);
+  }
+  __relayProbe = fetch('/relay-probe', { method: 'HEAD' })
+    .then(function (r) { return r.ok || r.status === 204; })
+    .catch(function () { return false; });
+  return __relayProbe;
+}
+async function aiRequest(target, opts) {
+  const served = (typeof location !== 'undefined') && location.protocol !== 'file:';
+  if (served && /^https?:\/\//i.test(target)) {
+    if (await relayAvailable()) {
+      opts = Object.assign({}, opts);
+      opts.headers = Object.assign({}, opts.headers || {});
+      opts.headers['x-relay-target'] = target;
+      opts.headers['x-relay-method'] = String(opts.method || 'GET').toUpperCase();
+      return fetch('/relay', opts);
+    }
+  }
+  return fetch(target, opts);
+}
+
 function togglePanel(id) {
   const panel = $(id);
   const show = panel.style.display !== 'grid';

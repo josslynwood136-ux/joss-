@@ -263,7 +263,7 @@ async function callAI(text, shortTest = false, proactive = false) {
     ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
   var cfg = ap || state.api;
   try {
-    const response = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+    const response = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
       signal: controller.signal,
@@ -298,7 +298,7 @@ async function translateText(text) {
   var ctrl = new AbortController();
   var tmr = setTimeout(function() { ctrl.abort(); }, 15000);
   try {
-    var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+    var res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
       signal: ctrl.signal,
@@ -481,7 +481,7 @@ async function manualSummarizeMemory() {
   var ctrl = new AbortController();
   var tmr = setTimeout(function() { ctrl.abort(); }, 30000);
   try {
-    var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+    var res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
       signal: ctrl.signal,
@@ -537,7 +537,7 @@ async function autoSaveMemory(char) {
     var ctrl = new AbortController();
     var tmr = setTimeout(function() { ctrl.abort(); }, 12000);
     try {
-      var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+      var res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
         signal: ctrl.signal,

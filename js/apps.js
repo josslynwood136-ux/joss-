@@ -218,7 +218,7 @@ async function testConnection() {
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, 12000);
   try {
-    var resp = await fetch(joinUrl(url, 'chat/completions'), {
+    var resp = await aiRequest(joinUrl(url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       body: JSON.stringify({ model: model, messages: [{ role: 'user', content: '回复"连接成功"四个字' }], max_tokens: 20 }),
@@ -244,7 +244,7 @@ async function fetchModels() {
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, 12000);
   try {
-    const response = await fetch(joinUrl(url, 'models'), { headers: { Authorization: 'Bearer ' + key }, signal: controller.signal });
+    const response = await aiRequest(joinUrl(url, 'models'), { headers: { Authorization: 'Bearer ' + key }, signal: controller.signal });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error && data.error.message || response.status);
     var models = data.data || [];
@@ -3991,9 +3991,7 @@ function showWillowPortal() {
   }
   d.innerHTML =
     '<div class="wp-fog" id="wpFog"></div>' +
-    '<div class="wp-moon"></div>' +
     '<div class="wp-glow"></div>' +
-    '<div class="wp-trees"></div>' +
     '<div class="wp-warm" id="wpWarm"></div>' +
     '<div class="wp-sparks">' + particles + '</div>' +
     '<div class="wp-branch" id="wpBranch">' + branchSvg + '</div>' +
@@ -4109,7 +4107,7 @@ function willowParseRule(text) {
   var ctrl = new AbortController();
   var tmr = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 15000);
   var prompt = '你是"许愿柳"的愿望翻译器。用户折断柳枝许了一个愿望，请把它翻译成一条明确、可执行、直接对角色下达的行为规则（一句话，用第二人称"你"，不要说"用户希望"这类转述，不要解释，不要引号）。\n\n用户愿望：' + text;
-  return fetch(joinUrl(cfg.url, 'chat/completions'), {
+  return aiRequest(joinUrl(cfg.url, 'chat/completions'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
     signal: ctrl.signal,
@@ -4903,7 +4901,7 @@ async function offlineCallAI(text, hint) {
   const ctrl = new AbortController();
   const tmr = setTimeout(function() { ctrl.abort(); }, 90000);
   try {
-    const res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+    const res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
       signal: ctrl.signal,
@@ -5039,7 +5037,7 @@ async function offlineSummarize(msgs, role, sc) {
   const ctrl = new AbortController();
   const tmr = setTimeout(function() { ctrl.abort(); }, 15000);
   try {
-    const res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+    const res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
       signal: ctrl.signal,

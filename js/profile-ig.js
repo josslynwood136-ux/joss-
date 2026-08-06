@@ -194,7 +194,7 @@ async function generateCharPost(char) {
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, 15000);
   try {
-    var res = await fetch(joinUrl(cfg.url, 'chat/completions'), {
+    var res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
       signal: controller.signal,
