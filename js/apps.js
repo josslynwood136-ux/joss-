@@ -33,7 +33,7 @@ function openApp(name) {
       '家园': renderHome, '日记': renderDiary, '自习': renderStudy, '自习室': renderStudy,
       '养多肉': renderPlant, '多肉': renderPlant, '账本': renderLedger, '涂鸦': renderDoodle,
       '音乐': renderMusic, '啵啵': renderLiveHall, '啵啵间': renderLiveHall, '线下': renderOffline, '相册': renderAlbum, '表情包': renderStickerManager,
-      '塔罗': renderTarot, '塔罗牌': renderTarot, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace, '情侣空间': renderSpace,
+      '许愿柳': renderWillow, '许愿流': renderWillow, '游戏': renderGame, '游戏房': renderGame, '空间': renderSpace, '情侣空间': renderSpace,
       'QQ': renderIGProfile,
       'IG': renderIGProfile
     };
@@ -46,7 +46,7 @@ function openApp(name) {
 }
 
 function closeApp() {
-  _tarotFogShown = false;
+  _willowFogShown = false;
   if (spaceFxTimer) { clearInterval(spaceFxTimer); spaceFxTimer = null; }
   if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
   if (_liveBagTimer) { clearInterval(_liveBagTimer); _liveBagTimer = null; }
@@ -1817,25 +1817,102 @@ function editLedger(id) {
 let doodleBg = null;
 let doodleHistory = [];
 let doodleHistoryIndex = -1;
+let doodleTool = 'pen';
 const DOODLE_MAX_HISTORY = 30;
 
 function renderDoodle() {
   doodleBg = null;
   doodleHistory = [];
   doodleHistoryIndex = -1;
-  c().innerHTML = `
-  <div class="draw-tools">
-    <input type="color" id="drawColor" value="#00a8ff">
-    <input type="range" id="drawSize" min="2" max="20" value="6">
-    <input type="file" id="doodleBgFile" accept="image/*" style="display:none" onchange="uploadDoodleBg(event)">
-    <button class="ghost-btn" onclick="$('doodleBgFile').click()">🖼 上传底图</button>
-    <button class="ghost-btn" onclick="undoDoodle()">↩ 撤销</button>
-    <button class="ghost-btn" onclick="clearCanvas()">🗑 清空</button>
-    <button class="primary-btn" onclick="saveDoodle()">💾 保存</button>
-  </div>
-  <canvas id="drawCanvas" width="686" height="720"></canvas>
-  <div class="subtle" style="margin-top:10px">已保存 ${state.doodles.length} 张涂鸦。保存时会自动存入相册「涂鸦板」。</div>`;
+  doodleTool = 'pen';
+  c().innerHTML =
+  '<div class="doodle-panel">' +
+    '<div class="doodle-tools">' +
+      '<div class="doodle-row1">' +
+        '<div class="doodle-buttons">' +
+          '<button type="button" class="doodle-mode is-on" id="doodlePenBtn" onclick="setDoodleTool(\'pen\')">🖌 画笔</button>' +
+          '<button type="button" class="doodle-mode" id="doodleEraserBtn" onclick="setDoodleTool(\'eraser\')">🧽 橡皮</button>' +
+        '</div>' +
+        '<div class="doodle-actions">' +
+          '<button type="button" class="ghost-btn" onclick="undoDoodle()">↩ 撤销</button>' +
+          '<button type="button" class="ghost-btn" onclick="clearCanvas()">🗑 清空</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="doodle-slatebar">' +
+        '<span class="doodle-slate-label">颜色</span>' +
+        '<div class="doodle-swatches">' + doodleSwatchesHTML() + '</div>' +
+      '</div>' +
+      '<div class="doodle-sizebar">' +
+        '<span class="doodle-size-label">粗细</span>' +
+        '<input type="range" id="drawSize" min="2" max="24" value="6" oninput="doodleSizeOut()">' +
+        '<output id="doodleSizeOut" class="doodle-size-out"></output>' +
+      '</div>' +
+    '</div>' +
+    '<canvas id="drawCanvas" width="720" height="760"></canvas>' +
+    '<div class="doodle-subbar">' +
+      '<div class="subtle">已保存 ' + (state.doodles || []).length + ' 张 · 自动存入相册「涂鸦板」</div>' +
+      '<div class="doodle-actions">' +
+        '<button type="button" class="ghost-btn" onclick="$(\'doodleBgFile\').click()">🖼 底图</button>' +
+        '<button type="button" class="primary-btn" onclick="saveDoodle()">💾 保存</button>' +
+      '</div>' +
+    '</div>' +
+    '<input type="file" id="doodleBgFile" accept="image/*" style="display:none" onchange="uploadDoodleBg(event)">' +
+    '<input type="color" id="drawColor" value="#4f4f4f" style="position:absolute;visibility:hidden">' +
+    '<div id="doodleGalleryWrap">' + doodleGalleryHTML() + '</div>' +
+  '</div>';
+  doodleSizeOut();
   initCanvas();
+}
+
+function doodleSwatchesHTML() {
+  const pal = ['#4f4f4f', '#9aa0a6', '#ef4444', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#a16207', '#e2e8f0'];
+  return pal.map(function(c, i) {
+    return '<button type="button" class="doodle-swatch' + (i === 0 ? ' is-on' : '') + '" data-c="' + c + '" style="background:' + c + '" onclick="setDoodleColor(this,\'' + c + '\')" title="' + c + '"></button>';
+  }).join('');
+}
+
+function doodleGalleryHTML() {
+  const list = state.doodles || [];
+  if (!list.length) return '';
+  const tiles = list.slice(0, 9).map(function(d, i) {
+    return '<div class="doodle-tile" onclick="openSavedDoodle(' + i + ')"><img src="' + d + '" alt="涂鸦"></div>';
+  }).join('');
+  return '<div class="doodle-gallery-title">最近涂鸦</div><div class="doodle-gallery">' + tiles + '</div>';
+}
+
+function refreshDoodleGallery() {
+  const w = $('doodleGalleryWrap');
+  if (w) w.innerHTML = doodleGalleryHTML();
+}
+
+function setDoodleTool(tool) {
+  doodleTool = tool;
+  const pb = $('doodlePenBtn'), eb = $('doodleEraserBtn');
+  if (pb) pb.classList.toggle('is-on', tool === 'pen');
+  if (eb) eb.classList.toggle('is-on', tool === 'eraser');
+}
+
+function setDoodleColor(btn, hex) {
+  const cc = $('drawColor'); if (cc) cc.value = hex;
+  const all = document.querySelectorAll('.doodle-swatch');
+  for (var k = 0; k < all.length; k++) all[k].classList.remove('is-on');
+  if (btn) btn.classList.add('is-on');
+  if (doodleTool !== 'pen') setDoodleTool('pen');
+}
+
+function doodleSizeOut() {
+  const s = $('drawSize'), o = $('doodleSizeOut');
+  if (s && o) o.textContent = s.value;
+}
+
+function openSavedDoodle(i) {
+  const list = state.doodles || [];
+  if (!list[i]) return;
+  const ov = document.createElement('div');
+  ov.className = 'doodle-viewer';
+  ov.innerHTML = '<img src="' + list[i] + '" alt="涂鸦">';
+  ov.onclick = function() { ov.remove(); };
+  document.body.appendChild(ov);
 }
 function uploadDoodleBg(event) {
   const file = event.target.files && event.target.files[0];
@@ -1849,6 +1926,7 @@ function initCanvas() {
   const ctx = canvas.getContext('2d');
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  ctx.globalCompositeOperation = 'source-over';
   if (doodleBg) {
     const img = new Image();
     img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); saveDoodleHistory(); };
@@ -1871,7 +1949,8 @@ function initCanvas() {
     lastX = p.x; lastY = p.y;
     ctx.beginPath(); ctx.moveTo(p.x, p.y);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.strokeStyle = $('drawColor').value;
+    ctx.globalCompositeOperation = doodleTool === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = doodleTool === 'eraser' ? '#ffffff' : $('drawColor').value;
     ctx.lineWidth = $('drawSize').value;
     e.preventDefault();
   };
@@ -1879,7 +1958,8 @@ function initCanvas() {
     if (!drawing) return;
     const p = pos(e);
     ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y);
-    ctx.strokeStyle = $('drawColor').value;
+    ctx.globalCompositeOperation = doodleTool === 'eraser' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = doodleTool === 'eraser' ? '#ffffff' : $('drawColor').value;
     ctx.lineWidth = $('drawSize').value;
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.stroke();
@@ -1908,7 +1988,7 @@ function undoDoodle() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    img.onload = () => { ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+    img.onload = () => { ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
     img.src = doodleHistory[doodleHistoryIndex];
   } else if (doodleHistoryIndex === 0) {
     doodleHistoryIndex = -1;
@@ -1923,6 +2003,7 @@ function clearCanvas() {
   doodleBg = null;
   const canvas = $('drawCanvas');
   const ctx = canvas.getContext('2d');
+  ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   saveDoodleHistory();
 }
@@ -1934,6 +2015,7 @@ function saveDoodle() {
     if (!folder) { folder = { id: 'a_doodle', name: '涂鸦板', photos: [] }; state.albums.push(folder); }
     folder.photos.unshift({ id: 'p' + Date.now(), url: data, caption: '涂鸦 ' + new Date().toLocaleDateString(), date: new Date().toLocaleDateString() });
     saveState();
+    refreshDoodleGallery();
     alert('涂鸦已保存，并存入相册「涂鸦板」。');
   } catch (err) {
     alert('保存失败：画布可能包含跨域图片，请重试或清空后保存。');
@@ -3857,297 +3939,262 @@ function viewPhoto(enc) {
   overlay.style.display = 'grid';
 }
 
-// ---------- 塔罗牌 ----------
-const MAJOR_SYMBOLS = ['🌱','🪄','🌙','🌾','👑','📿','💕','🛡️','🦁','🏮','⭕','⚖️','🙃','💀','⚗️','😈','⚡','⭐','🌙','☀️','📯','🌍'];
-const ROMAN = ['0','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'];
-const TAROT_DECK = [
-  ['愚人', '新的开始，带着天真与勇气去冒险。', '盲目冲动，缺乏计划，可能错失方向。'],
-  ['魔术师', '你拥有实现想法的一切资源与能力。', '潜力未发挥，或被欺骗、操纵。'],
-  ['女祭司', '直觉正在给你答案，静下来听。', '忽视内心声音，秘密尚未明朗。'],
-  ['皇后', '丰盛、滋养与创造力围绕你。', '依赖过度，或忽略自我照顾。'],
-  ['皇帝', '秩序与掌控，用理性推进目标。', '固执专断，或被规则束缚。'],
-  ['教皇', '传统与指引，向可信的人求教。', '墨守成规，或盲从权威。'],
-  ['恋人', '重要关系需要一次真诚表达。', '关系失衡，错误选择或疏离。'],
-  ['战车', '凭意志突破阻碍，向前冲。', '失控冲突，方向分散难前进。'],
-  ['力量', '温柔也是很强的力量。', '自我怀疑，情绪压过理性。'],
-  ['隐者', '独处反思，寻找内在光亮。', '孤立逃避，过度封闭自我。'],
-  ['命运之轮', '转机到来，顺应变化即可。', '突变失控，陷入周期低谷。'],
-  ['正义', '因果清晰，公平会回到你身边。', '偏差不公，需承担过往后果。'],
-  ['倒吊人', '换视角看问题，暂停才有收获。', '无谓牺牲，或固执不肯放手。'],
-  ['死神', '结束即新生，放下才能重来。', '抗拒改变，陷在旧局里。'],
-  ['节制', '平衡与调和，耐心最可贵。', '失衡极端，或缺乏节奏感。'],
-  ['恶魔', '看清束缚你的执念与诱惑。', '被欲望困住，难以挣脱。'],
-  ['塔', '突发的崩塌，打破虚假安稳。', '危机后重建，余震未平。'],
-  ['星星', '慢慢来，你正在靠近想要的答案。', '希望模糊，信心不足。'],
-  ['月亮', '迷雾中的直觉，辨清幻象与真实。', '迷惑不安，隐藏的恐惧浮现。'],
-  ['太阳', '今天适合把心事说亮一点。', '暂时黯淡，但光仍在身后。'],
-  ['审判', '唤醒与召唤，是复盘的时刻了。', '逃避评判，错失觉醒机会。'],
-  ['世界', '一个小阶段正在圆满收尾。', '未竟全功，循环尚未闭合。']
-];
-const MINOR_DECK = [
-  ['权杖A', '新行动起点，充满动力。', '拖延受阻，行动力被卡。'],
-  ['权杖2', '面临选择，权衡下一步。', '犹豫不决，错失时机。'],
-  ['权杖3', '合作扩展，向外探索。', '进展停滞，计划难落地。'],
-  ['权杖4', '稳定安顿，短暂庆祝。', '僵化停滞，缺乏变化。'],
-  ['权杖5', '竞争冲突，试图突围。', '内耗混乱，无谓争执。'],
-  ['权杖6', '公开胜利，获得认可。', '虚荣浮夸，认可不持久。'],
-  ['权杖7', '防守阵地，抵御压力。', '力不从心，防线将破。'],
-  ['权杖8', '快速推进，消息传来。', '节奏失控，忙中出错。'],
-  ['权杖9', '警惕戒备，接近尾声。', '过度防备，身心疲惫。'],
-  ['权杖10', '负重前行，责任压身。', '不堪重负，该卸下了。'],
-  ['权杖侍从', '热情学习，跃跃欲试。', '浮躁不定，缺乏耐心。'],
-  ['权杖骑士', '迅猛行动，直冲目标。', '冲动鲁莽，方向跑偏。'],
-  ['权杖王后', '自信耀眼，主动掌控。', '独断强势，忽略他人。'],
-  ['权杖国王', '领袖气场，推动大局。', '专横失控，滥用权威。'],
-  ['圣杯A', '爱与新感情涌现。', '情感干涸，封闭内心。'],
-  ['圣杯2', '平等联结，双向奔赴。', '失衡疏离，关系不对等。'],
-  ['圣杯3', '欢聚庆祝，友情滋润。', '过度享乐，虚假热闹。'],
-  ['圣杯4', '冷淡观望，不满足。', '错失机会，故步自封。'],
-  ['圣杯5', '失落遗憾，盯着失去。', '沉溺悲伤，忽略尚存。'],
-  ['圣杯6', '怀旧安稳，旧情回归。', '依赖过去，不愿成长。'],
-  ['圣杯7', '幻想纷杂，选择太多。', '空想不落，误导自己。'],
-  ['圣杯8', '失望离开，寻更真意。', '逃避现实，半途而废。'],
-  ['圣杯9', '愿望满足，独享喜悦。', '自满孤立，拒绝分享。'],
-  ['圣杯10', '和睦圆满，家庭温暖。', '表面和谐，内在疏离。'],
-  ['圣杯侍从', '温柔好奇，感受细腻。', '情绪化，不够成熟。'],
-  ['圣杯骑士', '浪漫主动，以情动人。', '优柔寡断，仅为表面。'],
-  ['圣杯王后', '包容共情，温柔滋养。', '过度迁就，失去自我。'],
-  ['圣杯国王', '情商在线，从容疏导。', '情绪操控，不够真诚。'],
-  ['宝剑A', '清晰洞见，一剑破局。', '锋利伤己，言语刺人。'],
-  ['宝剑2', '两难平衡，暂不做决。', '逃避选择，内心纠结。'],
-  ['宝剑3', '心伤刺痛，直面裂痕。', '反复咀嚼，难以释怀。'],
-  ['宝剑4', '休整暂停，恢复状态。', '消极退缩，不愿面对。'],
-  ['宝剑5', '小胜代价，关系受损。', '争赢失和，得不偿失。'],
-  ['宝剑6', '平稳过渡，慢慢疗愈。', '勉强前行，旧伤未愈。'],
-  ['宝剑7', '暗中小算，低调应对。', '自欺欺人，终被看穿。'],
-  ['宝剑8', '自我设限，看不清路。', '困于执念，画地为牢。'],
-  ['宝剑9', '焦虑夜醒，过度担忧。', '内耗恐惧，吓自己。'],
-  ['宝剑10', '彻底终结，最痛一刻。', '谷底已至，触底反弹。'],
-  ['宝剑侍从', '机敏求知，留意信息。', '浮躁多疑，不够沉稳。'],
-  ['宝剑骑士', '快速决断，直来直去。', '急躁冲动，言语伤人。'],
-  ['宝剑王后', '客观冷静，明察秋毫。', '冷酷疏离，过度挑剔。'],
-  ['宝剑国王', '理性权威，公正裁断。', '严苛冷硬，缺乏温度。'],
-  ['星币A', '新资源入账，踏实起步。', '错失机会，基础不稳。'],
-  ['星币2', '平衡收支，灵活周转。', '顾此失彼，混乱失重。'],
-  ['星币3', '协作积累，技艺成长。', '配合失调，进度拖沓。'],
-  ['星币4', '守住成果，谨慎持有。', '吝啬僵化，不敢流动。'],
-  ['星币5', '资源紧缺，困境求生。', '孤立无援，忽视帮助。'],
-  ['星币6', '施受平衡，适度给予。', '居高施舍，关系不对等。'],
-  ['星币7', '等待收成，评估投入。', '急于求成，半途动摇。'],
-  ['星币8', '专注打磨，细水长流。', '钻牛角尖，忽略全局。'],
-  ['星币9', '独立丰足，自在享受。', '孤独守成，拒绝联结。'],
-  ['星币10', '长久安稳，家业厚实。', '物质有余，情感空洞。'],
-  ['星币侍从', '务实学习，踏实积累。', '稚嫩保守，不敢尝试。'],
-  ['星币骑士', '稳健执行，说到做到。', '迟缓固执，不够灵活。'],
-  ['星币王后', '务实滋养，经营有方。', '过度操心，忽视自己。'],
-  ['星币国王', '可靠掌控，资源稳增。', '固执守财，不愿变通。']
-];
+// ---------- 许愿柳 · 开屏动画（塔罗占卜内容已移除，仅保留雾化扭曲转场） ----------
 
-function sparkles(n, w, h) {
-  var r = '';
-  for (var i = 0; i < n; i++) {
-    var x = Math.random() * w;
-    var y = Math.random() * h;
-    var d = Math.random() * 3 + 0.5;
-    var emojis = ['✨','⭐','✦','·'];
-    r += '<span class="tarot-sparkle" style="left:' + x.toFixed(0) + 'px;top:' + y.toFixed(0) + 'px;animation-delay:' + (Math.random() * 2).toFixed(1) + 's;animation-duration:' + (2 + Math.random() * 2).toFixed(1) + 's">' + emojis[i % emojis.length] + '</span>';
-  }
-  return r;
-}
-function spreadDecks(n, w, h) {
-  var r = '';
-  var cardW = 80, cardH = 112;
-  var cnt = Math.min(n, 18);
-  var stars = ['✦','☆','·','✧'];
-  for (var i = cnt - 1; i >= 0; i--) {
-    var t = cnt > 1 ? i / (cnt - 1) : 0.5;
-    var x = t * (w - cardW * 0.65);
-    var y = (h - cardH) * 0.35 + t * (h - cardH) * 0.35;
-    var rot = (t - 0.5) * 5 + Math.sin(t * 12) * 1;
-    var s1 = '<i style="top:' + (8 + (i * 11) % 50) + 'px;left:' + (6 + (i * 7) % 55) + 'px">' + stars[i % stars.length] + '</i>';
-    var s2 = '<i style="bottom:' + (8 + (i * 13) % 40) + 'px;right:' + (6 + (i * 5) % 50) + 'px">' + stars[(i + 3) % stars.length] + '</i>';
-    r += '<div class="tarot-card" style="position:absolute;top:' + y.toFixed(0) + 'px;left:' + x.toFixed(0) + 'px;width:' + cardW + 'px;height:' + cardH + 'px;z-index:' + i + ';transform:rotate(' + rot.toFixed(1) + 'deg)"><div class="tarot-back">' + s1 + s2 + '</div></div>';
-  }
-  return r;
-}
-function drawOneCard(deck, isMajor) {
-  var base = deck[Math.floor(Math.random() * deck.length)];
-  var reverse = Math.random() < 0.5;
-  var idx = isMajor ? deck.indexOf(base) : -1;
-  return { name: base[0], reverse: reverse, text: reverse ? base[2] : base[1], idx: idx, symbol: isMajor ? MAJOR_SYMBOLS[idx] : '✦', roman: isMajor ? ROMAN[idx] : '' };
-}
-
-var _tarotFogShown = false;
-function showTarotPortal() {
-  // Inject persistent SVG filter into body
+var _willowFogShown = false;
+function showWillowPortal() {
+  // SVG 置换滤镜（裂缝扭曲）
   var svgEl = document.getElementById('warpFSvg');
   if (!svgEl) {
     svgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgEl.id = 'warpFSvg';
     svgEl.style.cssText = 'position:absolute;width:0;height:0';
-    svgEl.innerHTML = '<filter id="warpF"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" result="n"/><feDisplacementMap id="warpMap" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>';
+    svgEl.innerHTML = '<filter id="warpF"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" result="n"/><feDisplacementMap id="warpMap" in="SourceGraphic" in2="n" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>';
     document.body.appendChild(svgEl);
   }
-  
-  // Create portal overlay
+
+  // 柳枝 + 金色裂缝
+  var branchSvg = '<svg viewBox="0 0 160 220" width="150" height="206">' +
+    '<defs><radialGradient id="crackGlow" cx="50%" cy="50%" r="50%">' +
+      '<stop offset="0%" stop-color="#ffe9a8"/><stop offset="60%" stop-color="#ffc95e" stop-opacity=".55"/><stop offset="100%" stop-color="#ffc95e" stop-opacity="0"/>' +
+    '</radialGradient></defs>' +
+    '<g stroke="#7c5326" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M80 6 Q 77 70 80 120 Q 84 180 74 214" stroke-width="11"/>' +
+      '<path d="M80 88 Q 68 76 54 70" stroke-width="5"/>' +
+      '<path d="M81 132 Q 96 118 114 112" stroke-width="5"/>' +
+      '<path d="M79 62 Q 90 52 104 54" stroke-width="4"/>' +
+    '</g>' +
+    '<g fill="#6f8f3f">' +
+      '<ellipse cx="103" cy="110" rx="9" ry="4.5" transform="rotate(-20 103 110)"/>' +
+      '<ellipse cx="117" cy="110" rx="8" ry="4" transform="rotate(-34 117 110)"/>' +
+      '<ellipse cx="54" cy="67" rx="8" ry="4" transform="rotate(24 54 67)"/>' +
+      '<ellipse cx="78" cy="52" rx="8" ry="4" transform="rotate(-8 78 52)"/>' +
+      '<ellipse cx="106" cy="53" rx="7" ry="3.6" transform="rotate(-30 106 53)"/>' +
+    '</g>' +
+    '<g id="crackWrap" opacity="0" transform="translate(80 148) scale(0)">' +
+      '<circle cx="0" cy="0" r="40" fill="url(#crackGlow)"/>' +
+      '<path d="M-40 0 L-18 -12 L-4 2 L18 -14 L42 0" stroke="#ffd06b" stroke-width="3.5" fill="none" stroke-linecap="round"/>' +
+      '<path d="M-18 -12 l-5 -12" stroke="#ffd06b" stroke-width="2"/>' +
+      '<path d="M-4 2 l4 10" stroke="#ffd06b" stroke-width="2"/>' +
+      '<path d="M18 -14 l9 -11" stroke="#ffd06b" stroke-width="2"/>' +
+      '<path d="M-28 -2 l6 -5" stroke="#ffd06b" stroke-width="1.5"/>' +
+    '</g>' +
+    '</svg>';
+
   var d = document.createElement('div');
-  d.id = 'tarotPortal';
+  d.id = 'willowPortal';
   d.style.cssText = 'position:fixed;inset:0;z-index:99999;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none';
   var particles = '';
-  for (var i = 0; i < 20; i++) {
-    var e = ['🌫️','✨','·','✦','🌙'][i % 5];
-    particles += '<span style="position:absolute;font-size:20px;left:' + (Math.random() * 94 + 3).toFixed(0) + '%;top:' + (Math.random() * 90 + 5).toFixed(0) + '%;opacity:0;animation:fadeIn 1.5s ease forwards ' + (0.3 + Math.random()).toFixed(1) + 's;pointer-events:none">' + e + '</span>';
+  for (var i = 0; i < 14; i++) {
+    var e = ['✨','·','✦','🌫️'][i % 4];
+    particles += '<span class="wp-spark" style="left:' + (Math.random() * 94 + 3).toFixed(0) + '%;top:' + (Math.random() * 90 + 5).toFixed(0) + '%;animation-delay:' + (0.2 + Math.random() * 0.9).toFixed(2) + 's">' + e + '</span>';
   }
   d.innerHTML =
-    '<div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,rgba(180,165,145,.3),rgba(240,235,225,.5) 50%,rgba(245,240,235,.9))" id="tarotPortalBg"></div>' +
-    '<div style="position:absolute;inset:-10%;background:radial-gradient(ellipse at 40% 30%,rgba(210,195,175,.2),transparent 60%),radial-gradient(ellipse at 70% 70%,rgba(190,175,155,.15),transparent 50%);filter:blur(40px);animation:mistDrift 5s ease-in-out infinite alternate"></div>' +
-    '<div style="position:absolute;inset:-20%;background:radial-gradient(ellipse at 30% 50%,rgba(220,210,195,.15),transparent 50%),radial-gradient(ellipse at 80% 30%,rgba(200,188,170,.1),transparent 40%);filter:blur(60px);animation:mistDrift 7s ease-in-out infinite alternate-reverse"></div>' +
-    particles +
-    '<div style="font-size:48px;margin-bottom:12px;opacity:0;animation:fadeIn 1s ease forwards .6s;position:relative;z-index:1">🔮</div>' +
-    '<div style="font-size:16px;color:#6a5b4c;letter-spacing:3px;opacity:0;animation:fadeIn 1s ease forwards .9s;position:relative;z-index:1">命运之轮缓缓转动...</div>' +
-    '<div style="font-size:12px;color:#b8a99a;margin-top:18px;letter-spacing:6px;opacity:0;animation:fadeIn 1s ease forwards 1.2s;position:relative;z-index:1">✦ ✦ ✦</div>';
+    '<div class="wp-fog" id="wpFog"></div>' +
+    '<div class="wp-moon"></div>' +
+    '<div class="wp-glow"></div>' +
+    '<div class="wp-trees"></div>' +
+    '<div class="wp-warm" id="wpWarm"></div>' +
+    '<div class="wp-sparks">' + particles + '</div>' +
+    '<div class="wp-branch" id="wpBranch">' + branchSvg + '</div>' +
+    '<div class="wp-text" id="wpText">折断 · 许一个愿</div>' +
+    '<div class="wp-flash" id="wpFlash"></div>';
   document.body.appendChild(d);
-  
-  // Animate: ramp up → hold → open tarot → clear all
-  var scale = 0, step = 0, appOpened = false;
-  var timer = setInterval(function() {
+
+  var step = 0;
+  var appOpened = false;
+  var timer = setInterval(function () {
     step++;
-    if (step < 25) { scale = step * 1.2; }
-    else if (step < 45) { scale = 30; }
-    else if (step < 85) { scale = 30 - (step - 45) * 0.75; }
-    else { scale = 0; clearInterval(timer); cleanup(); }
-    
-    if (step === 40 && !appOpened) {
-      appOpened = true;
-      _tarotFogShown = true;
-      var m = $('appModal');
-      if (m) { m.style.transition = 'none'; m.style.top = '0'; }
-      // Apply warp to entire modal
-      if (m) { m.style.filter = 'url(#warpF)'; m.style.opacity = '0.6'; }
-      openApp('塔罗牌');
-      // Apply blur to content
-      var tc = document.getElementById('m-content');
-      if (tc) { tc.style.filter = 'blur(6px)'; tc.style.opacity = '0.7'; }
-      if (m) setTimeout(function() { m.style.transition = ''; }, 50);
-    }
-    
-    // Both portal and app content transition together
-    if (step >= 45) {
-      var p = (step - 45) / 40;
-      var el = document.getElementById('tarotPortal');
-      if (el) el.style.opacity = Math.max(0, 1 - p);
+    if (step >= 60) { clearInterval(timer); cleanup(); return; }
+
+    var branch = $('wpBranch');
+    var fog = $('wpFog');
+    var text = $('wpText');
+    var flash = $('wpFlash');
+    var warm = $('wpWarm');
+    var crack = d.querySelector('#crackWrap');
+    var portal = d;
+
+    if (step <= 8) {
+      // 入场：柳枝自雾中浮现
+      var k = step / 8;
+      if (branch) { branch.style.opacity = k; branch.style.transform = 'translateY(' + ((1 - k) * 10) + 'px) scale(' + (0.72 + k * 0.28) + ') rotate(' + (-3 + k * 2) + 'deg)'; }
+      if (fog) fog.style.opacity = k;
+      if (text) text.style.opacity = 0;
+    } else if (step <= 24) {
+      // 裂缝凝聚 · 金色裂纹爬满枝干
+      var t2 = (step - 8) / 16;
+      var scaleC = Math.min(1, t2 * 1.4);
+      if (crack) { crack.setAttribute('opacity', t2); crack.setAttribute('transform', 'translate(80 148) scale(' + scaleC + ')'); }
+      if (branch) branch.style.transform = 'rotate(' + (Math.sin(step * 0.3) * 1.5 - 1) + 'deg)';
+      if (text) text.style.opacity = Math.min(1, t2 * 0.9);
+      var warp = Math.round(30 * t2 * t2);
+      var map = $('warpMap'); if (map) map.setAttribute('scale', warp);
+      if (fog) fog.style.backdropFilter = 'blur(' + (warp * 0.12) + 'px)';
+    } else if (step <= 28) {
+      // 白光一闪 · 枝断（这一刻打开应用，冷色渐暖）
+      if (flash) flash.style.opacity = 0.9;
+      if (warm) warm.style.opacity = Math.min(1, (step - 24) / 4);
+      if (!appOpened) {
+        appOpened = true;
+        _willowFogShown = true;
+        var m = $('appModal');
+        if (m) { m.style.transition = 'none'; m.style.top = '0'; m.style.filter = 'url(#warpF)'; m.style.opacity = '0.5'; }
+        openApp('许愿柳');
+        var tc = $('m-content');
+        if (tc) { tc.style.filter = 'blur(8px)'; tc.style.opacity = '0.6'; }
+        if (m) setTimeout(function () { m.style.transition = ''; }, 50);
+      }
+    } else if (step <= 34) {
+      // 画面整块裂开、往外崩
+      if (flash) flash.style.opacity = Math.max(0, 0.9 - (step - 28) * 0.3);
+      if (portal) { portal.style.transform = 'scale(' + (1 + (step - 28) * 0.05) + ')'; portal.style.opacity = Math.max(0, 1 - (step - 28) * 0.12); }
+    } else if (step <= 52) {
+      // 外层散去 · 内层解扭归位
+      if (portal) { portal.style.transform = 'scale(' + (1.3 + (step - 34) * 0.1) + ')'; portal.style.opacity = Math.max(0, 1 - (step - 28) * 0.14); }
+      var p2 = (step - 34) / 18;
       var m2 = $('appModal');
-      if (m2) {
-        var blurAmt = Math.max(0, (1 - p) * 6);
-        m2.style.opacity = Math.min(1, 0.6 + p * 0.4);
-        // Keep SVG warp on modal, then remove at end
-      }
-      var tc2 = document.getElementById('m-content');
-      if (tc2) {
-        tc2.style.filter = 'blur(' + Math.max(0, (1 - p) * 6) + 'px)';
-        tc2.style.opacity = Math.min(1, 0.7 + p * 0.3);
-      }
+      if (m2) { m2.style.filter = 'url(#warpF)'; m2.style.opacity = Math.min(1, 0.5 + p2 * 0.5); }
+      var tc2 = $('m-content');
+      if (tc2) { tc2.style.filter = 'blur(' + Math.max(0, (1 - p2) * 8) + 'px)'; tc2.style.opacity = Math.min(1, 0.6 + p2 * 0.4); }
+      var map2 = $('warpMap'); if (map2) map2.setAttribute('scale', Math.round(30 * (1 - p2)));
+      if (fog) fog.style.backdropFilter = 'blur(' + Math.max(0, (1 - p2) * 3) + 'px)';
+    } else if (step <= 58) {
+      // 稳定
+      var p3 = (step - 52) / 6;
+      var m3 = $('appModal');
+      if (m3) { m3.style.filter = 'none'; m3.style.opacity = 1; }
+      var tc3 = $('m-content');
+      if (tc3) { tc3.style.filter = 'none'; tc3.style.opacity = 1; }
+      if (portal) portal.style.opacity = Math.max(0, 1 - p3);
     }
-    
-    var map = document.getElementById('warpMap');
-    if (map) map.setAttribute('scale', Math.round(scale));
-    var bg = document.getElementById('tarotPortalBg');
-    if (bg) bg.style.backdropFilter = 'blur(' + (scale * 0.15) + 'px)';
-  }, 25);
-  
+  }, 20);
+
   function cleanup() {
-    var el = document.getElementById('tarotPortal');
+    var el = document.getElementById('willowPortal');
     if (el) el.remove();
     var m = $('appModal');
     if (m) { m.style.filter = ''; m.style.opacity = ''; }
-    var tc = document.getElementById('m-content');
+    var tc = $('m-content');
     if (tc) { tc.style.filter = ''; tc.style.opacity = ''; }
     var svg = document.getElementById('warpFSvg');
     if (svg) svg.remove();
   }
 }
-function tarotComicHeader() {
-  return '<div class="tarot-gothic-header"><button class="tarot-gothic-back" onclick="closeApp()" title="返回">✕</button><div class="tarot-gothic-title">🔮 塔罗牌</div></div>';
+function makeWish() {
+  const ta = $('willowWishInput');
+  const text = ta ? ta.value.trim() : '';
+  if (!text) { alert('先说说你想许什么愿。'); return; }
+  const today = localDateKey(new Date());
+  if (state.willow && state.willow.date === today) { alert('今天的愿望已经许过了，等明天再来吧。'); return; }
+  const BAN = /(暴富|发财|中奖|彩票|长生不老|永生|复活|起死回生|穿越|时空|世界和平|统治世界|亿万富翁|一夜暴富|很多钱|有钱人)/;
+  if (BAN.test(text)) { alert('这种愿望许愿柳管不了，换个和角色有关的试试。'); return; }
+  const btn = $('willowWishSubmit');
+  if (btn) { btn.textContent = '🌿 柳枝轻响…'; btn.disabled = true; }
+  willowParseRule(text).then(function(rule) {
+    state.willow = { date: today, text: text, rule: rule || text };
+    saveState();
+    renderWillow();
+    const shown = (rule && rule !== text) ? text + '（规则：' + rule + '）' : text;
+    alert('愿望已生效：\n「' + shown + '」\n\n所有角色都知道你手里有一根许愿柳，今天会照这条规则行事。明天零点愿望自动失效。');
+  });
 }
 
-function renderTarot() {
-  var am = $('appModal'); if (am) am.classList.add('tarot-gothic');
-  var ah = document.querySelector('.app-header'); if (ah) ah.classList.add('hidden');
-  var t = state.tarot;
-  var cards = (t && t.cards) || [];
-  
-  if (!cards.length) {
-    c().innerHTML = tarotComicHeader() + '<div class="tarot-stage"><div class="tarot-stage-desc">集中精神，默念你的问题<br>然后轻触牌堆开始洗牌</div><div class="tarot-glow tarot-deck" id="tarotDeckWrap" style="position:relative;width:320px;height:200px;cursor:pointer;margin:14px auto 0" onclick="tarotShuffle()">' + spreadDecks(20, 320, 200) + sparkles(8, 320, 200) + '</div><div class="tarot-hint">✦ 命运之轮在等你 ✦</div></div>';
-    return;
-  }
-  renderTarotResult(cards);
+// 用 AI 把愿望原文翻译成一条明确、可执行的行为规则（存底）
+function willowParseRule(text) {
+  var ap = state.apiProfiles && state.activeApiProfile
+    ? state.apiProfiles.find(function (p) { return p.id === state.activeApiProfile; }) : null;
+  var cfg = ap || state.api;
+  if (!cfg || !cfg.key || !cfg.url || !cfg.model) return Promise.resolve(text);
+  var ctrl = new AbortController();
+  var tmr = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 15000);
+  var prompt = '你是"许愿柳"的愿望翻译器。用户折断柳枝许了一个愿望，请把它翻译成一条明确、可执行、直接对角色下达的行为规则（一句话，用第二人称"你"，不要说"用户希望"这类转述，不要解释，不要引号）。\n\n用户愿望：' + text;
+  return fetch(joinUrl(cfg.url, 'chat/completions'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.key },
+    signal: ctrl.signal,
+    body: JSON.stringify({ model: cfg.model, messages: [{ role: 'user', content: prompt }], max_tokens: 120, temperature: 0.3 })
+  }).then(function (res) { return res.json().catch(function () { return {}; }); }).then(function (data) {
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) return text;
+    var out = (data.choices[0].message.content || '').trim().replace(/^["'「」“”]+|["'「」””]+$/g, '');
+    return out || text;
+  }).catch(function () { return text; }).finally(function () { clearTimeout(tmr); });
 }
-function tarotShuffle() {
-  var wrap = document.getElementById('tarotDeckWrap');
-  if (wrap) { wrap.classList.add('shuffling'); wrap.style.pointerEvents = 'none'; }
-  setTimeout(function() {
-    if (wrap) { wrap.style.display = 'none'; }
-    var fullDeck = [].concat(TAROT_DECK, MINOR_DECK);
-    var drawn = [];
-    var guard = 0;
-    while (drawn.length < 4 && guard < 600) {
-      var b = fullDeck[Math.floor(Math.random() * fullDeck.length)];
-      var rev = Math.random() < 0.5;
-      var taken = drawn.some(function(d) { return d.name === b[0] && d.reverse === rev; });
-      if (!taken) {
-        var idx = TAROT_DECK.indexOf(b);
-        var isMajor = idx >= 0;
-        drawn.push({ name: b[0], reverse: rev, text: rev ? b[2] : b[1], idx: idx, symbol: isMajor ? MAJOR_SYMBOLS[idx] : '✦', roman: isMajor ? ROMAN[idx] : '' });
-      }
-      guard++;
-    }
-    state.tarot = { cards: drawn };
-    saveState();
-    tarotDeal(drawn);
-  }, 700);
-}
-function tarotDeal(cards) {
-  c().innerHTML = tarotComicHeader() + '<div class="tarot-stage"><div class="tarot-stage-desc" style="margin-bottom:6px">正在为你展开牌阵…</div><div class="tarot-spots">' + cards.map(function() { return '<div class="tarot-spot"></div>'; }).join('') + '</div></div>';
-  c().style.overflow = 'hidden';
-  var cw = 84, ch = 124;
-  cards.forEach(function(crd, i) {
-    var spot = c().querySelectorAll('.tarot-spot')[i];
-    var wrap = document.createElement('div');
-    wrap.className = 'tarot-wrap tarot-deal-in';
-    wrap.style.width = cw + 'px'; wrap.style.height = ch + 'px';
-    wrap.innerHTML = '<div class="tarot-card" style="width:100%;height:100%"><div class="tarot-back"></div><div class="tarot-front"><div class="num">' + (crd.roman || '✦') + '</div><div class="symbol" style="font-size:22px">' + (crd.symbol || '✦') + '</div><div class="name" style="font-size:11px">' + escapeHTML(crd.name) + '</div><div class="subtle2" style="font-size:7px">' + (crd.reverse ? '逆' : '正') + '</div></div></div>';
-    spot.appendChild(wrap);
-    var cardEl = wrap.querySelector('.tarot-card');
-    setTimeout(function() { if (cardEl) cardEl.classList.add('flipped'); }, 500 + i * 400);
-  });
-  setTimeout(function() {
-    state.tarot = { cards: cards, dealt: true };
-    saveState();
-    renderTarotResult(cards);
-  }, 650 + cards.length * 420);
-}
-function renderTarotResult(cards) {
-  c().style.overflow = '';
-  var cardW = 74, cardH = 110, symSize = 22, nameSize = 10;
-  var cardsRow = cards.map(function(c, i) {
-    return '<div class="tarot-wrap" style="width:' + cardW + 'px;height:' + cardH + 'px"><div class="tarot-card flipped" style="width:100%;height:100%"><div class="tarot-back"></div><div class="tarot-front"><div class="num">' + (c.roman || '✦') + '</div><div class="symbol" style="font-size:' + symSize + 'px">' + (c.symbol || '✦') + '</div><div class="name" style="font-size:' + nameSize + 'px">' + escapeHTML(c.name) + '</div><div class="subtle2" style="font-size:7px">' + (c.reverse ? '逆' : '正') + '</div></div></div></div>';
-  }).join('');
-  c().innerHTML = tarotComicHeader() + '<div class="stack" style="align-items:center;padding-top:6px"><div class="tarot-result-title">— 命运已揭晓 —</div><div class="tarot-spread">' + cardsRow + '</div><button class="tarot-btn" onclick="tarotShowAll()">查看完整解读</button></div>';
-}
-function tarotShowAll() {
-  if (!state.tarot || !state.tarot.cards || !state.tarot.cards.length) return;
-  var am = $('appModal'); if (am) am.classList.add('tarot-gothic');
-  var ah = document.querySelector('.app-header'); if (ah) ah.classList.add('hidden');
-  var cards = state.tarot.cards;
-  var html = cards.map(function(c, i) {
-    return '<div class="tarot-reading-card"><div class="tarot-reading-tag">第 ' + (i + 1) + ' 张 · ' + (c.reverse ? '逆位' : '正位') + '</div><div class="tarot-reading-head"><span class="tarot-reading-sym">' + (c.symbol || '✦') + '</span><span class="tarot-reading-name">' + escapeHTML(c.name) + '</span><span class="tarot-reading-num">' + (c.roman || '') + '</span></div><div class="tarot-reading-text">' + escapeHTML(c.text) + '</div></div>';
-  }).join('');
-  c().innerHTML = tarotComicHeader() + '<div class="stack" style="padding-top:6px"><div class="tarot-reading-title">— 完整解读 —</div>' + html + '<button class="tarot-btn" onclick="tarotReset()">重新占卜</button></div>';
-}
-function tarotReset() {
-  state.tarot = { cards: [] };
+function clearWishToday() {
+  if (!confirm('撕掉今天的愿望？撕掉后许愿柳会记住今天已经用过一次。')) return;
+  state.willow = { date: localDateKey(new Date()), text: '', rule: '' };
   saveState();
-  renderTarot();
+  renderWillow();
+  alert('愿望已被撕掉。今天许愿柳不再受理新愿望。');
+}
+function renderWillow() {
+  c().style.background = 'radial-gradient(120% 100% at 50% 18%, #f8eed8 0%, #eaddc0 45%, #d4bd97 100%)';
+  const wish = currentWillowWish();
+  const hasWish = !!wish;
+  const stickSvg = '<svg class="wl-stick" viewBox="0 0 140 100" aria-hidden="true">' +
+    '<g stroke="#8a5a32" fill="none" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M16 78 Q 52 60 74 58 Q 108 56 124 70" stroke-width="9"/>' +
+      '<path d="M16 80 Q 50 74 72 72" stroke-width="4"/>' +
+      '<path d="M66 58 Q 64 42 70 30" stroke-width="5"/>' +
+      '<path d="M84 60 Q 92 48 106 42" stroke-width="4"/>' +
+    '</g>' +
+    '<g fill="none" stroke="#9c6f52">' +
+      '<path d="M86 56 l6 -5 5 6 -8 3 z" stroke-width="2"/>' +
+      '<path d="M52 60 l-7 -6 2 -8 8 -1 z" stroke-width="2"/>' +
+      '<path d="M100 46 l7 -2 3 6 -5 4 z" stroke-width="2"/>' +
+    '</g>' +
+    '<g fill="#7f9a44" stroke="#5f7b2f" stroke-width="1.5">' +
+      '<ellipse cx="104" cy="40" rx="9" ry="5" transform="rotate(-30 104 40)"/>' +
+      '<ellipse cx="90" cy="30" rx="8" ry="4.5" transform="rotate(-15 90 30)"/>' +
+      '<ellipse cx="30" cy="54" rx="8" ry="4.5" transform="rotate(18 30 54)"/>' +
+    '</g>' +
+    '<path d="M76 55 l7 1 l-3 7 z" fill="#e3c38b" stroke="#a87a3a" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<path d="M80 58 l6 -2 l-1 6 z" fill="#e3c38b" stroke="#a87a3a" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<g fill="#ffd84d">' +
+      '<path d="M20 22 l2.4 5.6 5.6 2.4 -5.6 2.4 -2.4 5.6 -2.4 -5.6 -5.6 -2.4 5.6 -2.4 z"/>' +
+      '<path d="M122 20 l1.8 4 4 1.8 -4 1.8 -1.8 4 -1.8 -4 -4 -1.8 4 -1.8 z" opacity=".7"/>' +
+    '</g>' +
+    '<text x="68" y="92" font-size="9" fill="#b5402c" text-anchor="middle" font-family="Cinzel,serif" letter-spacing="2">wish</text>' +
+    '</svg>';
+
+  let h = '';
+  h += '<div class="wl-wrap">';
+
+  // ---- 复古产品盒 ----
+  h += '<div class="wl-box">';
+  h += '<div class="wl-starburst">WISH</div>';
+  h += '<span class="wl-banner">TABI CAT · Curiosities™</span>';
+  h += '<div class="wl-title"><span class="zh">许愿柳</span><span class="en">ONE&nbsp;WISH&nbsp;WILLOW</span></div>';
+  h += '<div class="wl-dots"><span class="wl-count">#' + (hasWish ? '已折断' : '未使用') + '</span>' + stickSvg + '</div>';
+  h += '<div class="wl-slogan">AMAZE&nbsp;YOUR&nbsp;FRIENDS!</div>';
+  h += '<div class="wl-arch">折断一截柳枝 · 获得一个愿望</div>';
+  h += '<div class="wl-fine">One wish · Single use only · No returns.<br>Cannot grant wealth, immortality or time travel.</div>';
+  h += '<div class="wl-stamp">' + (hasWish ? 'SOLD&nbsp;OUT' : 'FOR&nbsp;FRIENDS&nbsp;ONLY') + '</div>';
+  h += '</div>';
+
+  // ---- 愿望面板 ----
+  if (hasWish) {
+    const rule = currentWillowRule();
+    const ruleHtml = (rule && rule !== wish) ? '<div style="margin-top:8px;font-size:12px;opacity:.9">已生效规则：' + escapeHTML(rule) + '</div>' : '';
+    h += '<div class="wl-body">';
+    h += '<div class="label2">今日生效的愿望 — 角色都知道</div>';
+    h += '<div class="wl-wish-shown"><div class="wl-wish-day">今天 · 愿望生效中</div><div class="wl-wish-text">' + escapeHTML(wish) + ruleHtml + '</div></div>';
+    h += '<button class="danger-btn" style="width:100%;border:none;cursor:pointer;margin-top:12px;background:#f3e0d6;color:#a83a2a" onclick="clearWishToday()">✂️ 撕掉今日愿望</button>';
+    h += '<div class="wl-hint">撕掉后许愿柳今天不再受理新愿望，明天自动归零。</div>';
+    h += '</div>';
+  } else {
+    h += '<div class="wl-body">';
+    h += '<div class="label2">折断柳枝 · 说出愿望</div>';
+    h += '<textarea id="willowWishInput" class="textarea" placeholder=""></textarea>';
+    h += '<button class="wl-submit" id="willowWishSubmit" onclick="makeWish()">🌿&nbsp;折断许愿</button>';
+    h += '<div class="wl-hint">许愿柳只收与角色有关的心愿。许下后，它会把你的话译成一条规则，角色今天照此行事。至于一夜暴富、长生不老——柳枝轻蔑地抖了抖，表示不在管辖范围。</div>';
+    h += '</div>';
+  }
+
+  h += '<div class="wl-bubbles">✦ ✦ ✦ &nbsp;Be careful what you wish for&nbsp; ✦ ✦ ✦</div>';
+  h += '</div>';
+
+  c().innerHTML = h;
 }
 
 // ---------- 游戏 ----------

@@ -50,12 +50,6 @@ const defaultState = {
   album: [],
   albums: [],
   space: { default: { startDate: '', memo: '', notes: [], kisses: 0, intimacy: 0, loverName: '', lastKissKey: '', daily: {} }, byRole: {} },
-  mq: {
-    me: { name: '我', avatar: '' },
-    roles: [],
-    chats: {},
-    moments: []
-  },
   home: {
     rooms: {
       living: {
@@ -133,7 +127,6 @@ const defaultState = {
     activeRoom: 'living',
     logs: []
   },
-  tarot: { step: 'start', major: null, minors: [] },
   live: { viewer: 12, likes: 0, giftWorth: 0, gifts: 0, followers: 0, intimacy: 0, coins: 0, lastSign: '', giftLog: [], song: '', flirt: 0 },
   qq: null,
   customStickers: [],
@@ -153,7 +146,8 @@ const defaultState = {
     gallery: ['💖','✨','🎨','🌈','🔥','🎵','📸','🦋','🌟']
   },
   profilePosts: [],
-  viewedStories: {}
+  viewedStories: {},
+  willow: { date: '', text: '', rule: '' }
 };
 
 // ===== 深层合并 =====
@@ -344,6 +338,10 @@ function ensureStateShape(next, saved) {
   next.call.startTime = Number(next.call.startTime) || 0;
   next.call.muted = next.call.muted === true;
   next.call.speaker = next.call.speaker === true;
+  if (!next.willow || typeof next.willow !== 'object') next.willow = {};
+  next.willow.date = typeof next.willow.date === 'string' ? next.willow.date : '';
+  next.willow.text = typeof next.willow.text === 'string' ? next.willow.text : '';
+  next.willow.rule = typeof next.willow.rule === 'string' ? next.willow.rule : '';
   return next;
 }
 
@@ -508,6 +506,59 @@ function activeProfile() {
 function lastChatPreview(char) {
   const last = (char.chat || [])[char.chat.length - 1];
   return last ? last.content : char.greeting || '还没有聊天';
+}
+
+// ===== 许愿柳 · 数据访问 =====
+// 每天一次，当天生效，明天自动归零。所有角色都知情。
+// text = 用户愿望原文；rule = AI 翻译后的明确行为指令（存底，供角色与硬规则使用）
+function willowToday() {
+  if (!state.willow) state.willow = {};
+  const today = localDateKey(new Date());
+  if (state.willow.date !== today) {
+    state.willow.date = '';
+    state.willow.text = '';
+    state.willow.rule = '';
+  }
+  return state.willow;
+}
+function currentWillowWish() { return willowToday().text || ''; }
+function currentWillowRule() { return willowToday().rule || currentWillowWish(); }
+function willowUsedToday() { return !!willowToday().date; }
+// 给 AI 的上下文：让角色知道用户有许愿柳 + 今日生效规则
+function willowContextText() {
+  const rule = currentWillowRule();
+  if (!rule) return '';
+  const raw = currentWillowWish();
+  const show = (raw && raw !== rule) ? raw + '（已生效规则：' + rule + '）' : rule;
+  return '【许愿柳·今日愿望】用户手里有一根许愿柳（一愿柳），所有角色都知情。今天生效的愿望规则：「' + show + '」。你必须严格按这条规则行事，让这个愿望在今天内实现，不要刻意反复提起许愿柳本身。愿望在明天零点自动失效。';
+}
+// 硬规则扫描文本 = 规则 + 原文，二者任一命中就算
+function willowScanText() { return currentWillowRule() + ' ' + currentWillowWish(); }
+// 愿望若包含"不许/别 + 发消息/打扰"之类，则今天禁止主动消息/自动动态
+function willowBlocksProactive() {
+  const wish = willowScanText();
+  if (!wish) return false;
+  const neg = ['不许', '不要', '别', '禁止', '不让', '别发', '别给', '不能', '停止', '不用', '无法'];
+  const act = ['发信息', '发消息', '聊天', '找我', '联系', '打扰', '理我', '发动态', '说话', '回复', '消息', '信息', '吵', '来'];
+  if (!neg.some(function (n) { return wish.indexOf(n) !== -1; })) return false;
+  return act.some(function (a) { return wish.indexOf(a) !== -1; });
+}
+// 愿望是否"不许回复用户消息"。若愿望里点名了某个角色，只对该角色生效。
+function willowBlocksReplyFor(roleId, roleName) {
+  const wish = willowScanText();
+  if (!wish) return false;
+  const neg = ['不许', '不要', '别', '禁止', '拒绝', '懒得', '不用', '别理', '不理', '不回', '不能', '不让', '无法', '不想'];
+  const act = ['回复', '回我', '理我', '搭理', '理', '发信息', '发消息', '聊天', '说话', '联系', '消息', '信息', '答应'];
+  let hitNeg = false, hitAct = false;
+  neg.forEach(function (n) { if (wish.indexOf(n) !== -1) hitNeg = true; });
+  act.forEach(function (a) { if (wish.indexOf(a) !== -1) hitAct = true; });
+  if (!hitNeg || !hitAct) return false;
+  // 若愿望提到某个具体角色，只拦那个角色
+  const mentioned = (state.roles || []).filter(function (r) { return r.name && wish.indexOf(r.name) !== -1; });
+  if (mentioned.length) {
+    return mentioned.some(function (r) { return r.name === roleName; });
+  }
+  return true;
 }
 
 let state = loadState();

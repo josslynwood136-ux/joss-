@@ -172,6 +172,7 @@ function getCharInfo(charId) {
 var _genPostPending = false;
 
 function ensureCharAutoPosts() {
+  if (typeof willowBlocksProactive === 'function' && willowBlocksProactive()) return;
   (state.roles || []).forEach(function(char) {
     if (!char.autoPost) return;
     if (!char.igPosts) char.igPosts = [];
@@ -188,6 +189,8 @@ async function generateCharPost(char) {
   var cfg = ap || state.api;
   if (!cfg.key || !cfg.url || !cfg.model) return;
   var prompt = '你是一个角色。根据以下角色设定，发一条 Instagram 动态（一句话 + 一个emoji）。只输出动态内容，不要解释，不要加引号。\n\n角色名：' + char.name + '\n性格：' + (char.personality || '普通') + '\n说话风格：' + (char.style || '普通') + '\n背景：' + (char.background || '无') + '\n\n示例输出：\n今天天气真好，出去走走🌤️';
+  var wishCtx = (typeof willowContextText === 'function') ? willowContextText() : '';
+  if (wishCtx) prompt += '\n\n' + wishCtx;
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, 15000);
   try {

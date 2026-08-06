@@ -50,12 +50,12 @@ function bindHotspots() {
     hs.addEventListener('touchstart', function(ev) {
       touched = true;
       ev.preventDefault();
-      if (name === '塔罗牌' || name === '塔罗') { showTarotPortal(); return; }
+      if (name === '许愿柳' || name === '许愿流') { showWillowPortal(); return; }
       openApp(name);
     }, { passive: false });
     hs.addEventListener('click', function(ev) {
       if (touched) { touched = false; return; }
-      if (name === '塔罗牌' || name === '塔罗') { showTarotPortal(); return; }
+      if (name === '许愿柳' || name === '许愿流') { showWillowPortal(); return; }
       openApp(name);
     });
   });
@@ -105,7 +105,7 @@ function initDragDesktop() {
 
 // ===== 导出到 window（确保内联 onclick 正常工作）=====
 var _w = window;
-_w.toggleDebug = toggleDebug; _w.openApp = openApp; _w.closeApp = closeApp; _w.toggleHeaderMenu = toggleHeaderMenu; _w.quickNotice = quickNotice;
+_w.toggleDebug = toggleDebug; _w.openApp = openApp; _w.closeApp = closeApp; _w.quickNotice = quickNotice;
 _w.switchTab = switchTab; _w.openChat = openChat; _w.closeChat = closeChat; _w.openSettings = openSettings; _w.closeSettings = closeSettings;
 _w.togglePin = togglePin; _w.clearHistory = clearHistory; _w.toggleMore = toggleMore; _w.toggleEmoji = toggleEmoji; _w.toggleAutoMem = toggleAutoMem; _w.setAutoMemLen = setAutoMemLen; _w.setAutoMemEvery = setAutoMemEvery; _w.manualSummarizeMemory = manualSummarizeMemory;
 _w.sendChat = sendChat; _w.sendRed = sendRed; _w.selectRpAmount = selectRpAmount; _w.onRpAmountInput = onRpAmountInput; _w.confirmRedPacket = confirmRedPacket; _w.openRedPacket = openRedPacket; _w.toggleVoice = toggleVoice; _w.stopVoice = stopVoice; _w.voiceTouchStart = voiceTouchStart; _w.voiceTouchEnd = voiceTouchEnd; _w.saveApiConfig = saveApiConfig; _w.fetchModels = fetchModels;
@@ -121,8 +121,6 @@ _w.addLedger = addLedger; _w.deleteLedger = deleteLedger; _w.editLedger = editLe
 _w.clearCanvas = clearCanvas; _w.saveDoodle = saveDoodle; _w.undoDoodle = undoDoodle; _w.uploadDoodleBg = uploadDoodleBg;
 _w.uploadMusic = uploadMusic; _w.playSong = playSong; _w.playMusic = playSong; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic; _w.togglePlay = togglePlay; _w.nextSong = nextSong; _w.prevSong = prevSong; _w.cycleMode = cycleMode; _w.toggleFav = toggleFav; _w.setFavView = setFavView; _w.searchMusic = searchMusic; _w.clearSearch = clearSearch; _w.playSearch = playSearch; _w.openNcmLogin = openNcmLogin; _w.closeNcmLogin = closeNcmLogin; _w.setSearchSrc = setSearchSrc; _w.openQqLogin = openQqLogin; _w.closeQqLogin = closeQqLogin;
 _w.renderLive = renderLive; _w.renderLiveHall = renderLiveHall; _w.openLiveRoom = openLiveRoom; _w.filterHall = filterHall; _w.liveBack = liveBack; _w.liveOpenProfile = liveOpenProfile; _w.liveCloseProfile = liveCloseProfile; _w.liveProfileFollow = liveProfileFollow; _w.liveProfileMessage = liveProfileMessage; _w.liveSay = liveSay; _w.liveHeart = liveHeart; _w.liveFollow = liveFollow; _w.liveGift = liveGift; _w.toggleLiveGifts = toggleLiveGifts; _w.toggleLiveSongs = toggleLiveSongs; _w.toggleLiveBoard = toggleLiveBoard; _w.liveSong = liveSong; _w.liveSign = liveSign; _w.liveBar = liveBar; _w.liveMic = liveMic; _w.liveBagGrab = liveBagGrab; _w.startGame = startGame; _w.hitTarget = hitTarget; _w.submitGuess = submitGuess; _w.resetGuess = resetGuess; _w.initSnake = initSnake; _w.saveSpace = saveSpace; _w.spaceKiss = spaceKiss; _w.spaceTask = spaceTask; _w.spaceSwitchRole = spaceSwitchRole; _w.spaceLoveLine = spaceLoveLine; _w.renderOffline = renderOffline; _w.offlinePickScene = offlinePickScene; _w.toggleScenePicker = toggleScenePicker; _w.offlineInvite = offlineInvite; _w.offlineSend = offlineSend; _w.offlineEnd = offlineEnd; _w.offlineSubmitInvite = offlineSubmitInvite;
-_w.renderMQ = renderMQ; _w.mqSwitch = mqSwitch; _w.mqOpenChat = mqOpenChat; _w.mqSend = mqSend; _w.mqNewRole = mqNewRole; _w.mqEditRoleView = mqEditRoleView;
-_w.mqSaveRole = mqSaveRole; _w.mqDelRole = mqDelRole; _w.mqPublish = mqPublish; _w.mqInvite = mqInvite; _w.mqSaveMe = mqSaveMe; _w.mqShowMem = mqShowMem; _w.mqClearMem = mqClearMem;
 _w.likeMoment = likeMoment; _w.addComment = addComment; _w.deleteMessage = deleteMessage; _w.openAlbumPicker = openAlbumPicker; _w.startCapture = startCapture;
 _w.fertilizePlant = fertilizePlant; _w.plantMood = plantMood;
 _w.addLedgerQuick = addLedgerQuick;
@@ -149,6 +147,8 @@ _w.renderEmojiPanel = renderEmojiPanel; _w.switchEmojiTab = switchEmojiTab; _w.s
 _w.renderStickerManager = renderStickerManager; _w.openStickerForm = openStickerForm;
 _w.closeStickerForm = closeStickerForm; _w.stickerPickImage = stickerPickImage; _w.saveStickerForm = saveStickerForm;
 _w.deleteSticker = deleteSticker;
+_w.renderWillow = renderWillow; _w.makeWish = makeWish; _w.clearWishToday = clearWishToday;
+_w.currentWillowWish = currentWillowWish; _w.currentWillowRule = currentWillowRule; _w.willowContextText = willowContextText; _w.willowBlocksProactive = willowBlocksProactive; _w.willowBlocksReplyFor = willowBlocksReplyFor; _w.willowParseRule = willowParseRule;
 
 // 离开时保存
 window.addEventListener('beforeunload', saveState);

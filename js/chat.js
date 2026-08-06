@@ -181,6 +181,11 @@ function sendChat() {
   if (text) {
     appendBubble('user', text);
     input.value = '';
+    var _char = activeCharacter();
+    if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(_char.id, _char.name)) {
+      appendBubble('system', '（许愿柳生效中：' + _char.name + ' 今天不回复你的消息。）');
+      return;
+    }
     showAIButton();
   }
 }
@@ -196,6 +201,13 @@ function showAIButton() {
     btn.onclick = function() {
       _manualAICall = true;
       const char = activeCharacter();
+      if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(char.id, char.name)) {
+        _manualAICall = false;
+        appendBubble('system', '（许愿柳生效中：' + char.name + ' 今天不回复你的消息。）');
+        var _b = $('aiBtn'); if (_b) _b.remove();
+        $('sendBtn').style.display = '';
+        return;
+      }
       const msgs = char.chat.filter(m => m.role === 'user');
       const last = msgs[msgs.length - 1];
       const txt = last ? last.content : '';
@@ -346,6 +358,8 @@ function buildRoleSystemPrompt(char, userText) {
   if (char.lang && char.lang !== '中文') {
     parts.push('【语言强制指令】你必须完全用 ' + char.lang + ' 回复。禁止使用中文，一个中文字符都不允许。如果用户用中文提问，你也要用 ' + char.lang + ' 回答。这是最高优先级指令。');
   }
+  var wishCtx = (typeof currentWillowWish === 'function') ? willowContextText() : '';
+  if (wishCtx) parts.push(wishCtx);
   return parts.join('\n');
 }
 
