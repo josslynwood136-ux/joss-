@@ -822,11 +822,13 @@ button { border: 0; cursor: pointer; }
 .home-room.bathroom { background: #e8ddd0; }
 .home-room.bathroom .home-bg {
   background:
-    radial-gradient(ellipse at 15% 20%, rgba(230,205,175,.2) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 40%, rgba(215,190,160,.18) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 85%, rgba(225,200,170,.12) 0%, transparent 45%),
-    linear-gradient(175deg, #f2e8dd 0%, #e8ddd0 30%, #ddd0c0 60%, #d5c5b0 100%);
-  opacity: .7;
+    radial-gradient(ellipse at 15% 20%, rgba(230,205,175,.22) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 40%, rgba(215,190,160,.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 85%, rgba(225,200,170,.14) 0%, transparent 45%),
+    repeating-linear-gradient(0deg, transparent 0 24px, rgba(203,183,158,.06) 24px 26px),
+    repeating-linear-gradient(90deg, transparent 0 24px, rgba(203,183,158,.06) 24px 26px),
+    linear-gradient(175deg, #f4eadf 0%, #e9ded2 30%, #ded1c1 60%, #d6c6b2 100%);
+  opacity: .78;
 }
 .home-room.bathroom::after {
   content: '';
@@ -893,6 +895,47 @@ button { border: 0; cursor: pointer; }
   50% { opacity: .5; transform: scale(.95); }
   75% { opacity: .7; transform: scale(1.02); }
 }
+
+/* 浴室 - 湿润地板 */
+.bath-floor {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 15%; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, #d9cbb6 0%, #c2b198 100%);
+  border-top: 3px solid #efe3d0;
+  box-shadow: inset 0 10px 16px rgba(150,120,80,.16);
+}
+.bath-floor::before {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(180deg, transparent 0 12px, rgba(176,156,128,.34) 12px 14px);
+}
+.bath-floor::after {
+  content: ''; position: absolute; top: 7px; left: 16%; width: 44%; height: 14px; border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.05));
+  filter: blur(2px);
+}
+/* 浴室 - 顶部暖光 */
+.bath-light {
+  position: absolute; top: 0; left: 28%; width: 44%; height: 44%; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,250,220,.2), rgba(255,250,220,.05) 55%, transparent 82%);
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%);
+}
+/* 浴室 - 浴缸常冒的蒸汽 */
+.bath-steam {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.42); pointer-events: none; z-index: 6;
+  animation: steamRise 4.5s ease-out infinite;
+}
+.bath-steam.s1 { left: 58%; bottom: 56%; }
+.bath-steam.s2 { left: 63%; bottom: 59%; animation-delay: 1.3s; }
+.bath-steam.s3 { left: 66%; bottom: 52%; animation-delay: 2.2s; }
+/* 浴室 - 漂浮泡泡 */
+.bath-floatbub {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.75), rgba(200,220,255,.28));
+  border: 1px solid rgba(255,255,255,.38); pointer-events: none; z-index: 6;
+  animation: bubbleFloat 5s ease-in infinite;
+}
+.bath-floatbub.b1 { left: 64%; bottom: 50%; animation-delay: .6s; }
+.bath-floatbub.b2 { left: 70%; bottom: 45%; animation-delay: 2.1s; }
 
 .home-tabs{position:absolute;bottom:20px;left:20px;right:20px;height:46px;background:rgba(255,255,245,.9);backdrop-filter:blur(12px);border-radius:23px;display:flex;justify-content:center;align-items:center;gap:4px;z-index:10;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:0 6px}
 .home-tab{flex:1;text-align:center;padding:6px 8px;font-size:12px;color:#b8a99a;border-radius:16px;cursor:pointer;transition:all .2s;white-space:nowrap}
@@ -1146,6 +1189,159 @@ button { border: 0; cursor: pointer; }
 @keyframes panelSlideUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== 庭院（院子 · 种植养成 · 卡通田园） ===== */
+.home-room.yard { background: linear-gradient(180deg,#a9e3ff 0%,#d9f4ff 46%,#9bd47b 49%,#83c25f 62%,#71b04e 100%); }
+.home-room.yard .home-bg { background: none; }
+.home-room.yard .home-fur { background: none; border: none; align-items: flex-start; }
+.home-room.yard .home-fur::after {
+  content: ''; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%);
+  width: 74%; height: 12px; background: radial-gradient(ellipse, rgba(30,70,30,.32), transparent 70%);
+  border-radius: 50%; pointer-events: none;
+}
+.home-room.yard .home-fur-name {
+  background: none; border: none; color: #fff; text-shadow: 0 1px 0 rgba(40,70,40,.4), 0 2px 8px rgba(30,70,30,.45);
+  font-size: 15px; padding: 0; margin: 0; animation: yardFloat 3.6s ease-in-out infinite;
+}
+.home-room.yard .home-fur:nth-child(3n) .home-fur-name { animation-delay: .9s; }
+.home-room.yard .home-fur:nth-child(3n+1) .home-fur-name { animation-delay: 1.8s; }
+@keyframes yardFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+.yard-sky { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.yard-sun {
+  position: absolute; top: 7%; left: 11%; width: 46px; height: 46px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #fff8d2, #ffe58a 60%, #ffd95e);
+  box-shadow: 0 0 26px 9px rgba(255,228,130,.55);
+}
+.yard-cloud { position: absolute; background: #fff; border-radius: 20px; opacity: .95; box-shadow: 0 3px 8px rgba(80,140,180,.12); }
+.yard-cloud::before, .yard-cloud::after { content: ''; position: absolute; background: #fff; border-radius: 50%; }
+.yard-cloud.c1 { top: 9%; left: 30%; width: 64px; height: 20px; animation: yardCloudA 9s ease-in-out infinite; }
+.yard-cloud.c1::before { width: 26px; height: 26px; top: -12px; left: 10px; }
+.yard-cloud.c1::after { width: 20px; height: 20px; top: -8px; right: 8px; }
+.yard-cloud.c2 { top: 16%; left: 56%; width: 52px; height: 16px; animation: yardCloudA 12s ease-in-out infinite reverse; }
+.yard-cloud.c2::before { width: 22px; height: 22px; top: -10px; left: 8px; }
+.yard-cloud.c2::after { width: 16px; height: 16px; top: -7px; right: 6px; }
+.yard-cloud.c3 { top: 6%; left: 70%; width: 42px; height: 14px; opacity: .85; animation: yardCloudA 8s ease-in-out infinite .5s; }
+.yard-cloud.c3::before { width: 18px; height: 18px; top: -9px; left: 7px; }
+.yard-cloud.c3::after { width: 13px; height: 13px; top: -6px; right: 5px; }
+@keyframes yardCloudA { 0%,100% { transform: translateX(0); } 50% { transform: translateX(9px); } }
+
+.yard-ground {
+  position: absolute; left: 0; right: 0; top: 50%; bottom: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg,#a8d986 0%,#8ac667 24%,#70b750 58%,#609f43 100%);
+  clip-path: polygon(0 0, 100% 0, 104% 100%, -4% 100%);
+}
+.yard-path {
+  position: absolute; left: 0; right: 0; top: 50%; bottom: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg,#d3b486 0%,#b8955f 100%);
+  clip-path: polygon(45.5% 0, 54.5% 0, 74% 100%, 26% 100%);
+  box-shadow: inset 0 6px 10px rgba(120,80,30,.18);
+}
+.yard-tree { position: absolute; z-index: 1; pointer-events: none; }
+.yard-tree::before {
+  content: ''; position: absolute; left: 0; top: 0; width: 100%; height: 60%;
+  background: linear-gradient(180deg,#8cd270,#66b04c); border-radius: 50% 50% 48% 48% / 100% 100% 58% 58%;
+}
+.yard-tree::after {
+  content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 16%; height: 46%; background: #8a5f3a; border-radius: 4px;
+}
+.yard-tree.t1 { left: -10px; top: 45%; width: 84px; height: 74px; }
+.yard-tree.t2 { right: -8px; top: 47%; width: 66px; height: 58px; }
+.yard-tree.t2::before { height: 58%; }
+
+.yard-fence {
+  position: absolute; left: 4%; right: 4%; top: 51.4%; height: 3.4%; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(90deg, #fff 0 10px, rgba(255,255,255,0) 10px 14px);
+  border-top: 2px solid rgba(255,255,255,.92);
+  border-bottom: 2px solid rgba(255,255,255,.55);
+  box-shadow: 0 2px 6px rgba(60,120,70,.14);
+}
+
+.yard-grass { position: absolute; z-index: 3; pointer-events: none; opacity: .95; }
+.yard-grass.g1 { left: 3%; bottom: 5%; font-size: 24px; }
+.yard-grass.g2 { right: 5%; bottom: 9%; font-size: 18px; }
+
+.yard-butterfly { position: absolute; z-index: 3; pointer-events: none; font-size: 16px; opacity: .95; animation: yardButterfly 5s ease-in-out infinite; }
+.yard-butterfly.b1 { top: 30%; left: 16%; }
+.yard-butterfly.b2 { top: 38%; right: 18%; animation-delay: 1.3s; }
+@keyframes yardButterfly {
+  0%,100% { transform: translate(0,0) rotate(-8deg); }
+  25% { transform: translate(14px,-20px) rotate(10deg); }
+  50% { transform: translate(-8px,-34px) rotate(-6deg); }
+  75% { transform: translate(12px,-16px) rotate(8deg); }
+}
+
+.yard-plot {
+  position: absolute; display: flex; align-items: flex-end; justify-content: center;
+  transform-origin: 50% 100%; cursor: pointer;
+}
+.yard-soil {
+  position: relative; width: 100%; height: 100%;
+  background: radial-gradient(ellipse at 50% 20%, #d1965f, #a9743f 62%, #8a5a2c);
+  border-radius: 50% 50% 46% 46% / 42% 42% 56% 56%;
+  border: 2px solid #7a4e24;
+  box-shadow: inset 0 -6px 10px rgba(70,42,14,.5), inset 0 4px 8px rgba(255,230,190,.45), 0 4px 8px rgba(30,50,22,.22);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+  transition: transform .15s;
+}
+.yard-plot:hover .yard-soil { transform: scale(1.05); }
+.yard-plot:active .yard-soil { transform: scale(.96); }
+.yard-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: rgba(90,58,26,.65); }
+.yard-plant-hint {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(90,58,26,.22); color: #f3e7c4; font-size: 16px; font-weight: 700; line-height: 1;
+}
+.yard-sprout-wrap { position: relative; text-align: center; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.yard-sprout { font-size: 36px; line-height: 1; transition: transform .5s ease; filter: drop-shadow(0 3px 3px rgba(0,0,0,.3)); }
+.yard-plot-tag {
+  position: absolute; bottom: 8%; left: 50%; transform: translateX(-50%);
+  font-size: 8px; color: #fff5db; background: rgba(90,58,26,.6); border-radius: 6px; padding: 1px 5px; white-space: nowrap;
+}
+.yard-sprout-wrap.ready .yard-sprout { animation: readyBob 1s ease-in-out infinite; }
+@keyframes readyBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+.yard-sprout-wrap.ready .yard-plot-tag { color: #fff3ad; background: rgba(120,90,20,.7); }
+.yard-sprout-wrap.bugged .yard-plot-tag { color: #ffd3b8; }
+.yard-drop {
+  position: absolute; top: 0; width: 6px; height: 9px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: #aee0ff; opacity: 0; animation: yardDrop .8s ease-in forwards; pointer-events: none;
+}
+@keyframes yardDrop {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: .95; }
+  100% { opacity: 0; transform: translateY(46px) scale(.8); }
+}
+.yard-harvest {
+  position: absolute; top: 12px; right: 60px; z-index: 5; cursor: pointer;
+  background: rgba(255,253,246,.88); color: #6a8f4e; border-radius: 20px; padding: 5px 12px;
+  font-size: 13px; border: 1px solid rgba(140,180,110,.5); box-shadow: 0 2px 8px rgba(90,120,70,.22);
+  transition: transform .12s;
+}
+.yard-harvest:active { transform: scale(.92); }
+.yard-pop {
+  position: absolute; left: 50%; top: 36%; transform: translate(-50%,-50%); width: min(86%,300px);
+  background: #fffdf5; border: 2px solid #6a5236; border-radius: 16px; padding: 14px;
+  z-index: 30; box-shadow: 0 10px 30px rgba(20,14,4,.4); animation: panelSlideUp .25s ease-out; text-align: left;
+}
+.yard-pop-title { font-size: 15px; font-weight: 700; color: #4d3a22; margin-bottom: 10px; }
+.yard-pop-status { font-size: 12px; color: #6a5e4e; line-height: 1.6; margin-bottom: 10px; }
+.yard-bar { height: 10px; background: #efe6d4; border-radius: 8px; overflow: hidden; margin-bottom: 10px; border: 1px solid #d9c9a8; }
+.yard-bar-fill { height: 100%; background: linear-gradient(90deg,#8fbf6a,#5f9e3f); border-radius: 8px; transition: width .4s ease; }
+.yard-pop-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.yard-act, .yard-seed-btn {
+  flex: 1; min-width: 84px; border: 1px solid #cbb; background: #f5efe2; color: #5a4a34;
+  border-radius: 10px; padding: 9px 6px; font-size: 12px; cursor: pointer; transition: transform .12s, background .12s;
+}
+.yard-act:active, .yard-seed-btn:active { transform: scale(.95); }
+.yard-act.ready { background: #e9f5d8; border-color: #9cbf6a; }
+.yard-act.warn { background: #fdeee2; border-color: #e0a878; }
+.yard-seed-btn { display: block; width: 100%; margin-bottom: 6px; text-align: left; font-size: 13px; }
+.yard-seed-btn span { float: right; color: #9a8a6a; font-size: 11px; }
+.yard-seed-note { font-size: 10px; color: #a99a7a; line-height: 1.5; margin: 4px 0 8px; }
+.yard-pop-close {
+  display: block; width: 100%; margin-top: 8px; background: none; border: none; color: #9a8a6a;
+  font-size: 12px; cursor: pointer; padding: 6px;
 }
 
 /* ===== 蛋糕游戏动画 ===== */
@@ -2601,7 +2797,7 @@ button { border: 0; cursor: pointer; }
 /* 许愿柳整屏适配：一屏放下，无需下滑 */
 .app-content.willow-fit { overflow:hidden; padding:6px 10px; }
 .app-content.willow-fit .wl-wrap { flex:1; min-height:0; justify-content:center; gap:8px; overflow:hidden; transform:translateY(14px); }
-.app-content.willow-fit .wl-box { width:100%; max-width:330px; padding:12px 14px 10px; }
+.app-content.willow-fit .wl-box { width:min(100%, 300px); padding:12px 14px 10px; box-sizing:border-box; }
 .app-content.willow-fit .wl-starburst { width:56px; height:56px; font-size:8px; }
 .app-content.willow-fit .wl-dots { margin:6px auto 2px; width:132px; height:74px; }
 .app-content.willow-fit .wl-stick { width:104px; height:66px; }
@@ -2612,7 +2808,7 @@ button { border: 0; cursor: pointer; }
 .app-content.willow-fit .wl-arch { font-size:9px; }
 .app-content.willow-fit .wl-fine { margin-top:5px; font-size:7px; line-height:1.5; letter-spacing:.6px; }
 .app-content.willow-fit .wl-stamp { margin-top:4px; padding:2px 7px; font-size:8px; }
-.app-content.willow-fit .wl-body { padding:10px; border-radius:14px; }
+.app-content.willow-fit .wl-body { padding:10px; border-radius:14px; width:min(100%, 300px); box-sizing:border-box; }
 .app-content.willow-fit .wl-body textarea { min-height:60px; font-size:13px; }
 .app-content.willow-fit .wl-body .label2 { margin-bottom:6px; }
 .app-content.willow-fit .wl-hint { font-size:10px; margin-top:6px; line-height:1.5; }

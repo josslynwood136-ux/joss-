@@ -939,6 +939,215 @@ function delHabit(id) {
 }
 
 // ---------- 家园 ----------
+// ---------- 家园 · 院子（种植养成） ----------
+const YARD_CROPS = {
+  radish:  { name: '樱桃萝卜', icon: '🥕', sec: 40,  min: '约40秒' },
+  tomato:  { name: '番茄',     icon: '🍅', sec: 110, min: '约2分钟' },
+  pumpkin: { name: '南瓜',     icon: '🎃', sec: 240, min: '约4分钟' }
+};
+const YARD_DEFAULT = {
+  name: '庭院',
+  bg: '',
+  person: 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg',
+  personPos: { x: 50, y: 88 },
+  furniture: [
+    { id: 'fur-swing', name: '🌳 秋千', img: '', x: 2, y: 44, w: 22, h: 24, actions: [
+      { label: '坐上去', result: '小人坐到秋千上，脚尖点着地面，慢慢地荡了起来。' },
+      { label: '把它推高', result: '小人把秋千荡得老高，笑声顺着风传开。🎈' },
+      { label: '躺着看云', result: '小人躺在秋千上，看着云朵慢慢挪窝。☁️' }
+    ]},
+    { id: 'fur-pond', name: '🪷 水池', img: '', x: 34, y: 60, w: 14, h: 14, actions: [
+      { label: '捞月亮', result: '小人伸手去捞池里的月亮倒影，涟漪一圈圈荡开，月亮碎成了光点。🌙' },
+      { label: '丢石子', result: '扑通——石子沉底，水花溅起来打湿了裤脚。' },
+      { label: '喂锦鲤', result: '几条锦鲤围过来，嘴巴一张一合地讨吃的。🐟' }
+    ]},
+    { id: 'fur-well', name: '⚓ 水井', img: '', x: 72, y: 44, w: 12, h: 16, actions: [
+      { label: '打桶水', result: '吱呀——轱辘摇上来一桶清亮亮的井水，凉丝丝的。💧' },
+      { label: '朝井里喊', result: '小人对着井口大喊：「喂——」井里传回一声「喂——」，拖得很长。' }
+    ]}
+  ],
+  plots: [null, null, null, null],
+  seeds: { radish: 5, tomato: 4, pumpkin: 2 },
+  harvest: { radish: 0, tomato: 0, pumpkin: 0 }
+};
+
+function yardState() {
+  var h = state.home;
+  if (!h) return null;
+  if (!h.rooms) h.rooms = {};
+  if (!h.rooms.yard) h.rooms.yard = JSON.parse(JSON.stringify(YARD_DEFAULT));
+  h.rooms.yard.bg = '';
+  return h.rooms.yard;
+}
+
+function yardProgress(p) {
+  var crop = YARD_CROPS[p.k]; if (!crop) return { progress: 0, bugged: false, matured: false, boosted: false };
+  var now = Date.now();
+  var boosted = !!p.w && (now - p.w) < 90000;
+  var speed = boosted ? 3 : 1;
+  var elapsedSec = ((now - p.t) / 1000) * speed;
+  var progress = Math.min(1, elapsedSec / crop.sec);
+  if (!p.bugged && !p._bugChecked) {
+    p._bugChecked = true;
+    if (progress >= 0.45 && Math.random() < 0.35) { p.bugged = true; saveState(); }
+  }
+  var matured = !p.bugged && progress >= 1;
+  return { progress: matured ? 1 : progress, bugged: !!p.bugged, matured: matured, boosted: boosted };
+}
+
+function renderYardPlots(room) {
+  var plots = room.plots || [];
+  var spots = [
+    { l: 20, t: 58, w: 14, s: 0.74 },
+    { l: 54, t: 56, w: 13, s: 0.7 },
+    { l: 6,  t: 70, w: 18, s: 1.06 },
+    { l: 62, t: 72, w: 19, s: 1.12 }
+  ];
+  var out = '';
+  out += '<div class="yard-sky">';
+  out += '<span class="yard-sun"></span>';
+  out += '<span class="yard-cloud c1"></span><span class="yard-cloud c2"></span><span class="yard-cloud c3"></span>';
+  out += '</div>';
+  out += '<div class="yard-ground"></div>';
+  out += '<div class="yard-path"></div>';
+  out += '<div class="yard-fence"></div>';
+  out += '<div class="yard-tree t1"></div><div class="yard-tree t2"></div>';
+  out += '<span class="yard-butterfly b1">🦋</span><span class="yard-butterfly b2">🦋</span>';
+  out += '<span class="yard-grass g1">🌿</span><span class="yard-grass g2">🌿</span>';
+  plots.forEach(function (p, idx) {
+    var sp = spots[idx] || spots[0];
+    out += '<div class="yard-plot" data-idx="' + idx + '" style="left:' + sp.l + '%;top:' + sp.t + '%;width:' + sp.w + '%;height:' + (sp.w * 0.92).toFixed(1) + '%;transform:scale(' + sp.s + ')">' +
+      '<div class="yard-soil">' + renderPlotInner(p) + '</div></div>';
+  });
+  out += '<div class="yard-harvest" onclick="openYardHarvest()">🧺 <b>' + yardHarvestTotal(room) + '</b></div>';
+  return out;
+}
+
+function renderPlotInner(p) {
+  if (!p) return '<div class="yard-empty"><span class="yard-plant-hint">＋</span><span class="yard-plot-tag">空地</span></div>';
+  var info = yardProgress(p);
+  var icon = YARD_CROPS[p.k].icon;
+  var scale = 0.45 + info.progress * 0.75;
+  var label = info.matured ? '熟了' : (info.bugged ? '有虫' : Math.round(info.progress * 100) + '%');
+  var cls = info.matured ? ' ready' : (info.bugged ? ' bugged' : '');
+  return '<div class="yard-sprout-wrap' + cls + '"><div class="yard-sprout" style="transform:scale(' + scale.toFixed(2) + ')">' + icon + '</div><span class="yard-plot-tag">' + label + '</span></div>';
+}
+
+function yardHarvestTotal(room) {
+  var hv = room.harvest || {};
+  return Object.keys(hv).reduce(function (s, k) { return s + (hv[k] || 0); }, 0);
+}
+
+function homeLog(msg) {
+  var h = state.home;
+  h.logs = h.logs || [];
+  h.logs.unshift(new Date().toLocaleString() + ' · ' + msg);
+  if (h.logs.length > 50) h.logs.length = 50;
+  saveState();
+}
+
+function openYardPlot(i) {
+  var yd = yardState(); if (!yd) return;
+  var pop = $('yardPop'); if (!pop) return;
+  var plot = yd.plots[i];
+  var html = '';
+  if (!plot) {
+    html = '<div class="yard-pop-title">🌱 种点什么？</div>';
+    Object.keys(YARD_CROPS).forEach(function (k) {
+      var c = YARD_CROPS[k];
+      var n = yd.seeds[k] || 0;
+      html += '<button class="yard-seed-btn" onclick="yardPlant(' + i + ',\'' + k + '\')">' + c.icon + ' ' + c.name + ' <span>' + c.min + (n > 0 ? ' ×' + n : ' · 售罄') + '</span></button>';
+    });
+    html += '<div class="yard-seed-note">一块地只能种一株，成熟收完才能腾地再种。</div>';
+  } else {
+    var info = yardProgress(plot);
+    var c = YARD_CROPS[plot.k];
+    var pct = Math.round(info.progress * 100);
+    html = '<div class="yard-pop-title">' + c.icon + ' ' + c.name + '</div>';
+    html += '<div class="yard-bar"><div class="yard-bar-fill" style="width:' + pct + '%"></div></div>';
+    var status = [];
+    if (info.matured) status.push('🎉 熟了，可以收！');
+    if (info.bugged) status.push('🐛 有虫在啃，长得慢了');
+    if (info.boosted) status.push('💦 刚浇过水，长得飞快');
+    if (!info.matured && !info.bugged) status.push('⏳ 正在慢慢长大…');
+    html += '<div class="yard-pop-status">' + (status.join('　') || '…') + '</div>';
+    html += '<div class="yard-pop-actions">';
+    if (!info.matured && !info.bugged) html += '<button class="yard-act" onclick="yardWater(' + i + ')">💦 浇水</button>';
+    if (info.bugged) html += '<button class="yard-act warn" onclick="yardBug(' + i + ')">🪲 除虫</button>';
+    if (info.matured) html += '<button class="yard-act ready" onclick="yardHarvest(' + i + ')">🧺 收获</button>';
+    html += '</div>';
+  }
+  html += '<button class="yard-pop-close" onclick="closeYardPop()">收起</button>';
+  pop.innerHTML = html;
+  pop.style.display = 'block';
+}
+
+function closeYardPop() { var p = $('yardPop'); if (p) p.style.display = 'none'; }
+
+function openYardHarvest() {
+  var yd = yardState(); if (!yd) return;
+  var hv = yd.harvest || {};
+  var lines = Object.keys(YARD_CROPS).map(function (k) {
+    return YARD_CROPS[k].icon + ' ' + YARD_CROPS[k].name + ' ×' + (hv[k] || 0);
+  }).join('<br>');
+  var pop = $('yardPop');
+  if (!pop) return;
+  pop.innerHTML = '<div class="yard-pop-title">🧺 收成</div><div class="yard-pop-status">' + lines + '</div><button class="yard-pop-close" onclick="closeYardPop()">收起</button>';
+  pop.style.display = 'block';
+}
+
+function yardPlant(i, k) {
+  var yd = yardState(); if (!yd || yd.plots[i]) return;
+  if ((yd.seeds[k] || 0) <= 0) { closeYardPop(); return; }
+  yd.seeds[k]--;
+  yd.plots[i] = { k: k, t: Date.now(), w: null, bugged: false };
+  homeLog('在庭院里种下了' + YARD_CROPS[k].name);
+  closeYardPop();
+  renderHome();
+}
+
+function yardWater(i) {
+  var yd = yardState(); var p = yd.plots[i]; if (!p) return;
+  p.w = Date.now();
+  homeLog('给' + YARD_CROPS[p.k].name + '浇了水');
+  yardSplash(i);
+  saveState();
+  setTimeout(function () { renderHome(); }, 300);
+}
+
+function yardSplash(i) {
+  var el = document.querySelector('.yard-plot[data-idx="' + i + '"]');
+  if (!el) return;
+  for (var s = 0; s < 6; s++) {
+    var d = document.createElement('span');
+    d.className = 'yard-drop';
+    d.style.left = (30 + Math.random() * 40) + '%';
+    d.style.animationDelay = (Math.random() * 0.3) + 's';
+    el.appendChild(d);
+    setTimeout(function (e) { e.remove(); }, 900, d);
+  }
+}
+
+function yardBug(i) {
+  var yd = yardState(); var p = yd.plots[i]; if (!p) return;
+  p.bugged = false;
+  homeLog('除掉了' + YARD_CROPS[p.k].name + '上的虫子');
+  saveState();
+  renderHome();
+}
+
+function yardHarvest(i) {
+  var yd = yardState(); var p = yd.plots[i]; if (!p) return;
+  var info = yardProgress(p); if (!info.matured) return;
+  yd.harvest = yd.harvest || {};
+  yd.harvest[p.k] = (yd.harvest[p.k] || 0) + 1;
+  var name = YARD_CROPS[p.k].name;
+  yd.plots[i] = null;
+  homeLog('收获了一个' + name);
+  saveState();
+  renderHome();
+}
+
 function renderHome() {
   const mc = c();
   if (mc) { mc.style.padding = '0'; mc.style.height = '100%'; mc.style.overflow = 'hidden'; }
@@ -950,6 +1159,9 @@ function renderHome() {
   var activeId = h.activeRoom || 'living';
   var room = h.rooms[activeId];
   if (!room) { activeId = 'living'; room = h.rooms.living; h.activeRoom = 'living'; saveState(); }
+  var yd = yardState();
+  var plotHtml = (activeId === 'yard' && yd) ? renderYardPlots(yd) : '';
+  var bathHtml = (activeId === 'bathroom') ? '<div class="bath-floor"></div><div class="bath-light"></div><span class="bath-steam s1"></span><span class="bath-steam s2"></span><span class="bath-steam s3"></span><span class="bath-floatbub b1"></span><span class="bath-floatbub b2"></span>' : '';
   var furHtml = (room.furniture || []).map(f => `
     <div class="home-fur" data-fid="${f.id}" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;background-image:${f.img ? `url('${escapeHTML(f.img)}')` : 'none'}">
       <span class="home-fur-name">${escapeHTML(f.name)}</span>
@@ -960,13 +1172,16 @@ function renderHome() {
   }).join('');
   c().innerHTML = `
     <div class="stack" style="height:100%;margin:0;padding:0;position:relative">
-      <div class="home-room${activeId === 'bathroom' ? ' bathroom' : ''}">
+      <div class="home-room${activeId === 'bathroom' ? ' bathroom' : ''}${activeId === 'yard' ? ' yard' : ''}">
         <div class="home-bg"${room.bg ? ` style="background-image:url('${escapeHTML(room.bg)}')"` : ''}></div>
         <div class="home-exit" onclick="closeApp()" title="退出">✕</div>
         <div class="home-log-btn" onclick="toggleHomeLog()" title="查看记录">📜</div>
+        ${bathHtml}
+        ${plotHtml}
         ${furHtml}
         <div id="homePerson" class="home-person" style="left:${room.personPos.x}%;top:${room.personPos.y}%;background-image:url('${escapeHTML(room.person || DEFAULT_PERSON)}')"></div>
         <div id="homeEffects" style="position:absolute;inset:0;pointer-events:none;z-index:6"></div>
+        <div id="yardPop" class="yard-pop" style="display:none"></div>
         <div id="homePanel" class="home-panel" style="display:none">
           <div class="home-panel-head"><b id="homePanelTitle"></b><span onclick="closeHomePanel()" style="cursor:pointer;color:#9aa3af">✕</span></div>
           <div id="homePanelActions" class="home-panel-actions"></div>
@@ -987,7 +1202,10 @@ function renderHome() {
       if (bubEl) { doFurnitureAction(bubEl.dataset.fid, parseInt(bubEl.dataset.idx)); return; }
       const furEl = ev.target.closest('.home-fur');
       if (furEl) { const fid = furEl.dataset.fid; if (fid) { openFurniture(fid); return; } }
+      const plotEl = ev.target.closest('.yard-plot');
+      if (plotEl) { openYardPlot(parseInt(plotEl.dataset.idx)); return; }
       if (ev.target === roomEl || ev.target.classList.contains('home-bg')) {
+        closeYardPop();
         const box = roomEl.querySelector('.tv-watch-box');
         if (box) box.remove();
         var bubbles = document.querySelectorAll('.bath-bubble');
