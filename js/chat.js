@@ -3,6 +3,7 @@
 // ============================================================
 let chatTyping = false;
 let pendingReply = false;
+let pendingQuote = null;
 let activeAbort = null;
 let noteTimer = null;
 let _manualAICall = false;
@@ -110,11 +111,12 @@ function renderChat() {
     if (!isUser && msg.translatedText) {
       transHtml = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.06)">' + escapeHTML(msg.translatedText) + '</div>';
     }
+    const quoteHtml = quoteBlock(msg.quote);
     const msgDate = msg.time ? msg.time.slice(0, 10) : '';
     const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
     lastDate = msgDate || lastDate;
     const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}', ${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
+    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="return false;" ontouchstart="quotePress(event,this,${i})" onmousedown="quotePress(event,this,${i})" onclick="clearQuotePress()"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
   }).join('') + typing;
   $('chatBody').scrollTop = $('chatBody').scrollHeight;
   applyBubbleStyle();
@@ -128,6 +130,78 @@ function deleteMessage(charId, index) {
   renderChat();
 }
 
+function quoteMessage(index) {
+  const char = activeCharacter();
+  const msg = char.chat[index];
+  if (!msg || msg.role === 'system') return;
+  pendingQuote = { index, role: msg.role, content: msg.content || '' };
+  renderReplyBar();
+}
+
+function clearQuote() {
+  pendingQuote = null;
+  renderReplyBar();
+}
+
+function renderReplyBar() {
+  const bar = $('replyBar');
+  if (!bar) return;
+  if (!pendingQuote) { bar.style.display = 'none'; return; }
+  const char = activeCharacter();
+  const prof = activeProfile();
+  const isUser = pendingQuote.role === 'user';
+  $('replyBarName').innerText = isUser ? prof.name : char.name;
+  const src = pendingQuote.content || (pendingQuote.media ? '[图片]' : '');
+  $('replyBarText').innerText = src.length > 40 ? src.slice(0, 40) + '…' : src;
+  bar.style.display = 'flex';
+  $('chatInput').focus();
+}
+
+function quoteBlock(quote) {
+  if (!quote) return '';
+  const name = quote.name || '';
+  const text = quote.content || '';
+  return `<div class="quote-block"><div class="quote-body"><div class="quote-name">${escapeHTML(name)}</div><div class="quote-text">${escapeHTML(text)}</div></div></div>`;
+}
+
+let _quotePressTimer = null;
+let _quotePressIndex = -1;
+function quotePress(ev, el, index) {
+  if (ev.type === 'touchstart' && ev.cancelable) ev.preventDefault();
+  _quotePressIndex = index;
+  clearTimeout(_quotePressTimer);
+  _quotePressTimer = setTimeout(function() { showQuoteMenu(index); }, 420);
+}
+function clearQuotePress() {
+  clearTimeout(_quotePressTimer);
+}
+function showQuoteMenu(index) {
+  clearQuotePress();
+  const char = activeCharacter();
+  const msg = char.chat[index];
+  if (!msg || msg.role === 'system') return;
+  const prof = activeProfile();
+  const el = $('quoteMenu');
+  if (!el) return;
+  const isUser = msg.role === 'user';
+  const name = isUser ? prof.name : char.name;
+  const text = (msg.content || (msg.media ? '[图片]' : '')).slice(0, 60);
+  el.querySelector('.q-cut-txt').textContent = name + '：' + text;
+  el.querySelector('.q-reply').onclick = function() { hideQuoteMenu(); quoteMessage(index); };
+  el.querySelector('.q-del').onclick = function() { hideQuoteMenu(); deleteMessage(char.id, index); };
+  el.style.display = 'block';
+  setTimeout(function() { el.classList.add('show'); }, 10);
+}
+function hideQuoteMenu() {
+  const el = $('quoteMenu');
+  if (el) { el.classList.remove('show'); el.style.display = 'none'; }
+  clearQuotePress();
+}
+document.addEventListener('click', function(e) {
+  const el = $('quoteMenu');
+  if (el && !el.contains(e.target)) hideQuoteMenu();
+});
+
 function setChatTyping(value) {
   chatTyping = value;
   if (value) {
@@ -137,11 +211,12 @@ function setChatTyping(value) {
   renderChat();
 }
 
-function appendBubble(role, content, media, translatedText, msgType) {
-  const msg = { role, content: content || '', time: new Date().toLocaleString() };
+function appendBubble(role, content, media, translatedText, msgType, quote) {
+  const msg = { role, content: content || '', time: new Date().toLocaleString(), ts: Date.now() };
   if (media) msg.media = media;
   if (translatedText) msg.translatedText = translatedText;
   if (msgType) msg.type = msgType;
+  if (quote) msg.quote = quote;
   activeCharacter().chat.push(msg);
   if (role === 'assistant') {
     const char = activeCharacter();
@@ -179,7 +254,22 @@ function sendChat() {
   }
   hidePanels();
   if (text) {
-    appendBubble('user', text);
+    const char = activeCharacter();
+    const prof = activeProfile();
+    let quoteData = null;
+    if (pendingQuote) {
+      const qmsg = char.chat[pendingQuote.index];
+      if (qmsg) {
+        quoteData = {
+          name: (pendingQuote.role === 'user' ? prof.name : char.name),
+          role: qmsg.role,
+          content: qmsg.content || ''
+        };
+      }
+      pendingQuote = null;
+      renderReplyBar();
+    }
+    appendBubble('user', text, null, null, null, quoteData);
     input.value = '';
     var _char = activeCharacter();
     if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(_char.id, _char.name)) {
@@ -187,6 +277,22 @@ function sendChat() {
       return;
     }
     showAIButton();
+  } else {
+    const char = activeCharacter();
+    if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(char.id, char.name)) {
+      appendBubble('system', '（许愿柳生效中：' + char.name + ' 今天不回复你的消息。）');
+      return;
+    }
+    _manualAICall = true;
+    setChatTyping(true);
+    callAI('', false, true).then(function(reply) {
+      setChatTyping(false);
+      appendBubble('assistant', reply || '我在。');
+    }).catch(function(err) {
+      if (err.name === 'AbortError') { setChatTyping(false); return; }
+      setChatTyping(false);
+      appendBubble('system', '暂时没回应（' + err.message + '）');
+    });
   }
 }
 
@@ -249,7 +355,13 @@ async function callAI(text, shortTest = false, proactive = false) {
   _manualAICall = false;
   const char = activeCharacter();
   const systemPrompt = shortTest ? state.api.preset || '你是以下角色' : buildRoleSystemPrompt(char, text);
-  const history = shortTest ? [] : char.chat.slice(-(char.contextLen || 12)).filter(m => m.role !== 'system').map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content || (m.media ? '[' + m.media.type + ']' : '') }));
+  const history = shortTest ? [] : char.chat.slice(-(char.contextLen || 12)).filter(m => m.role !== 'system').map(function(m) {
+    let content = m.content || (m.media ? '[' + m.media.type + ']' : '');
+    if (m.quote && m.quote.content) {
+      content = '（你正在回复上面这条 —— 用户引用了「' + m.quote.name + '」说的：「' + m.quote.content + '」，你这次要针对这段引用内容回应）\n' + content;
+    }
+    return { role: m.role === 'assistant' ? 'assistant' : 'user', content: content };
+  });
   var langHint = '';
   if (char.lang && char.lang !== '中文') {
     langHint = '\n\n[语言指令] 你必须用 ' + char.lang + ' 回复，禁止使用中文。';
@@ -279,7 +391,7 @@ async function callAI(text, shortTest = false, proactive = false) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error?.message || response.status);
-    var content = data.choices?.[0]?.message?.content?.trim() || '我在。';
+    var content = data.choices?.[0]?.message?.content?.trim() || '⚠️ 回复失败';
     if (char.mode === 'online') {
       content = content.replace(/（[^（）]*）|\([^()]*\)/g, '').replace(/\s+/g, ' ').trim();
     }
@@ -292,34 +404,89 @@ async function callAI(text, shortTest = false, proactive = false) {
 
 async function translateText(text) {
   if (!text) return null;
-  var ap = state.apiProfiles && state.activeApiProfile
-    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
-  var cfg = ap || state.api;
-  var ctrl = new AbortController();
-  var tmr = setTimeout(function() { ctrl.abort(); }, 15000);
+  // 免费源优先：Google 翻译 → MyMemory → 失败则不翻译，不消耗 AI token
   try {
-    var res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: [
-          { role: 'system', content: '只翻译，不要解释。' },
-          { role: 'user', content: '翻译成中文：' + text }
-        ],
-        max_tokens: 300,
-        temperature: 0.3
-      })
-    });
-    var data = await res.json().catch(function() { return {}; });
+    var g = await googleTranslate(text);
+    if (g) return g;
+  } catch (e) {}
+  try {
+    var m = await mymemoryTranslate(text);
+    if (m) return m;
+  } catch (e) {}
+  return null;
+}
+
+async function googleTranslate(text) {
+  var ctrl = new AbortController();
+  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 8000);
+  try {
+    var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text.slice(0, 1000));
+    var res = await aiRequest(url, { method: 'GET', signal: ctrl.signal });
     if (!res.ok) return null;
-    return data.choices?.[0]?.message?.content?.trim() || null;
+    var data = await res.json().catch(function() { return null; });
+    if (!Array.isArray(data) || !Array.isArray(data[0])) return null;
+    var out = '';
+    for (var i = 0; i < data[0].length; i++) {
+      if (data[0][i] && data[0][i][0]) out += data[0][i][0];
+    }
+    return out.trim() || null;
   } catch (e) {
     return null;
   } finally {
     clearTimeout(tmr);
   }
+}
+
+async function mymemoryTranslate(text) {
+  var ctrl = new AbortController();
+  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 8000);
+  try {
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 500)) + '&langpair=auto|zh-CN';
+    var res = await aiRequest(url, { method: 'GET', signal: ctrl.signal });
+    if (!res.ok) return null;
+    var data = await res.json().catch(function() { return null; });
+    var out = data && data.responseData && data.responseData.translatedText;
+    if (!out) return null;
+    return String(out).trim() || null;
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(tmr);
+  }
+}
+
+function zonedTimeText(zone) {
+  try {
+    const parts = new Intl.DateTimeFormat('zh-CN', {
+      timeZone: zone || undefined,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      weekday: 'long', hour: '2-digit', minute: '2-digit'
+    }).formatToParts(new Date());
+    const get = function (t) { const p = parts.find(function (x) { return x.type === t; }); return p ? p.value : ''; };
+    return get('year') + '-' + get('month') + '-' + get('day') +
+      ' ' + get('weekday') + ' ' + get('hour') + ':' + get('minute');
+  } catch (e) { return ''; }
+}
+
+function timeAgoText(char) {
+  const chat = char.chat || [];
+  var lastUser = null;
+  for (var i = chat.length - 1; i >= 0; i--) {
+    if (chat[i].role === 'user') { lastUser = chat[i]; break; }
+  }
+  if (!lastUser) return '';
+  var ms = (lastUser.ts || Date.parse(lastUser.time || ''));
+  if (!ms || isNaN(ms)) return '';
+  var diff = Date.now() - ms;
+  if (diff < 0) diff = 0;
+  var min = Math.floor(diff / 60000);
+  if (min < 1) return '刚刚';
+  if (min < 60) return min + ' 分钟前';
+  var hr = Math.floor(min / 60);
+  if (hr < 24) return hr + ' 小时前';
+  var day = Math.floor(hr / 24);
+  var rem = hr % 24;
+  return (day + ' 天 ' + rem + ' 小时前');
 }
 
 function buildRoleSystemPrompt(char, userText) {
@@ -357,6 +524,20 @@ function buildRoleSystemPrompt(char, userText) {
   }
   if (char.lang && char.lang !== '中文') {
     parts.push('【语言强制指令】你必须完全用 ' + char.lang + ' 回复。禁止使用中文，一个中文字符都不允许。如果用户用中文提问，你也要用 ' + char.lang + ' 回答。这是最高优先级指令。');
+  }
+  if (char.timeAware === true) {
+    var ago = timeAgoText(char);
+    var charT = zonedTimeText(char.charZone);
+    var line = '【时间感知】';
+    if (ago) {
+      line += '距离对方（用户）上次联系你，已经过去了' + ago + '。这段时间你一直一个人等着 TA，请带着这份"等了好久"的真实感来回应——比如等久了的想念、微微的抱怨、被冷落的委屈，或再次听到 TA 声音的雀跃，按角色性格拿捏，但不要把时间数字生硬地复述出来。';
+    } else {
+      line += '对方（用户）刚刚给你发了消息，是正在和你聊天的状态。';
+    }
+    if (charT) {
+      line += ' 现在是你那边的当地时间' + charT + '，可以结合当下是白天还是深夜、星期几来自然展开（如深夜容易困、周末想约见面等）。';
+    }
+    parts.push(line);
   }
   var wishCtx = (typeof currentWillowWish === 'function') ? willowContextText() : '';
   if (wishCtx) {
@@ -405,6 +586,12 @@ function openSettings() {
     if (amLenSel) amLenSel.value = String(char.autoMemLen || 8);
     var amEverySel = $('autoMemEverySelect');
     if (amEverySel) amEverySel.value = String(char.autoMemEvery || 1);
+    var taSwitch = $('timeAwareSwitch');
+    if (taSwitch) taSwitch.classList.toggle('on', char.timeAware === true);
+    var myZs = $('myZoneSelect');
+    if (myZs) myZs.value = char.myZone || '';
+    var czs = $('charZoneSelect');
+    if (czs) czs.value = char.charZone || '';
   }
   applyBubbleStyle();
   renderSettingsMemories();
@@ -597,6 +784,26 @@ function setChatMode(val) {
   var char = activeCharacter();
   if (!char) return;
   char.mode = val === 'online' ? 'online' : 'offline';
+  saveState();
+}
+function toggleTimeAware() {
+  var char = activeCharacter();
+  if (!char) return;
+  char.timeAware = !char.timeAware;
+  saveState();
+  $('timeAwareSwitch').classList.toggle('on', char.timeAware);
+  if (char.timeAware && !$('myZoneSelect').value) $('myZoneSelect').value = 'Asia/Shanghai';
+}
+function setMyZone(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  char.myZone = val || '';
+  saveState();
+}
+function setCharZone(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  char.charZone = val || '';
   saveState();
 }
 function setContextLen(val) {

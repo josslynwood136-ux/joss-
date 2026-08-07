@@ -151,6 +151,15 @@ function renderApiSettings() {
   h += '<button class="primary-btn" onclick="saveApiConfig()" style="justify-content:center">保存配置</button></div>';
   h += '<div id="apiTestResult" style="font-size:12px;min-height:16px;color:#b8a99a"></div></div>';
 
+  // 转发代理（GitHub Pages 等纯静态托管时用于规避跨域）
+  h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
+  h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">转发代理（跨域）</div>';
+  h += '<div style="font-size:11px;color:#b8a99a;line-height:1.5">GitHub Pages 等纯静态托管没有 /relay 后端，AI 请求会被浏览器跨域拦截。把本项目 <b>sever/</b> 部署到免费的 Node 托管（Render / Railway / Glitch 等），把得到的网址填在这里，所有 AI 与翻译请求就会走它转发，规避跨域。</div>';
+  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">转发代理地址</div><input class="field" id="relayUrlInput" placeholder="https://你的代理域名" value="' + escapeHTML(state.settings && state.settings.relayUrl || '') + '"></div>';
+  h += '<button class="ghost-btn" onclick="saveRelayUrl()" style="justify-content:center">保存代理地址</button>';
+  h += '<div style="font-size:11px;color:#c0b0a0">填了之后会自动检测 ' + (relayBase() || 'https://代理域名') + '/relay-probe 是否可用；留空则走默认（有 /relay 的站点用同源，纯静态则直连）。</div>';
+  h += '</div>';
+
   h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
   h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">数据</div>';
   h += '<div style="font-size:11px;color:#b8a99a">导出备份包含全部角色、聊天记录和 API 配置</div>';
@@ -205,6 +214,17 @@ function saveApiConfig() {
   saveState();
   var btn = $('saveApiBtn');
   if (btn) { btn.innerText = '已保存 ✓'; setTimeout(function() { btn.innerText = '保存配置'; }, 1500); }
+  renderApiSettings();
+}
+
+function saveRelayUrl() {
+  var v = $('relayUrlInput').value.trim();
+  if (v && !/^https?:\/\//i.test(v)) { alert('请输入完整的 http(s) 地址，例如 https://xxxx.onrender.com'); return; }
+  if (!state.settings) state.settings = {};
+  state.settings.relayUrl = v;
+  __relayProbe = null;
+  saveState();
+  alert(v ? '代理地址已保存：' + v : '已清空代理地址');
   renderApiSettings();
 }
 

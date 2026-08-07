@@ -30,7 +30,10 @@ const defaultState = {
       pinned: false,
       online: true,
       lang: '中文',
-      translate: false
+      translate: false,
+      timeAware: false,
+      myZone: '',
+      charZone: ''
     }
   ],
   moments: [],
@@ -211,7 +214,10 @@ function ensureStateShape(next, saved) {
     autoMem: role.autoMem !== false,
     autoMemLen: parseInt(role.autoMemLen) > 1 ? parseInt(role.autoMemLen) : 8,
     autoMemEvery: parseInt(role.autoMemEvery) > 0 ? parseInt(role.autoMemEvery) : 1,
-    memPending: parseInt(role.memPending) || 0
+    memPending: parseInt(role.memPending) || 0,
+    timeAware: role.timeAware === true,
+    myZone: role.myZone || '',
+    charZone: role.charZone || ''
   }));
   if (!next.activeRoleId || !next.roles.some(role => role.id === next.activeRoleId)) {
     next.activeRoleId = next.roles[0].id;
@@ -342,6 +348,8 @@ function ensureStateShape(next, saved) {
   next.willow.date = typeof next.willow.date === 'string' ? next.willow.date : '';
   next.willow.text = typeof next.willow.text === 'string' ? next.willow.text : '';
   next.willow.rule = typeof next.willow.rule === 'string' ? next.willow.rule : '';
+  next.settings = Object.assign({ ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop' }, next.settings || {});
+  next.settings.relayUrl = typeof next.settings.relayUrl === 'string' ? next.settings.relayUrl : '';
   return next;
 }
 
@@ -461,28 +469,38 @@ function joinUrl(base, path) {
   return base.replace(/\/+$/, '') + '/' + path.replace(/^\/+/, '');
 }
 
-// AI 请求：优先走同源 /relay 转发访客填的网址（规避跨域）；若本站没有转发（纯静态托管）则直连
+// AI 请求：优先走同源 /relay 转发访客填的网址（规避跨域）；若本站没有转发（纯静态托管如 GitHub Pages）则直连。
+// 可在设置里填一个外置转发代理地址（把本项目 sever/ 部署到免费 Node 托管得到），填了之后所有请求走该代理。
 var __relayProbe = null;
+function relayBase() {
+  var r = (state.settings && state.settings.relayUrl) ? String(state.settings.relayUrl).trim() : '';
+  return r ? r.replace(/\/+$/, '') : '';
+}
 function relayAvailable() {
   if (__relayProbe !== null) return Promise.resolve(__relayProbe);
   if ((typeof location === 'undefined') || location.protocol === 'file:') {
-    __relayProbe = false;
-    return Promise.resolve(false);
+    if (!relayBase()) {
+      __relayProbe = false;
+      return Promise.resolve(false);
+    }
   }
-  __relayProbe = fetch('/relay-probe', { method: 'HEAD' })
+  var base = relayBase();
+  var probeUrl = base ? (base + '/relay-probe') : '/relay-probe';
+  __relayProbe = fetch(probeUrl, { method: 'HEAD' })
     .then(function (r) { return r.ok || r.status === 204; })
     .catch(function () { return false; });
   return __relayProbe;
 }
 async function aiRequest(target, opts) {
   const served = (typeof location !== 'undefined') && location.protocol !== 'file:';
-  if (served && /^https?:\/\//i.test(target)) {
+  if (/^https?:\/\//i.test(target)) {
     if (await relayAvailable()) {
       opts = Object.assign({}, opts);
       opts.headers = Object.assign({}, opts.headers || {});
       opts.headers['x-relay-target'] = target;
       opts.headers['x-relay-method'] = String(opts.method || 'GET').toUpperCase();
-      return fetch('/relay', opts);
+      var base = relayBase() || '';
+      return fetch((base || '') + '/relay', opts);
     }
   }
   return fetch(target, opts);
