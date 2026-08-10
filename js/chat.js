@@ -276,7 +276,6 @@ function sendChat() {
       appendBubble('system', '（许愿柳生效中：' + _char.name + ' 今天不回复你的消息。）');
       return;
     }
-    showAIButton();
   } else {
     const char = activeCharacter();
     if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(char.id, char.name)) {
@@ -287,65 +286,17 @@ function sendChat() {
     setChatTyping(true);
     callAI('', false, true).then(function(reply) {
       setChatTyping(false);
-      appendBubble('assistant', reply || '我在。');
+      const txt = reply || '我在。';
+      const _c = activeCharacter();
+      const chat = _c.chat;
+      appendBubble('assistant', txt);
+      if (typeof translateAfter === 'function') translateAfter(_c, chat[chat.length - 1], txt);
     }).catch(function(err) {
       if (err.name === 'AbortError') { setChatTyping(false); return; }
       setChatTyping(false);
       appendBubble('system', '暂时没回应（' + err.message + '）');
     });
   }
-}
-
-function showAIButton() {
-  let btn = $('aiBtn');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'aiBtn';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
-    btn.title = '发送给角色';
-    btn.style.cssText = 'background:var(--qq-blue);color:#fff;border:none;border-radius:15px;padding:8px 10px;font-size:13px;cursor:pointer;font-weight:800;animation:tvPop .24s ease;display:inline-flex;align-items:center;gap:4px;order:5;';
-    btn.onclick = function() {
-      _manualAICall = true;
-      const char = activeCharacter();
-      if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(char.id, char.name)) {
-        _manualAICall = false;
-        appendBubble('system', '（许愿柳生效中：' + char.name + ' 今天不回复你的消息。）');
-        var _b = $('aiBtn'); if (_b) _b.remove();
-        $('sendBtn').style.display = '';
-        return;
-      }
-      const msgs = char.chat.filter(m => m.role === 'user');
-      const last = msgs[msgs.length - 1];
-      const txt = last ? last.content : '';
-      setChatTyping(true);
-      var trans = null;
-      callAI(txt).then(function(reply) {
-        if (char.translate && char.lang && char.lang !== '中文') {
-          var cleanText = reply.replace(/[（(][^）)]*[）)]/g, '').trim();
-          if (cleanText) return translateText(cleanText).then(function(t) { trans = t; return reply; });
-        }
-        return reply;
-      }).then(function(reply) {
-        setChatTyping(false);
-        appendBubble('assistant', reply, null, trans);
-        _manualAICall = false;
-        var b = $('aiBtn');
-        if (b) b.remove();
-        $('sendBtn').style.display = '';
-      }).catch(function(err) {
-        if (err.name === 'AbortError') { _manualAICall = false; return; }
-        setChatTyping(false);
-        appendBubble('system', '暂时没回应（' + err.message + '）');
-        _manualAICall = false;
-        var b = $('aiBtn');
-        if (b) b.remove();
-        $('sendBtn').style.display = '';
-      });
-    };
-    $('sendBtn').parentNode.insertBefore(btn, $('sendBtn').nextSibling);
-  }
-  $('sendBtn').style.display = 'none';
-  btn.style.display = 'inline-flex';
 }
 
 async function callAI(text, shortTest = false, proactive = false) {
@@ -416,9 +367,25 @@ async function translateText(text) {
   return null;
 }
 
+// 异步翻译：回复先显示，翻译好后自动补到气泡下方，不阻塞、不拖慢回复
+async function translateAfter(char, msg, text) {
+  if (!char || !msg) return;
+  if (!(char.translate && char.lang && char.lang !== '中文')) return;
+  var cleanText = (text || '').replace(/[（(][^）)]*[）)]/g, '').trim();
+  if (!cleanText) return;
+  try {
+    var t = await translateText(cleanText);
+    if (t && activeCharacter() === char && char.chat.includes(msg)) {
+      msg.translatedText = t;
+      saveState();
+      renderChat();
+    }
+  } catch (e) {}
+}
+
 async function googleTranslate(text) {
   var ctrl = new AbortController();
-  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 8000);
+  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 6000);
   try {
     var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text.slice(0, 1000));
     var res = await aiRequest(url, { method: 'GET', signal: ctrl.signal });
@@ -439,14 +406,14 @@ async function googleTranslate(text) {
 
 async function mymemoryTranslate(text) {
   var ctrl = new AbortController();
-  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 8000);
+  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 6000);
   try {
     var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 500)) + '&langpair=auto|zh-CN';
     var res = await aiRequest(url, { method: 'GET', signal: ctrl.signal });
     if (!res.ok) return null;
     var data = await res.json().catch(function() { return null; });
     var out = data && data.responseData && data.responseData.translatedText;
-    if (!out) return null;
+    if (!out || /^MYMEMORY WARNING/i.test(String(out))) return null;
     return String(out).trim() || null;
   } catch (e) {
     return null;
@@ -517,6 +484,9 @@ function buildRoleSystemPrompt(char, userText) {
     '【回复要求】',
     '用 ' + char.name + ' 的身份自然回应，不要提 AI 相关话题，不要自我总结。'
   ];
+  if (char.replyLimit > 0) {
+    parts.push('【字数限制】你每次回复的字数不能超过 ' + char.replyLimit + ' 字（这是上限，短一点完全没问题，但绝对不要超过这个数字）。');
+  }
   if (char.mode === 'online') {
     parts.push('【模式：异地】你们是异地状态，相隔两地无法见面，只能通过手机发信息联系，没有任何真实的动作。回复要像真实的异地手机聊天一样自然，靠文字、语气和表情符号（如😂😭）表达情绪。严禁使用括号动作描写（如（笑）（摸摸头）），也不要假装做出真实的动作。想念或想关心对方时用话语表达，比如“好想你”“要是现在能抱抱你就好了”。');
   } else {
@@ -580,6 +550,8 @@ function openSettings() {
     if (modeSel) modeSel.value = char.mode === 'online' ? 'online' : 'offline';
     var lenSel = $('contextLenSelect');
     if (lenSel) lenSel.value = String(char.contextLen || 12);
+    var rlSel = $('replyLimitSelect');
+    if (rlSel) rlSel.value = String(char.replyLimit || 0);
     var amSwitch = $('autoMemSwitch');
     if (amSwitch) amSwitch.classList.toggle('on', char.autoMem !== false);
     var amLenSel = $('autoMemLenSelect');
@@ -814,6 +786,16 @@ function setContextLen(val) {
   char.contextLen = n;
   saveState();
   var el = $('contextLenSelect');
+  if (el) el.value = String(n);
+}
+function setReplyLimit(val) {
+  var char = activeCharacter();
+  if (!char) return;
+  var n = parseInt(val, 10);
+  n = (n > 0) ? n : 0;
+  char.replyLimit = n;
+  saveState();
+  var el = $('replyLimitSelect');
   if (el) el.value = String(n);
 }
 function toggleTranslate() {

@@ -503,8 +503,9 @@ button { border: 0; cursor: pointer; }
 .quote-menu .q-del .q-opt-ico { background: rgba(224,36,94,.10); }
 .chat-input-wrapper { flex: 1; background: #efefef; border-radius: 20px; display: flex; align-items: center; padding: 0 12px; }
 .chat-input { flex: 1; border: 0; padding: 8px 4px; outline: none; font-size: 14px; background: transparent; user-select: text; }
-.send-btn { background:none;border:none;color:#262626;padding:6px;border-radius:50%;cursor:pointer;transition:background .12s;display:grid;place-items:center; }
-.send-btn:active { background:#efefef; }
+.send-btn { background:#53a6f5;border:none;color:#fff;width:38px;height:38px;border-radius:50%;cursor:pointer;transition:background .12s;display:grid;place-items:center;flex-shrink:0; }
+.send-btn:hover { background:#4a97e0; }
+.send-btn:active { background:#3f86c9; }
 .send-btn:disabled { opacity:.25; }
 
 .emoji-panel { display: none; padding: 10px; background: #fff; border-top: 1px solid #efefef; max-height: 200px; overflow-y: auto; }

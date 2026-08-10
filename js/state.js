@@ -211,6 +211,7 @@ function ensureStateShape(next, saved) {
     translate: role.translate === true,
     mode: role.mode === 'online' ? 'online' : 'offline',
     contextLen: parseInt(role.contextLen) > 0 ? parseInt(role.contextLen) : 12,
+    replyLimit: parseInt(role.replyLimit) > 0 ? parseInt(role.replyLimit) : 0,
     autoMem: role.autoMem !== false,
     autoMemLen: parseInt(role.autoMemLen) > 1 ? parseInt(role.autoMemLen) : 8,
     autoMemEvery: parseInt(role.autoMemEvery) > 0 ? parseInt(role.autoMemEvery) : 1,
