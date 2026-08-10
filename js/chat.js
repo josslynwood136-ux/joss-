@@ -353,18 +353,59 @@ async function callAI(text, shortTest = false, proactive = false) {
   }
 }
 
-async function translateText(text) {
+var LANG_CODE = { '中文': 'zh-CN', 'English': 'en', '日本語': 'ja', '한국어': 'ko', 'Français': 'fr', 'Deutsch': 'de', 'Español': 'es', 'Русский': 'ru' };
+
+async function translateText(text, srcLang) {
   if (!text) return null;
-  // 免费源优先：Google 翻译 → MyMemory → 失败则不翻译，不消耗 AI token
+  // 翻译源：Google（质量最好）→ MyMemory（免费快速）→ 自配 AI 模型兜底（最稳，消耗少量 token）
+  var src = LANG_CODE[srcLang] || 'en';
   try {
     var g = await googleTranslate(text);
     if (g) return g;
   } catch (e) {}
   try {
-    var m = await mymemoryTranslate(text);
+    var m = await mymemoryTranslate(text, src);
     if (m) return m;
   } catch (e) {}
+  try {
+    var a = await aiTranslate(text);
+    if (a) return a;
+  } catch (e) {}
   return null;
+}
+
+// 用用户自己配置的 AI 模型翻译（国外接口连不上时的终极兜底，质量也很高）
+async function aiTranslate(text) {
+  try {
+    var cfg = (state.apiProfiles && state.activeApiProfile)
+      ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+    cfg = cfg || state.api;
+    if (!cfg || !cfg.url || !cfg.key || !cfg.model) return null;
+    var ctrl = new AbortController();
+    var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 20000);
+    try {
+      var res = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + cfg.key },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: [
+            { role: 'system', content: '你是一个翻译器。把用户发来的文字翻译成简体中文。只输出译文本身，不要解释，不要加引号，不要补充任何内容。' },
+            { role: 'user', content: String(text).slice(0, 1000) }
+          ],
+          max_tokens: cfg.maxTokens || 500,
+          temperature: 0.2
+        })
+      });
+      var data = await res.json().catch(function() { return {}; });
+      if (!res.ok) return null;
+      var out = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
+      return out || null;
+    } finally {
+      clearTimeout(tmr);
+    }
+  } catch (e) { return null; }
 }
 
 // 异步翻译：回复先显示，翻译好后自动补到气泡下方，不阻塞、不拖慢回复
@@ -374,7 +415,7 @@ async function translateAfter(char, msg, text) {
   var cleanText = (text || '').replace(/[（(][^）)]*[）)]/g, '').trim();
   if (!cleanText) return;
   try {
-    var t = await translateText(cleanText);
+    var t = await translateText(cleanText, char.lang);
     if (t && activeCharacter() === char && char.chat.includes(msg)) {
       msg.translatedText = t;
       saveState();
@@ -385,7 +426,7 @@ async function translateAfter(char, msg, text) {
 
 async function googleTranslate(text) {
   var ctrl = new AbortController();
-  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 6000);
+  var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 3000);
   try {
     var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' + encodeURIComponent(text.slice(0, 1000));
     var res = await aiRequest(url, { method: 'GET', signal: ctrl.signal });
@@ -404,16 +445,18 @@ async function googleTranslate(text) {
   }
 }
 
-async function mymemoryTranslate(text) {
+async function mymemoryTranslate(text, srcLang) {
   var ctrl = new AbortController();
   var tmr = setTimeout(function() { try { ctrl.abort(); } catch(e) {} }, 6000);
   try {
-    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 500)) + '&langpair=auto|zh-CN';
+    var langpair = (srcLang || 'en') + '|zh-CN';
+    var url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text.slice(0, 500)) + '&langpair=' + langpair;
     var res = await aiRequest(url, { method: 'GET', signal: ctrl.signal });
     if (!res.ok) return null;
     var data = await res.json().catch(function() { return null; });
-    var out = data && data.responseData && data.responseData.translatedText;
-    if (!out || /^MYMEMORY WARNING/i.test(String(out))) return null;
+    if (!data || data.responseStatus === 403 || data.responseStatus === 429 || (data.responseStatus && data.responseStatus !== 200)) return null;
+    var out = data.responseData && data.responseData.translatedText;
+    if (!out || /^(MYMEMORY WARNING|'AUTO')/i.test(String(out))) return null;
     return String(out).trim() || null;
   } catch (e) {
     return null;
