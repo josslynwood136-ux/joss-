@@ -524,6 +524,10 @@ button { border: 0; cursor: pointer; }
 .read-tick { font-size: 10px; color: #d4c8c0; align-self: flex-end; margin-top: 1px; }
 .chat-sticker-img { display: block; max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); background: #fff; }
 .time-divider { align-self: center; font-size: 11px; color: #d4c8c0; background: rgba(220,200,190,.12); padding: 2px 12px; border-radius: 10px; margin: 2px 0; }
+.time-stamp { align-self: center; font-size: 11px; color: #b8a99a; background: rgba(220,200,190,.2); padding: 2px 12px; border-radius: 10px; margin: 2px 0; border: 1px solid rgba(200,180,165,.25); }
+.msg-time { position: absolute; bottom: -13px; font-size: 10px; color: #c4b5a8; line-height: 1; white-space: nowrap; }
+.msg.left .msg-time { left: 34px; }
+.msg.right .msg-time { right: 34px; }
 
 /* ===== 多选删除 ===== */
 .multi-bar {
@@ -2771,6 +2775,7 @@ button { border: 0; cursor: pointer; }
 #chatWindow.comic-skin .msg .avatar { width:42px; height:42px; font-size:20px; border:2.5px solid #1c1c1c; background:#fff; box-shadow:2.5px 2.5px 0 rgba(28,28,28,.25); }
 #chatWindow.comic-skin .time-divider { color:#1c1c1c; background:#ffd84d; border:2px solid #1c1c1c; font-weight:900; border-radius:8px; padding:2px 12px; transform:rotate(-1deg); }
 #chatWindow.comic-skin .read-tick { color:#1c1c1c; font-weight:700; }
+#chatWindow.comic-skin .msg-time { color:#1c1c1c; font-weight:800; }
 
 /* 输入区：浮在纸上的漫画对白框（无横幅，框内收纳工具，星爆贴纸粘角） */
 #chatWindow.comic-skin .chat-footer {
@@ -2877,6 +2882,7 @@ button { border: 0; cursor: pointer; }
 #chatWindow.bubble-style-comic .bubble.typing::after { content:none; }
 #chatWindow.bubble-style-comic .bubble.system::before { content:none; }
 #chatWindow.bubble-style-comic .bubble.system { color:#1c1c1c; border:2px solid #1c1c1c; background:#ffd84d; border-radius:8px; font-weight:800; box-shadow:2px 2px 0 rgba(28,28,28,.3); }
+#chatWindow.bubble-style-comic .msg-time { color:#1c1c1c; font-weight:800; }
 #chatWindow.bubble-style-comic .bubble.typing { background:#fff; }
 #chatWindow.bubble-style-comic .typing-dot { background:#1c1c1c; }
 
