@@ -53,12 +53,132 @@ function openChat(characterId, skin) {
 function closeChat() {
   pendingReply = false;
   _manualAICall = false;
+  exitMultiSelect();
   $('sendBtn').style.display = '';
   var ob = $('aiBtn');
   if (ob) ob.remove();
   $('chatWindow').classList.remove('open');
   $('chatWindow').classList.remove('comic-skin');
   hidePanels();
+}
+
+// ===== 多选删除 =====
+let _multiSelect = false;
+let _selectedMsgs = {};
+let _multiAnchor = -1;
+
+function msgCheck(isUser, i) {
+  if (!_multiSelect) return '';
+  const on = !!_selectedMsgs[i];
+  return `<span class="msg-check ${isUser ? 'right' : 'left'}${on ? ' on' : ''}" data-idx="${i}"></span>`;
+}
+function multiCls(i) {
+  if (!_multiSelect) return '';
+  return ' multi-mode' + (_selectedMsgs[i] ? ' msg-selected' : '');
+}
+function onMsgDown(ev, index) {
+  if (_multiSelect) return;
+  if (ev.type === 'touchstart' && ev.cancelable) ev.preventDefault();
+  quotePress(ev, ev.currentTarget, index);
+}
+function onMsgTap(ev, index) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  if (_multiSelect) { toggleMsgSelect(index); return; }
+  clearQuotePress();
+}
+function enterMultiSelect() {
+  _multiSelect = true;
+  _selectedMsgs = {};
+  _multiAnchor = -1;
+  var h = document.querySelector('#chatWindow .chat-header');
+  var f = document.querySelector('#chatWindow .chat-footer');
+  if (h) h.style.display = 'none';
+  if (f) f.style.display = 'none';
+  var bar = $('multiBar');
+  if (bar) bar.style.display = 'flex';
+  updateMultiCount();
+  renderChat();
+}
+function exitMultiSelect() {
+  var wasActive = _multiSelect;
+  _multiSelect = false;
+  _selectedMsgs = {};
+  _multiAnchor = -1;
+  var h = document.querySelector('#chatWindow .chat-header');
+  var f = document.querySelector('#chatWindow .chat-footer');
+  if (h) h.style.display = '';
+  if (f) f.style.display = '';
+  var bar = $('multiBar');
+  if (bar) bar.style.display = 'none';
+  if (wasActive) renderChat();
+}
+function toggleMsgSelect(index) {
+  const char = activeCharacter();
+  const msg = char && char.chat[index];
+  if (!msg) return;
+  var count = Object.keys(_selectedMsgs).length;
+  if (count === 0) {
+    _multiAnchor = index;
+    _selectedMsgs[index] = true;
+  } else if (count === 1 && _multiAnchor === index) {
+    delete _selectedMsgs[index];
+    _multiAnchor = -1;
+  } else {
+    selectRange(Math.min(_multiAnchor, index), Math.max(_multiAnchor, index));
+  }
+  updateMultiCount();
+  renderSelectionVisual();
+}
+function selectRange(from, to) {
+  const char = activeCharacter();
+  _selectedMsgs = {};
+  for (var i = from; i <= to; i++) {
+    const m = char && char.chat[i];
+    if (m) _selectedMsgs[i] = true;
+  }
+}
+function renderSelectionVisual() {
+  document.querySelectorAll('#chatBody .msg[data-idx]').forEach(function(el) {
+    var idx = parseInt(el.getAttribute('data-idx'), 10);
+    var on = !!_selectedMsgs[idx];
+    el.classList.toggle('msg-selected', on);
+    var chk = el.querySelector('.msg-check');
+    if (chk) chk.classList.toggle('on', on);
+  });
+}
+function updateMultiCount() {
+  var n = Object.keys(_selectedMsgs).length;
+  var c = $('multiCount');
+  if (c) {
+    c.textContent = n === 1 ? '已选 1 条 · 再点一条可选中到此处' : '已选 ' + n + ' 条';
+  }
+  var del = $('multiDeleteBtn');
+  if (del) del.classList.toggle('can-del', n > 0);
+}
+function selectAllMsgs() {
+  const char = activeCharacter();
+  const idxs = (char.chat || []).map(function(m, i) { return { m: m, i: i }; }).filter(function(x) { return x.m; });
+  if (!idxs.length) return;
+  const allSelected = idxs.every(function(x) { return _selectedMsgs[x.i]; });
+  if (allSelected) {
+    _selectedMsgs = {};
+    _multiAnchor = -1;
+  } else {
+    idxs.forEach(function(x) { _selectedMsgs[x.i] = true; });
+    _multiAnchor = idxs[0].i;
+  }
+  renderSelectionVisual();
+  updateMultiCount();
+}
+function deleteSelected() {
+  const char = activeCharacter();
+  const idxs = Object.keys(_selectedMsgs).map(Number).sort(function(a, b) { return b - a; });
+  if (!idxs.length) return;
+  idxs.forEach(function(i) {
+    if (char.chat[i]) char.chat.splice(i, 1);
+  });
+  saveState();
+  exitMultiSelect();
 }
 
 function renderChat() {
@@ -69,8 +189,13 @@ function renderChat() {
   const typing = chatTyping ? `<div class="msg left"><div class="avatar">${renderAvatar(char.avatar, char.name)}</div><div class="bubble typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>` : '';
   let lastDate = '';
   $('chatBody').innerHTML = (char.chat || []).map((msg, i) => {
-    if (msg.role === 'system') return `<div class="bubble system">${escapeHTML(msg.content)}</div>`;
     const isUser = msg.role === 'user';
+    const msgDate = msg.time ? msg.time.slice(0, 10) : '';
+    const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
+    lastDate = msgDate || lastDate;
+    if (msg.role === 'system') {
+      return `${divider}<div class="msg system${multiCls(i)}" data-idx="${i}" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(false, i)}<div class="bubble system">${escapeHTML(msg.content)}</div></div>`;
+    }
     const prof = activeProfile();
     const av = isUser ? prof.avatar : char.avatar;
     const nm = isUser ? prof.name : char.name;
@@ -79,11 +204,8 @@ function renderChat() {
       const amount = msg.amount || 0;
       const note = msg.note || '';
       const amtText = amount.toFixed(amount % 1 ? 2 : 0);
-      const msgDate = msg.time ? msg.time.slice(0, 10) : '';
-      const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
-      lastDate = msgDate || lastDate;
       const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="if(confirm('删除这条消息？'))deleteMessage('${char.id}',${i})"><div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="openRedPacket('${char.id}',${i})"` : ''}>
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="if(!_multiSelect&&confirm('删除这条消息？'))deleteMessage('${char.id}',${i})" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="_multiSelect?onMsgTap(event,${i}):openRedPacket('${char.id}',${i})"` : ''}>
         <span class="rp-card-icon">🧧</span>
         <span class="rp-card-label">${isUser ? '你' : escapeHTML(nm)}</span>
         ${opened ? `<div class="rp-card-amount">¥ ${amtText}</div>` : `<div class="rp-card-btn">開</div>`}
@@ -92,11 +214,8 @@ function renderChat() {
     }
     if (msg.type === 'sticker') {
       const stickerSrc = msg.media && msg.media.src ? msg.media.src : '';
-      const msgDate = msg.time ? msg.time.slice(0, 10) : '';
-      const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
-      lastDate = msgDate || lastDate;
       const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}"><div class="avatar">${renderAvatar(av, nm)}</div>${stickerSrc ? `<img src="${escapeHTML(stickerSrc)}" class="chat-sticker-img" alt="表情包">` : ''}${tick}</div>`;
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" oncontextmenu="return false;">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div>${stickerSrc ? `<img src="${escapeHTML(stickerSrc)}" class="chat-sticker-img" alt="表情包">` : ''}${tick}</div>`;
     }
     let mediaHtml = '';
     if (msg.media && msg.media.type === 'image') {
@@ -112,11 +231,8 @@ function renderChat() {
       transHtml = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(0,0,0,.06)">' + escapeHTML(msg.translatedText) + '</div>';
     }
     const quoteHtml = quoteBlock(msg.quote);
-    const msgDate = msg.time ? msg.time.slice(0, 10) : '';
-    const divider = (msgDate && msgDate !== lastDate) ? `<div class="time-divider">${msgDate}</div>` : '';
-    lastDate = msgDate || lastDate;
     const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}" oncontextmenu="return false;" ontouchstart="quotePress(event,this,${i})" onmousedown="quotePress(event,this,${i})" onclick="clearQuotePress()"><div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
+    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="return false;" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
   }).join('') + typing;
   $('chatBody').scrollTop = $('chatBody').scrollHeight;
   applyBubbleStyle();
@@ -188,6 +304,8 @@ function showQuoteMenu(index) {
   const text = (msg.content || (msg.media ? '[图片]' : '')).slice(0, 60);
   el.querySelector('.q-cut-txt').textContent = name + '：' + text;
   el.querySelector('.q-reply').onclick = function() { hideQuoteMenu(); quoteMessage(index); };
+  var qMulti = el.querySelector('.q-multi');
+  if (qMulti) qMulti.onclick = function() { hideQuoteMenu(); enterMultiSelect(); };
   el.querySelector('.q-del').onclick = function() { hideQuoteMenu(); deleteMessage(char.id, index); };
   el.style.display = 'block';
   setTimeout(function() { el.classList.add('show'); }, 10);
@@ -302,14 +420,14 @@ function sendChat() {
   }
 }
 
-async function callAI(text, shortTest = false, proactive = false) {
-  if (!shortTest && !_manualAICall) {
-    return '';
-  }
-  _manualAICall = false;
-  const char = activeCharacter();
-  const systemPrompt = shortTest ? state.api.preset || '你是以下角色' : buildRoleSystemPrompt(char, text);
-  const history = shortTest ? [] : char.chat.slice(-(char.contextLen || 12)).filter(m => m.role !== 'system').map(function(m) {
+function activeAIConfig() {
+  var ap = state.apiProfiles && state.activeApiProfile
+    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
+  return ap || state.api;
+}
+
+function buildAIMessages(char, text, proactive) {
+  const history = (char.chat || []).slice(-(char.contextLen || 12)).filter(m => m.role !== 'system').map(function(m) {
     let content = m.content || (m.media ? '[' + m.media.type + ']' : '');
     if (m.quote && m.quote.content) {
       content = '（你正在回复上面这条 —— 用户引用了「' + m.quote.name + '」说的：「' + m.quote.content + '」，你这次要针对这段引用内容回应）\n' + content;
@@ -321,13 +439,24 @@ async function callAI(text, shortTest = false, proactive = false) {
     langHint = '\n\n[语言指令] 你必须用 ' + char.lang + ' 回复，禁止使用中文。';
   }
   const userContent = (proactive ? '用户没有输入文字。请你以当前角色身份，结合最近聊天和记忆，主动发起一句自然的消息。' : text) + langHint;
+  return { history: history, userContent: userContent };
+}
+
+async function callAI(text, shortTest = false, proactive = false) {
+  if (!shortTest && !_manualAICall) {
+    return '';
+  }
+  _manualAICall = false;
+  const char = activeCharacter();
+  const systemPrompt = shortTest ? state.api.preset || '你是以下角色' : buildRoleSystemPrompt(char, text);
+  const built = buildAIMessages(char, text, proactive);
+  const history = shortTest ? [] : built.history;
+  const userContent = built.userContent;
   if (activeAbort) try { activeAbort.abort(); } catch(e) {}
   const controller = new AbortController();
   activeAbort = controller;
   const timer = setTimeout(() => { try { controller.abort(); } catch(e) {} }, shortTest ? 20000 : 90000);
-  var ap = state.apiProfiles && state.activeApiProfile
-    ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
-  var cfg = ap || state.api;
+  var cfg = activeAIConfig();
   try {
     const response = await aiRequest(joinUrl(cfg.url, 'chat/completions'), {
       method: 'POST',
@@ -354,6 +483,86 @@ async function callAI(text, shortTest = false, proactive = false) {
     clearTimeout(timer);
     if (activeAbort === controller) activeAbort = null;
   }
+}
+
+// ===== 完整提示词调试器 =====
+function debugPrompt() {
+  var char = activeCharacter();
+  if (!char) return;
+  var input = $('chatInput');
+  var text = input ? input.value : '';
+  var built = buildAIMessages(char, text, false);
+  var systemPrompt = buildRoleSystemPrompt(char, text);
+  var cfg = activeAIConfig();
+  var lines = [
+    '===== 模型配置 =====',
+    'model: ' + (cfg.model || '(未设置)'),
+    'temperature: ' + (cfg.temp ?? 0.75),
+    'top_p: ' + (cfg.topP ?? 0.9),
+    'max_tokens: ' + (cfg.maxTokens || 500),
+    'presence_penalty: ' + (cfg.presencePenalty ?? 0),
+    'frequency_penalty: ' + (cfg.frequencyPenalty ?? 0),
+    '',
+    '===== SYSTEM PROMPT =====',
+    systemPrompt,
+    '',
+    '===== 最近 ' + built.history.length + ' 条历史 =====',
+    built.history.length ? built.history.map(function(m) {
+      return '[' + (m.role === 'assistant' ? char.name : '用户') + '] ' + m.content;
+    }).join('\n\n') : '（空）',
+    '',
+    '===== USER CONTENT =====',
+    built.userContent
+  ];
+  var overlay = document.createElement('div');
+  overlay.id = 'promptDebugOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease;';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#14181f;color:#d6dbe3;border-radius:16px;width:min(92vw,620px);max-height:84vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4);';
+  var head = document.createElement('div');
+  head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #2a3038;flex-shrink:0;';
+  var title = document.createElement('b');
+  title.textContent = '完整提示词 · ' + char.name;
+  title.style.cssText = 'font-size:14px;color:#fff;';
+  var btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;gap:8px;';
+  var copyBtn = document.createElement('button');
+  copyBtn.textContent = '复制';
+  copyBtn.style.cssText = 'border:none;background:#2a3038;color:#fff;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:12px;';
+  copyBtn.addEventListener('click', function() {
+    var t = lines.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function() {
+        copyBtn.textContent = '已复制';
+        setTimeout(function() { copyBtn.textContent = '复制'; }, 1200);
+      }).catch(function() {});
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = t;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      copyBtn.textContent = '已复制';
+      setTimeout(function() { copyBtn.textContent = '复制'; }, 1200);
+    }
+  });
+  var closeBtn = document.createElement('button');
+  closeBtn.textContent = '关闭';
+  closeBtn.style.cssText = 'border:none;background:#3a414a;color:#fff;border-radius:8px;padding:4px 12px;cursor:pointer;font-size:12px;';
+  closeBtn.addEventListener('click', function() { overlay.remove(); });
+  btns.appendChild(copyBtn);
+  btns.appendChild(closeBtn);
+  head.appendChild(title);
+  head.appendChild(btns);
+  var pre = document.createElement('pre');
+  pre.style.cssText = 'flex:1;overflow:auto;padding:14px 16px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;user-select:text;margin:0;';
+  pre.textContent = lines.join('\n');
+  box.appendChild(head);
+  box.appendChild(pre);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 
 var LANG_CODE = { '中文': 'zh-CN', 'English': 'en', '日本語': 'ja', '한국어': 'ko', 'Français': 'fr', 'Deutsch': 'de', 'Español': 'es', 'Русский': 'ru' };
@@ -457,6 +666,9 @@ function buildRoleSystemPrompt(char, userText) {
     '8. 做个人，不做答案机：不知道就说不知道或俏皮带过，别硬凑标准答案；偶尔可以嘴硬、别扭、有小脾气，别永远温柔理性。',
     '9. 长度随场景走：日常闲聊三五句内，重要话题可多说；永远别整段说教，别把话都说满。'
   ];
+  if (char.examples && char.examples.trim()) {
+    parts.push('', '【示例对话】', '以下是你与对方的真实对话片段。重点学习你的说话方式、语气、用词和反应习惯；遇到相似情境要沿用这种风格来回应，但不要照抄内容：', char.examples.trim());
+  }
   if (char.replyLimit > 0) {
     parts.push('【字数限制】你每次回复的字数不能超过 ' + char.replyLimit + ' 字（这是上限，短一点完全没问题，但绝对不要超过这个数字）。');
   }

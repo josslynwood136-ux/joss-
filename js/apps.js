@@ -426,7 +426,7 @@ function filterContacts() {
 // ---------- 角色编辑器 ----------
 function renderCharacterEditor(id) {
   const isNew = id === 'new';
-  const char = isNew ? { id: 'char-' + Date.now(), memories: [], chat: [], unread: 0, read: true, name: '', avatar: '', aliases: '', relation: '', personality: '', style: '', background: '', prompt: '', greeting: '', autoPost: false, igPosts: [] } : getCharacter(id);
+  const char = isNew ? { id: 'char-' + Date.now(), memories: [], chat: [], unread: 0, read: true, name: '', avatar: '', aliases: '', relation: '', personality: '', style: '', background: '', prompt: '', examples: '', greeting: '', autoPost: false, igPosts: [] } : getCharacter(id);
   const deleteButton = isNew ? '' : `<button class="danger-btn" style="width:100%;margin-top:10px" onclick="deleteCharacter('${char.id}')">删除角色</button>`;
   setTitle(isNew ? '新建角色' : '编辑角色');
   c().innerHTML = `
@@ -456,6 +456,13 @@ function renderCharacterEditor(id) {
         <textarea class="textarea" id="charBackground" placeholder="角色经历、身份、世界观...">${escapeHTML(char.background)}</textarea>
         <label class="label">高级 Prompt</label>
         <textarea class="textarea" id="charPrompt" placeholder="额外规则、禁止崩人设、互动边界...">${escapeHTML(char.prompt)}</textarea>
+        <label class="label">示例对话</label>
+        <textarea class="textarea" id="charExamples" placeholder="写 3~5 段你和角色过去的对话示范，AI 会模仿这种说话方式（比规则更管用）。每段用「用户：… / 角色：…」表示，段与段之间空一行：
+用户：今天好冷
+角色：冷你不会早点说，多穿点会死啊
+
+用户：想你了
+角色：啧，这会儿想起我来了？" style="min-height:130px">${escapeHTML(char.examples || '')}</textarea>
         <label class="label">开场白</label>
         <textarea class="textarea" id="charGreeting" placeholder="第一次聊天时角色说的话">${escapeHTML(char.greeting)}</textarea>
         <div class="grid2" style="margin-top:10px">
@@ -497,6 +504,7 @@ function saveCharacter(id) {
   char.style = $('charStyle').value.trim();
   char.background = $('charBackground').value.trim();
   char.prompt = $('charPrompt').value.trim();
+  char.examples = $('charExamples').value.trim();
   char.greeting = $('charGreeting').value.trim() || '你好，我在。';
   if (!char.chat.length) char.chat = [{ role: 'assistant', content: char.greeting }];
   if (isNew) {

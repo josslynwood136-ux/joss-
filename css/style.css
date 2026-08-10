@@ -488,7 +488,7 @@ button { border: 0; cursor: pointer; }
   opacity: .35;
   pointer-events: none;
 }
-.bubble.system { align-self: center; max-width: 88%; background: transparent; color: #c4b5a8; font-size: 12px; box-shadow: none; }
+.bubble.system { align-self: center; max-width: 100%; width: fit-content; background: transparent; color: #c4b5a8; font-size: 12px; box-shadow: none; white-space: nowrap; word-break: keep-all; }
 .bubble.left .trans-divider { border-top-color: rgba(200,170,150,.2) !important; }
 .bubble.right .trans-divider { border-top-color: rgba(180,170,200,.2) !important; }
 .bubble.typing {
@@ -518,11 +518,54 @@ button { border: 0; cursor: pointer; }
 .msg { display: flex; align-items: flex-end; gap: 6px; max-width: 90%; min-width: 0; position: relative; }
 .msg.left { align-self: flex-start; }
 .msg.right { align-self: flex-end; flex-direction: row-reverse; }
+.msg.system { align-self: center; justify-content: center; max-width: 90%; width: fit-content; }
 .msg .avatar { width: 28px; height: 28px; border-radius: 50%; flex: 0 0 auto; font-size: 13px; box-shadow: 0 2px 6px rgba(200,170,160,.15); border: 1.5px solid rgba(255,255,255,.5); }
 .msg:active .bubble { filter: brightness(.97); }
 .read-tick { font-size: 10px; color: #d4c8c0; align-self: flex-end; margin-top: 1px; }
 .chat-sticker-img { display: block; max-width: 150px; max-height: 150px; object-fit: contain; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.08); background: #fff; }
 .time-divider { align-self: center; font-size: 11px; color: #d4c8c0; background: rgba(220,200,190,.12); padding: 2px 12px; border-radius: 10px; margin: 2px 0; }
+
+/* ===== 多选删除 ===== */
+.multi-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  flex: 0 0 56px;
+  background: #fff;
+  padding: 0 12px;
+  border-bottom: 1px solid #efefef;
+  box-sizing: border-box;
+}
+.multi-cancel {
+  border: none; background: transparent; font-size: 15px; color: #888; cursor: pointer; padding: 4px 6px; flex: 0 0 auto;
+}
+.multi-title { font-size: 15px; font-weight: 700; color: #333; white-space: nowrap; }
+.multi-count { font-size: 13px; color: #999; white-space: nowrap; }
+.multi-spacer { flex: 1; }
+.multi-all {
+  border: none; background: transparent; font-size: 14px; color: var(--qq-blue, #15516f); font-weight: 600; cursor: pointer; padding: 4px 8px; white-space: nowrap;
+}
+.multi-del {
+  border: none; background: #2f9b57; color: #fff; font-size: 14px; font-weight: 700; border-radius: 12px; padding: 7px 16px; cursor: pointer; opacity: .4; transition: opacity .15s, transform .12s; white-space: nowrap;
+}
+.multi-del.can-del { opacity: 1; }
+.multi-del:active { transform: scale(.95); }
+
+.msg.multi-mode { cursor: pointer; }
+.msg-check {
+  width: 20px; height: 20px; border-radius: 50%; border: 2px solid #cbc4ba;
+  flex: 0 0 auto; box-sizing: border-box; transition: all .15s; background: #fff;
+  align-self: center;
+}
+.msg-check.on { background: #2f9b57; border-color: #2f9b57; }
+.msg-check.on::after {
+  content: ''; display: block; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff;
+  transform: rotate(-45deg); margin: 3px auto 0;
+}
+.msg.msg-selected { opacity: .5; }
+.msg.msg-selected .bubble { box-shadow: 0 0 0 2px #2f9b57; }
+.msg.msg-selected .rp-card { box-shadow: 0 0 0 2px #2f9b57; }
 
 .chat-footer {
   background: #fff;

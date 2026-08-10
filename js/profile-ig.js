@@ -480,6 +480,15 @@ function renderIGCharEditor() {
           <textarea class="ig-ce-textarea" id="igCePrompt" placeholder="额外规则、禁止崩人设、互动边界..." rows="3">${escapeHTML(char.prompt || '')}</textarea>
         </div>
         <div class="ig-ce-section">
+          <div class="ig-ce-label">示例对话</div>
+          <textarea class="ig-ce-textarea" id="igCeExamples" placeholder="写 3~5 段你和角色过去的对话示范，AI 会模仿这种说话方式。每段用「用户：… / 角色：…」表示，段间空一行：
+用户：今天好冷
+角色：冷你不会早点说
+
+用户：想你了
+角色：啧，这会儿想起我来了？" rows="5">${escapeHTML(char.examples || '')}</textarea>
+        </div>
+        <div class="ig-ce-section">
           <div class="ig-ce-label">开场白</div>
           <textarea class="ig-ce-textarea" id="igCeGreeting" placeholder="第一次聊天时角色说的话" rows="2">${escapeHTML(char.greeting || '')}</textarea>
         </div>
@@ -580,6 +589,7 @@ function saveIGCharEditor() {
   char.style = $('igCeStyle').value.trim();
   char.background = $('igCeBackground').value.trim();
   char.prompt = $('igCePrompt').value.trim();
+  char.examples = $('igCeExamples').value.trim();
   char.greeting = $('igCeGreeting').value.trim() || '你好，我是' + name + '。';
   if (!char.chat.length) char.chat = [{ role: 'assistant', content: char.greeting }];
   if (isNew) {

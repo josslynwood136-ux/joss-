@@ -59,6 +59,14 @@
     </div>
 
     <div id="chatWindow">
+      <div id="multiBar" class="multi-bar" style="display:none">
+        <button class="multi-cancel" onclick="exitMultiSelect()">✕</button>
+        <span class="multi-title">多选</span>
+        <span class="multi-count" id="multiCount">已选 0 条</span>
+        <span class="multi-spacer"></span>
+        <button class="multi-all" onclick="selectAllMsgs()">全选</button>
+        <button class="multi-del" id="multiDeleteBtn" onclick="deleteSelected()">删除</button>
+      </div>
       <div class="chat-header">
         <button class="header-action" onclick="closeChat()">◁</button>
         <div class="chat-title-box" style="text-align:center;min-width:0">
@@ -67,6 +75,7 @@
         </div>
         <div style="display:flex;gap:4px;justify-self:end">
           <button class="icon-btn" onclick="startCall('audio')" title="语音通话">📞</button>
+          <button class="icon-btn" onclick="debugPrompt()" title="查看完整提示词">🔍</button>
           <button class="icon-btn" onclick="openSettings()">⚙</button>
         </div>
       </div>
@@ -328,6 +337,7 @@
   <div id="quoteMenu" class="quote-menu" style="display:none">
       <div class="q-cut"><div class="q-cut-icon">↩</div><div class="q-cut-txt q-cut"></div><span class="q-cut-tag">回复</span></div>
       <div class="q-opt q-reply"><div class="q-opt-ico">💬</div>回复</div>
+      <div class="q-opt q-multi"><div class="q-opt-ico">☑️</div>多选</div>
       <div class="q-opt q-del"><div class="q-opt-ico">🗑️</div>删除</div>
     </div>
 
