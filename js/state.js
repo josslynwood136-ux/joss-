@@ -9,7 +9,7 @@ const defaultState = {
   profile: { name: '我', avatar: '', wallet: 99999, persona: '', likes: '', boundaries: '', speaking: '' },
   profiles: [{ id: 'prof-default', name: '我', avatar: '', persona: '', likes: '', boundaries: '', speaking: '' }],
   activeProfileId: 'prof-default',
-  api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '', temp: 0.75, topP: 0.9, maxTokens: 500, presencePenalty: 0, frequencyPenalty: 0 },
+  api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '', temp: 0.75, topP: 0.9, maxTokens: 500, presencePenalty: 0.6, frequencyPenalty: 0.4 },
   apiProfiles: [],
   activeApiProfile: '',
   settings: { ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop' },
@@ -379,10 +379,25 @@ function cleanupChatImages(minLen) {
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return ensureStateShape(mergeDeep(cloneDefaultState(), saved || {}), saved || {});
+    const st = ensureStateShape(mergeDeep(cloneDefaultState(), saved || {}), saved || {});
+    migrateApiPenalties(st);
+    return st;
   } catch {
-    return ensureStateShape(cloneDefaultState(), {});
+    const st = ensureStateShape(cloneDefaultState(), {});
+    migrateApiPenalties(st);
+    return st;
   }
+}
+
+// 旧存档的抗重复参数默认是 0，升级为新默认值，保证设置面板显示值与实际生效值一致
+function migrateApiPenalties(st) {
+  var list = [st.api];
+  if (Array.isArray(st.apiProfiles)) list = list.concat(st.apiProfiles);
+  list.forEach(function(a) {
+    if (!a) return;
+    if (a.presencePenalty === 0) a.presencePenalty = 0.6;
+    if (a.frequencyPenalty === 0) a.frequencyPenalty = 0.4;
+  });
 }
 
 function saveState() {

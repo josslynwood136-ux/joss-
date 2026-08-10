@@ -341,6 +341,67 @@ button { border: 0; cursor: pointer; }
 .subtle-time { font-size: 11px; color: var(--muted); }
 .search-field { width: 100%; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 9px 12px; font-size: 13px; margin-bottom: 10px; outline: none; }
 
+/* ===== 消息列表 · 毛玻璃 ===== */
+.msg-list-page {
+  gap: 10px;
+  margin: -2px -4px 0;
+  padding: 14px 12px 10px;
+  border-radius: 24px;
+  background: #fbfaf7;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+}
+.glass-card {
+  background: rgba(255,255,255,.5);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  border: 1px solid rgba(255,255,255,.75);
+  box-shadow: 0 8px 24px rgba(140,105,60,.16), inset 0 1px 0 rgba(255,255,255,.8);
+}
+.glass-card.msg-pinned {
+  background: rgba(255,236,205,.6);
+  border: 1px solid rgba(255,255,255,.8);
+  border-left: 3px solid #d99a4e;
+  box-shadow: 0 8px 24px rgba(180,120,60,.2), inset 0 1px 0 rgba(255,255,255,.85);
+}
+.glass-input {
+  margin-bottom: 2px;
+  background: rgba(255,255,255,.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.8);
+  box-shadow: 0 4px 14px rgba(140,105,60,.1), inset 0 1px 0 rgba(255,255,255,.85);
+  color: #5a4a38;
+}
+.glass-input::placeholder { color: #b3a48e; }
+.msg-list-page .msg-preview { color: #94866f; font-size: 12.5px; }
+.msg-list-page .glass-tag {
+  background: rgba(217,154,78,.16);
+  color: #b07a3c;
+  border: 1px solid rgba(255,255,255,.6);
+}
+.msg-list-page .online-dot,
+.msg-list-page .offline-dot { border-color: rgba(255,255,255,.9); }
+.msg-list-page .badge {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+}
+.msg-list-page .badge.glass-badge {
+  background: linear-gradient(160deg, #ff6b6b, #ff4d4f);
+  box-shadow: 0 4px 12px rgba(255,77,79,.4);
+}
+.glass-empty {
+  padding: 20px 16px;
+  border-radius: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #94866f;
+  background: rgba(255,255,255,.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px dashed rgba(255,255,255,.85);
+}
+
 /* ===== 聊天窗口 ===== */
 #chatWindow, #chatSettings {
   position: absolute;
@@ -1527,21 +1588,44 @@ button { border: 0; cursor: pointer; }
 .search-grid-item img { width:100%;height:100%;object-fit:cover; }
 
 /* DM */
-.dm-container { flex:1;overflow-y:auto;background:#fff; }
+.dm-container {
+  flex:1;overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;
+  padding:12px 14px 20px;
+  background:#fbfaf7;
+}
 .dm-container::-webkit-scrollbar { width:0; }
 .dm-header-bar { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #efefef;background:#fff; }
 .dm-header-bar .dm-title { font-size:16px;font-weight:700;color:#000; }
 .dm-header-bar .dm-new-btn { background:none;border:none;font-size:22px;cursor:pointer;color:#262626; }
 
 /* Dialog items (reuse in IG) */
-.ig-app .dialog-item { display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background .15s;border-bottom:1px solid #f0f0f0; }
-.ig-app .dialog-item:active { background:#f5f6fa; }
-.ig-app .dialog-item .dialog-avatar { width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;background:#f0f2f5;overflow:hidden; }
+.ig-app .dialog-item { display:flex;align-items:center;gap:12px;padding:14px 14px;cursor:pointer;transition:transform .12s ease,background .15s; }
+.ig-app .dialog-item .dialog-avatar { width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;background:rgba(240,242,245,.7);overflow:hidden; }
 .ig-app .dialog-item .dialog-avatar img { width:100%;height:100%;object-fit:cover; }
 .ig-app .dialog-item .dialog-info { flex:1;min-width:0; }
-.ig-app .dialog-item .dialog-name { font-size:16px;font-weight:600;color:#333; }
-.ig-app .dialog-item .dialog-preview { font-size:13px;color:#999;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.ig-app .dialog-item .dialog-time { font-size:11px;color:#bbb;flex-shrink:0;align-self:flex-start;margin-top:2px; }
+.ig-app .dialog-item .dialog-name { font-size:16px;font-weight:600;color:#4a3d2f; }
+.ig-app .dialog-item .dialog-preview { font-size:13px;color:#94866f;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.ig-app .dialog-item .dialog-time { font-size:11px;color:#b3a48e;flex-shrink:0;align-self:flex-start;margin-top:2px; }
+.glass-dm-item {
+  border-radius:16px;
+  background:rgba(255,255,255,.5);
+  backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);
+  border:1px solid rgba(255,255,255,.75);
+  box-shadow:0 8px 22px rgba(140,105,60,.16), inset 0 1px 0 rgba(255,255,255,.8);
+}
+.glass-dm-item:active { background:rgba(255,255,255,.78); transform:scale(.98); }
+.glass-dm-empty {
+  padding:22px 16px;
+  border-radius:16px;
+  color:#94866f;
+  background:rgba(255,255,255,.45);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px dashed rgba(255,255,255,.85);
+  margin:8px 0;
+}
 .dialog-empty { text-align:center;color:#aaa;padding:60px 20px;font-size:14px; }
 
 /* Profile panel content */

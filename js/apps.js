@@ -132,8 +132,8 @@ function renderApiSettings() {
     ['Temperature','apiTemp','vTemp',d.temp??0.75,0,2,0.05,2,'越小越保守，越大越发散'],
     ['Top P','apiTopP','vTopP',d.topP??0.9,0,1,0.05,2,'和 temp 类似，通常保持 0.9 不动'],
     ['Max Tokens','apiMaxTokens','vMT',d.maxTokens??500,64,2048,64,0,'AI 每次回复的最大字数'],
-    ['Presence Penalty','apiPresenceP','vPP',d.presencePenalty??0,-2,2,0.1,1,'越高越少重复已聊话题'],
-    ['Frequency Penalty','apiFreqP','vFP',d.frequencyPenalty??0,-2,2,0.1,1,'越高用词越不重复']
+    ['Presence Penalty','apiPresenceP','vPP',d.presencePenalty??0.6,-2,2,0.1,1,'越高越少重复已聊话题'],
+    ['Frequency Penalty','apiFreqP','vFP',d.frequencyPenalty??0.4,-2,2,0.1,1,'越高用词越不重复']
   ];
   params.forEach(function(p) {
     var val = p[3];
@@ -190,8 +190,10 @@ function saveApiConfig() {
   var temp = parseFloat($('apiTemp').value) || 0.75;
   var topP = parseFloat($('apiTopP').value) || 0.9;
   var maxT = parseInt($('apiMaxTokens').value) || 500;
-  var pp = parseFloat($('apiPresenceP').value) || 0;
-  var fp = parseFloat($('apiFreqP').value) || 0;
+  var pp = parseFloat($('apiPresenceP').value);
+  if (isNaN(pp)) pp = 0.6;
+  var fp = parseFloat($('apiFreqP').value);
+  if (isNaN(fp)) fp = 0.4;
   var profiles = state.apiProfiles || [];
   var activeId = state.activeApiProfile || '';
   var existing = profiles.findIndex(function(p) { return p.id === activeId; });
@@ -354,25 +356,25 @@ function renderMessageList() {
   setTitle('消息');
   const chars = state.roles.slice().sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   c().innerHTML = `
-    <div class="stack">
-      <input class="search-field" id="msgSearch" placeholder="🔍 搜索角色 / 消息" oninput="filterMsgList()">
+    <div class="stack msg-list-page">
+      <input class="search-field glass-input" id="msgSearch" placeholder="🔍 搜索角色 / 消息" oninput="filterMsgList()">
       <div id="msgListWrap">
       ${(chars.length ? chars : [{ id: '', name: '', avatar: '', relation: '', chat: [], unread: 0, online: false }]).map(char => {
-        if (!char.id) return '<div class="card subtle">还没有和任何角色聊过，去「联系人」认识他们吧。</div>';
+        if (!char.id) return '<div class="glass-empty">还没有和任何角色聊过，去「联系人」认识他们吧。</div>';
         const last = (char.chat || [])[char.chat.length - 1];
         const time = last && last.time ? last.time.slice(11, 16) : '';
-        const rel = char.relation ? `<span class="tag">${escapeHTML(char.relation)}</span>` : '';
+        const rel = char.relation ? `<span class="tag glass-tag">${escapeHTML(char.relation)}</span>` : '';
         const dot = char.online ? '<span class="online-dot"></span>' : '<span class="offline-dot"></span>';
         return `
-        <div class="list-card" style="${char.pinned ? 'background:rgba(21,81,111,.06);border-left:3px solid var(--qq-blue)' : ''}" onclick="openChat('${char.id}')">
+        <div class="list-card glass-card${char.pinned ? ' msg-pinned' : ''}" onclick="openChat('${char.id}')">
           <div class="avatar" style="position:relative">${renderAvatar(char.avatar, char.name)}${dot}</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:6px"><b>${escapeHTML(char.name)}</b>${rel}</div>
-            <div class="subtle" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(lastChatPreview(char))}</div>
+            <div class="subtle msg-preview">${escapeHTML(lastChatPreview(char))}</div>
           </div>
           <div style="text-align:right;min-width:42px">
             <div class="subtle-time">${time}</div>
-            ${char.unread > 0 ? `<div class="badge">${char.unread > 99 ? '99+' : char.unread}</div>` : ''}
+            ${char.unread > 0 ? `<div class="badge glass-badge">${char.unread > 99 ? '99+' : char.unread}</div>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -5169,7 +5171,9 @@ async function offlineCallAI(text, hint) {
         messages: [{ role: 'system', content: systemPrompt + (hint ? '\n[此刻提示] ' + hint : '') }, ...history, { role: 'user', content: text }],
         max_tokens: cfg.maxTokens || 500,
         temperature: cfg.temp ?? 0.75,
-        top_p: cfg.topP ?? 0.9
+        top_p: cfg.topP ?? 0.9,
+        presence_penalty: cfg.presencePenalty ?? 0,
+        frequency_penalty: cfg.frequencyPenalty ?? 0
       })
     });
     const data = await res.json().catch(function() { return {}; });

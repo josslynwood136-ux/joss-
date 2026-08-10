@@ -609,7 +609,7 @@ function renderDmList() {
   if (!container) return;
   container.innerHTML = '';
   if (state.roles.length === 0) {
-    container.innerHTML = '<div class="dialog-empty">💬 还没有对话<br><span style="font-size:12px;color:#bbb;">去联系人创建角色吧</span></div>';
+    container.innerHTML = '<div class="dialog-empty glass-dm-empty">💬 还没有对话<br><span style="font-size:12px;color:#bbb;">去联系人创建角色吧</span></div>';
     return;
   }
   state.roles.forEach(char => {
@@ -621,7 +621,7 @@ function renderDmList() {
       : '还没有聊天记录';
     const time = last && last.time ? formatPostTime(last.time) : '';
     const div = document.createElement('div');
-    div.className = 'dialog-item';
+    div.className = 'dialog-item glass-dm-item';
     div.onclick = (e) => {
       e.stopPropagation();
       openChat(char.id, 'comic');
