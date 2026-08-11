@@ -571,6 +571,89 @@ button { border: 0; cursor: pointer; }
 .msg.msg-selected .bubble { box-shadow: 0 0 0 2px #2f9b57; }
 .msg.msg-selected .rp-card { box-shadow: 0 0 0 2px #2f9b57; }
 
+.select-here-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 45%;
+  height: 0;
+  z-index: 30;
+  border-top: 2px dashed rgba(47,155,87,.9);
+  pointer-events: none;
+}
+.select-here-line::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: -6px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 8px solid rgba(47,155,87,.9);
+}
+.select-here-line::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: rgba(47,155,87,.9);
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+.select-here-btn {
+  position: absolute;
+  right: 12px;
+  top: 45%;
+  transform: translateY(-50%);
+  z-index: 31;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 10px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2f9b57, #22b865);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(47,155,87,.4);
+  transition: transform .12s, opacity .15s;
+  white-space: nowrap;
+}
+.select-here-btn:active { transform: translateY(-50%) scale(.95); }
+.sph-ico { flex: 0 0 auto; }
+.sph-txt { line-height: 1; }
+.sph-cnt {
+  min-width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 11px;
+  background: rgba(255,255,255,.28);
+  font-size: 12px;
+  font-weight: 700;
+  flex: 0 0 auto;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+.sph-cnt.sph-ok { background: #fff; color: #2f9b57; }
+.msg.msg-preview { cursor: pointer; }
+.msg.msg-preview:not(.msg-selected) .bubble,
+.msg.msg-preview:not(.msg-selected) .rp-card {
+  box-shadow: 0 0 0 2px rgba(47,155,87,.8);
+}
+.msg.msg-preview:not(.msg-selected) .msg-check {
+  border-color: #2f9b57;
+}
+#chatWindow.comic-skin .select-here-line { border-top: 3px dashed #1c1c1c; }
+#chatWindow.comic-skin .select-here-line::before { border-bottom-color: #1c1c1c; }
+#chatWindow.comic-skin .select-here-line::after { background: #1c1c1c; }
+#chatWindow.comic-skin .select-here-btn { background: #1c1c1c; border: 2px solid #1c1c1c; box-shadow: 2.5px 2.5px 0 rgba(28,28,28,.25); }
+
 .chat-footer {
   background: #fff;
   padding: 6px 12px 20px;

@@ -109,6 +109,12 @@
           <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
         </div>
       </div>
+      <div id="selectHereLine" class="select-here-line" style="display:none"></div>
+      <button id="selectHereBtn" class="select-here-btn" style="display:none" onclick="selectHereTo()">
+        <svg class="sph-ico" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        <span class="sph-txt">选到这里以下</span>
+        <span class="sph-cnt" id="selectHereCount"></span>
+      </button>
     </div>
 
     <div id="chatSettings">

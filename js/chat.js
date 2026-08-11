@@ -66,6 +66,11 @@ function closeChat() {
 let _multiSelect = false;
 let _selectedMsgs = {};
 let _multiAnchor = -1;
+let _selBlock = null;
+let _previewMsgs = {};
+let _lastScrollTop = -1;
+let _scrollDir = 1;
+const SEL_LINE_RATIO = 0.45;
 
 function msgCheck(isUser, i) {
   if (!_multiSelect) return '';
@@ -86,16 +91,21 @@ function onMsgTap(ev, index) {
   if (_multiSelect) { toggleMsgSelect(index); return; }
   clearQuotePress();
 }
-function enterMultiSelect() {
+function enterMultiSelect(anchorIndex) {
   _multiSelect = true;
   _selectedMsgs = {};
-  _multiAnchor = -1;
+  _multiAnchor = (typeof anchorIndex === 'number' && anchorIndex >= 0) ? anchorIndex : -1;
+  _selBlock = null;
+  _previewMsgs = {};
+  _lastScrollTop = -1;
+  _scrollDir = 1;
   var h = document.querySelector('#chatWindow .chat-header');
   var f = document.querySelector('#chatWindow .chat-footer');
   if (h) h.style.display = 'none';
   if (f) f.style.display = 'none';
   var bar = $('multiBar');
   if (bar) bar.style.display = 'flex';
+  showSelectHereUI();
   updateMultiCount();
   renderChat();
 }
@@ -104,18 +114,22 @@ function exitMultiSelect() {
   _multiSelect = false;
   _selectedMsgs = {};
   _multiAnchor = -1;
+  _selBlock = null;
+  _previewMsgs = {};
   var h = document.querySelector('#chatWindow .chat-header');
   var f = document.querySelector('#chatWindow .chat-footer');
   if (h) h.style.display = '';
   if (f) f.style.display = '';
   var bar = $('multiBar');
   if (bar) bar.style.display = 'none';
+  hideSelectHereUI();
   if (wasActive) renderChat();
 }
 function toggleMsgSelect(index) {
   const char = activeCharacter();
   const msg = char && char.chat[index];
   if (!msg) return;
+  _selBlock = null;
   var count = Object.keys(_selectedMsgs).length;
   if (count === 0) {
     _multiAnchor = index;
@@ -128,6 +142,8 @@ function toggleMsgSelect(index) {
   }
   updateMultiCount();
   renderSelectionVisual();
+  updatePreview();
+  renderPreviewVisual();
 }
 function selectRange(from, to) {
   const char = activeCharacter();
@@ -167,18 +183,139 @@ function selectAllMsgs() {
     idxs.forEach(function(x) { _selectedMsgs[x.i] = true; });
     _multiAnchor = idxs[0].i;
   }
+  _selBlock = null;
+  _previewMsgs = {};
   renderSelectionVisual();
   updateMultiCount();
+  updatePreview();
+  renderPreviewVisual();
 }
 function deleteSelected() {
   const char = activeCharacter();
   const idxs = Object.keys(_selectedMsgs).map(Number).sort(function(a, b) { return b - a; });
   if (!idxs.length) return;
+  if (!confirm('确定删除选中的 ' + idxs.length + ' 条消息吗？删除后无法恢复。')) return;
   idxs.forEach(function(i) {
     if (char.chat[i]) char.chat.splice(i, 1);
   });
   saveState();
   exitMultiSelect();
+}
+
+// ===== 选到这里（划线滑选） =====
+function showSelectHereUI() {
+  var line = $('selectHereLine');
+  var btn = $('selectHereBtn');
+  if (line) line.style.display = 'block';
+  if (btn) btn.style.display = 'inline-flex';
+  var body = $('chatBody');
+  if (body && !body.dataset.multiScr) {
+    body.dataset.multiScr = '1';
+    body.addEventListener('scroll', onMultiScroll, { passive: true });
+  }
+  updatePreview();
+  renderPreviewVisual();
+}
+function hideSelectHereUI() {
+  var line = $('selectHereLine');
+  var btn = $('selectHereBtn');
+  if (line) line.style.display = 'none';
+  if (btn) btn.style.display = 'none';
+  var body = $('chatBody');
+  if (body && body.dataset.multiScr) {
+    body.removeEventListener('scroll', onMultiScroll);
+    delete body.dataset.multiScr;
+  }
+  clearPreview();
+}
+function clearPreview() {
+  _previewMsgs = {};
+  document.querySelectorAll('#chatBody .msg.msg-preview').forEach(function(el) { el.classList.remove('msg-preview'); });
+}
+function onMultiScroll() {
+  if (!_multiSelect) return;
+  var body = $('chatBody');
+  if (!body) return;
+  var st = body.scrollTop;
+  _scrollDir = st >= _lastScrollTop ? 1 : -1;
+  _lastScrollTop = st;
+  updatePreview();
+  renderPreviewVisual();
+}
+function getCutIndex() {
+  var w = $('chatWindow');
+  var body = $('chatBody');
+  if (!w || !body) return -1;
+  var wr = w.getBoundingClientRect();
+  var lineY = wr.top + wr.height * SEL_LINE_RATIO;
+  var msgs = body.querySelectorAll('.msg[data-idx]');
+  var best = -1, bestD = Infinity;
+  for (var i = 0; i < msgs.length; i++) {
+    var el = msgs[i];
+    var idx = parseInt(el.getAttribute('data-idx'), 10);
+    var r = el.getBoundingClientRect();
+    var cy = r.top + r.height / 2;
+    var d = Math.abs(cy - lineY);
+    if (d < bestD) { bestD = d; best = idx; }
+  }
+  return best;
+}
+function previewRange() {
+  var cut = getCutIndex();
+  var anchor = _multiAnchor;
+  if (cut < 0 || anchor < 0) return null;
+  return { from: Math.min(cut, anchor), to: Math.max(cut, anchor) };
+}
+function updatePreview() {
+  var btn = $('selectHereBtn'), cnt = $('selectHereCount');
+  if (!btn) return;
+  _previewMsgs = {};
+  if (_multiSelect && _multiAnchor >= 0) {
+    var range = previewRange();
+    if (range) {
+      for (var i = range.from; i <= range.to; i++) {
+        var m = activeCharacter() && activeCharacter().chat[i];
+        if (m) _previewMsgs[i] = true;
+      }
+      var n = 0;
+      for (var i = range.from; i <= range.to; i++) if (!_selectedMsgs[i]) n++;
+      btn.classList.add('active');
+      if (cnt) {
+        cnt.textContent = n > 0 ? '+' + n : '✓';
+        cnt.classList.toggle('sph-ok', n === 0);
+      }
+    } else {
+      btn.classList.remove('active');
+      if (cnt) { cnt.textContent = ''; cnt.classList.remove('sph-ok'); }
+    }
+  } else {
+    btn.classList.remove('active');
+    if (cnt) { cnt.textContent = ''; cnt.classList.remove('sph-ok'); }
+  }
+}
+function renderPreviewVisual() {
+  document.querySelectorAll('#chatBody .msg[data-idx]').forEach(function(el) {
+    var idx = parseInt(el.getAttribute('data-idx'), 10);
+    var on = !!_previewMsgs[idx] && !_selectedMsgs[idx];
+    el.classList.toggle('msg-preview', on);
+  });
+}
+function selectHereTo() {
+  if (!_multiSelect) return;
+  var range = previewRange();
+  if (!range) return;
+  var char = activeCharacter();
+  var sel = {};
+  for (var i = range.from; i <= range.to; i++) {
+    if (char && char.chat[i]) sel[i] = true;
+  }
+  _selectedMsgs = sel;
+  _selBlock = { from: range.from, to: range.to };
+  _previewMsgs = {};
+  updateMultiCount();
+  renderSelectionVisual();
+  updatePreview();
+  renderPreviewVisual();
 }
 
 function renderChat() {
@@ -240,13 +377,18 @@ function renderChat() {
     const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
     return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="return false;" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}${timeStamp}</div>`;
   }).join('') + typing;
-  $('chatBody').scrollTop = $('chatBody').scrollHeight;
+  if (!_multiSelect) $('chatBody').scrollTop = $('chatBody').scrollHeight;
   applyBubbleStyle();
+  if (_multiSelect) {
+    updatePreview();
+    renderPreviewVisual();
+  }
 }
 
 function deleteMessage(charId, index) {
   const char = getCharacter(charId);
   if (!char.chat[index]) return;
+  if (!confirm('确定删除这条消息吗？删除后无法恢复。')) return;
   char.chat.splice(index, 1);
   saveState();
   renderChat();
@@ -311,7 +453,7 @@ function showQuoteMenu(index) {
   el.querySelector('.q-cut-txt').textContent = name + '：' + text;
   el.querySelector('.q-reply').onclick = function() { hideQuoteMenu(); quoteMessage(index); };
   var qMulti = el.querySelector('.q-multi');
-  if (qMulti) qMulti.onclick = function() { hideQuoteMenu(); enterMultiSelect(); };
+  if (qMulti) qMulti.onclick = function() { hideQuoteMenu(); enterMultiSelect(index); };
   el.querySelector('.q-del').onclick = function() { hideQuoteMenu(); deleteMessage(char.id, index); };
   el.style.display = 'block';
   setTimeout(function() { el.classList.add('show'); }, 10);
