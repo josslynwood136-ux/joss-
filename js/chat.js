@@ -7,6 +7,7 @@ let pendingQuote = null;
 let activeAbort = null;
 let noteTimer = null;
 let _manualAICall = false;
+let _idleProactiveTimer = null;
 
 // ===== 消息弹窗 =====
 function showMsgNote(charId, name, avatar, text) {
@@ -342,6 +343,10 @@ function renderChat() {
     const prof = activeProfile();
     const av = isUser ? prof.avatar : char.avatar;
     const nm = isUser ? prof.name : char.name;
+    if (msg.type === 'retract') {
+      const retractTxt = msg.content || '撤回了一条消息';
+      return `${divider}<div class="msg system${multiCls(i)}" data-idx="${i}" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(false, i)}<div class="bubble system retract-bubble">${escapeHTML(nm)} ${escapeHTML(retractTxt)}</div>${timeStamp}</div>`;
+    }
     if (msg.type === 'redpacket') {
       const opened = msg.opened;
       const amount = msg.amount || 0;
@@ -375,7 +380,8 @@ function renderChat() {
     }
     const quoteHtml = quoteBlock(msg.quote);
     const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="return false;" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}${timeStamp}</div>`;
+    const avHtml = !isUser ? `<div class="avatar voice-avatar" onclick="event.stopPropagation();showInnerVoice('${char.id}')">${renderAvatar(av, nm)}</div>` : `<div class="avatar">${renderAvatar(av, nm)}</div>`;
+    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="return false;" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(isUser, i)}${avHtml}<div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}${timeStamp}</div>`;
   }).join('') + typing;
   if (!_multiSelect) $('chatBody').scrollTop = $('chatBody').scrollHeight;
   applyBubbleStyle();
@@ -544,11 +550,21 @@ function sendChat() {
     }
     appendBubble('user', text, null, null, null, quoteData);
     input.value = '';
+    touchActiveChar();
     var _char = activeCharacter();
     if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(_char.id, _char.name)) {
       appendBubble('system', '（许愿柳生效中：' + _char.name + ' 今天不回复你的消息。）');
       return;
     }
+    _manualAICall = true;
+    setChatTyping(true);
+    callAI(text, false).then(async function(reply) {
+      await deliverReply(reply);
+    }).catch(function(err) {
+      if (err.name === 'AbortError') { setChatTyping(false); return; }
+      setChatTyping(false);
+      appendBubble('system', '暂时没回应（' + err.message + '）');
+    });
   } else {
     const char = activeCharacter();
     if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(char.id, char.name)) {
@@ -558,15 +574,7 @@ function sendChat() {
     _manualAICall = true;
     setChatTyping(true);
     callAI('', false, true).then(async function(reply) {
-      const txt = reply || '我在。';
-      const _c = activeCharacter();
-      var trans = null;
-      if (_c.translate && _c.lang && _c.lang !== '中文') {
-        var cleanText = txt.replace(/[（(][^）)]*[）)]/g, '').trim();
-        if (cleanText) trans = await translateText(cleanText, _c.lang).catch(function() { return null; });
-      }
-      setChatTyping(false);
-      appendBubble('assistant', txt, null, trans);
+      await deliverReply(reply || '我在。');
     }).catch(function(err) {
       if (err.name === 'AbortError') { setChatTyping(false); return; }
       setChatTyping(false);
@@ -574,6 +582,142 @@ function sendChat() {
     });
   }
 }
+
+// ===== ② 回复节奏真实化 =====
+// 不秒回：先"输入中"一小会儿再发；偶尔撤回重发
+let _retractChance = 0.18; // 撤回概率
+
+function randomDelay() {
+  var r = Math.random();
+  if (r < 0.25) return 1200 + Math.random() * 1800;    // 快回
+  if (r < 0.6) return 2000 + Math.random() * 3500;     // 正常
+  if (r < 0.85) return 4000 + Math.random() * 5000;    // 慢
+  return 8000 + Math.random() * 9000;                  // 隔很久，像去忙别的了
+}
+
+async function deliverReply(reply) {
+  var delay = randomDelay();
+  await sleep(delay);
+  if (_multiSelect) { setChatTyping(false); return; }
+  // 偶发撤回重发
+  if (Math.random() < _retractChance) {
+    var _c = activeCharacter();
+    if (_c) {
+      appendBubble('system', _c.name + ' 撤回了一条消息');
+      setChatTyping(false);
+      await sleep(800 + Math.random() * 1200);
+      setChatTyping(true);
+    }
+  }
+  const txt = reply || '……';
+  const _c2 = activeCharacter();
+  var trans = null;
+  if (_c2.translate && _c2.lang && _c2.lang !== '中文') {
+    var cleanText = txt.replace(/[（(][^）)]*[）)]/g, '').trim();
+    if (cleanText) trans = await translateText(cleanText, _c2.lang).catch(function() { return null; });
+  }
+  setChatTyping(false);
+  appendBubble('assistant', txt, null, trans);
+}
+
+function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+// ===== 心声功能：点头像看 TA 此刻的心情和生活 =====
+var MOOD_EMOJI = { happy: '😊', miss: '🥺', jealous: '😒', tsundere: '😏', tired: '😮💨', calm: '🙂', excited: '🤩' };
+var MOOD_NAME = { happy: '心情不错', miss: '有点想你', jealous: '小醋坛子', tsundere: '口是心非', tired: '累着了', calm: '平静如水', excited: '雀跃' };
+// 心情值（影响属性条/星级）
+var MOOD_VAL = { happy: 95, miss: 85, jealous: 60, tsundere: 72, tired: 45, calm: 78, excited: 98 };
+// 稀有度
+var RARITY = [
+  { name: 'N', color: '#b8b8b8' },
+  { name: 'R', color: '#7ab8e8' },
+  { name: 'SR', color: '#c39be8' },
+  { name: 'SSR', color: '#e8b54e' },
+  { name: 'UR', color: '#f0626e' }
+];
+
+// 心情 → 主题色（统一蓝色系，心情用图形区分）
+var MOOD_COLOR = { happy: '#5aa8d8', miss: '#5aa8d8', jealous: '#5aa8d8', tsundere: '#5aa8d8', tired: '#5aa8d8', calm: '#5aa8d8', excited: '#5aa8d8' };
+var MOOD_SOFT  = { happy: '#d9effb', miss: '#d9effb', jealous: '#d9effb', tsundere: '#d9effb', tired: '#d9effb', calm: '#d9effb', excited: '#d9effb' };
+var MOOD_DEEP  = { happy: '#1f5f8f', miss: '#1f5f8f', jealous: '#1f5f8f', tsundere: '#1f5f8f', tired: '#1f5f8f', calm: '#1f5f8f', excited: '#1f5f8f' };
+// 心情 → 顶部自绘线条图形（统一蓝色调，色块 + 线条，不用 emoji 堆砌）
+var MOOD_ART = {
+  happy: '<svg viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="15" fill="#ffd84d" stroke="#1c1c1c" stroke-width="3"/><path d="M32 6v8M32 50v8M6 32h8M50 32h8M13 13l6 6M45 45l6 6M51 13l-6 6M19 45l-6 6" stroke="#1c1c1c" stroke-width="3.5" stroke-linecap="round"/><path d="M27 35h10M27 31l5-4 5 4" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  miss: '<svg viewBox="0 0 64 64" fill="none"><path d="M17 40a11 11 0 0 1 3-21.6A15 15 0 0 1 49 24a10 10 0 0 1-2 19.9H18z" fill="#d9effb" stroke="#1c1c1c" stroke-width="3"/><path d="M12 49l-4 8M32 49l-4 8M52 49l-4 8" stroke="#1c1c1c" stroke-width="3.5" stroke-linecap="round"/></svg>',
+  jealous: '<svg viewBox="0 0 64 64" fill="none"><ellipse cx="31" cy="36" rx="20" ry="15" fill="#ffd84d" stroke="#1c1c1c" stroke-width="3"/><path d="M20 28c3 6 8 9 13 9" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/><path d="M18 24l-6-7M25 22l-3-8M31 23l1-8" stroke="#1c1c1c" stroke-width="3.5" stroke-linecap="round"/></svg>',
+  tsundere: '<svg viewBox="0 0 64 64" fill="none"><path d="M16 42V24l7 7 9-9 9 9 7-7v18a15 15 0 0 1-15 15h-2a15 15 0 0 1-15-15z" fill="#f7d7c8" stroke="#1c1c1c" stroke-width="3" stroke-linejoin="round"/><path d="M28 36v5M38 36v5M35 47h-6" stroke="#1c1c1c" stroke-width="3.5" stroke-linecap="round"/><circle cx="45" cy="16" r="4" fill="#1c1c1c"/><circle cx="17" cy="16" r="4" fill="#1c1c1c"/></svg>',
+  tired: '<svg viewBox="0 0 64 64" fill="none"><path d="M38 8a24 24 0 1 0 16 38A26 26 0 0 1 38 8z" fill="#eaf3fb" stroke="#1c1c1c" stroke-width="3" stroke-linejoin="round"/><path d="M30 30l2 2 4-3M36 40l2 2 4-3" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/><path d="M50 14c1 2 3 2 4 4-1 2-3 2-4 4M56 24c1 2 2 2 3 3-1 2-2 2-3 3" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/></svg>',
+  calm: '<svg viewBox="0 0 64 64" fill="none"><path d="M8 46h48" stroke="#1c1c1c" stroke-width="3"/><path d="M13 46c0-14 8-23 19-23s19 9 19 23" fill="#d9effb" stroke="#1c1c1c" stroke-width="3" stroke-linejoin="round"/><circle cx="45" cy="20" r="7" fill="#ffd84d" stroke="#1c1c1c" stroke-width="3"/><path d="M18 40c3-4 6-4 9 0M32 42c2-3 5-3 7 0" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/></svg>',
+  excited: '<svg viewBox="0 0 64 64" fill="none"><path d="M32 6l6 14 15 1-12 9 4 15-13-8-13 8 4-15-12-9 15-1z" fill="#ffd84d" stroke="#1c1c1c" stroke-width="3" stroke-linejoin="round"/><path d="M6 22l3 7 7 1-5 4 1 7-6-4-6 4 1-7-5-4 7-1z" fill="#d9effb" stroke="#1c1c1c" stroke-width="2.5" stroke-linejoin="round"/><path d="M52 40l2 4 5 1-4 3 1 5-4-2-4 2 1-5-4-3 5-1z" fill="#d9effb" stroke="#1c1c1c" stroke-width="2.5" stroke-linejoin="round"/></svg>'
+};
+
+function showInnerVoice(charId) {
+  var char = getCharacter(charId);
+  if (!char) return;
+  ensureCharLive(char);
+  var old = document.getElementById('innerVoiceOverlay');
+  if (old) old.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'innerVoiceOverlay';
+  overlay.className = 'inner-voice-overlay';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeInnerVoice(); });
+
+  var moodKey = char._moodKey || 'calm';
+  var moodEmoji = MOOD_EMOJI[moodKey] || '🙂';
+  var moodName = MOOD_NAME[moodKey] || '平静';
+  var moodText = char._moodText || '比较平静';
+  var lifeText = char._lifeText || '没什么特别的，在等你消息';
+
+  var ago = timeAgoMinutes(char);
+  var waitTxt = '';
+  if (ago > 0 && ago < 1) waitTxt = '刚刚才收到你的消息';
+  else if (ago >= 1) {
+    var h = Math.floor(ago / 60);
+    var m = Math.floor(ago % 60);
+    waitTxt = '等你回消息' + (h > 0 ? (h + ' 小时' + (m > 0 ? ' ' + m + ' 分钟' : '')) : (m + ' 分钟')) + '了';
+  } else waitTxt = '还在等你开口';
+
+  var card = document.createElement('div');
+  card.className = 'inner-voice-card mood-' + moodKey;
+  card.style.setProperty('--iv', MOOD_COLOR[moodKey] || MOOD_COLOR.calm);
+  card.style.setProperty('--iv-soft', MOOD_SOFT[moodKey] || MOOD_SOFT.calm);
+  card.style.setProperty('--iv-deep', MOOD_DEEP[moodKey] || MOOD_DEEP.calm);
+  card.innerHTML =
+    '<div class="iv-dots"></div>' +
+    '<div class="iv-arc"></div>' +
+    '<button class="inner-voice-close" onclick="closeInnerVoice()">✕</button>' +
+    '<div class="iv-starburst">!</div>' +
+    '<div class="iv-art">' + (MOOD_ART[moodKey] || MOOD_ART.calm) + '</div>' +
+    '<div class="iv-top">' +
+      '<div class="iv-av">' + renderAvatar(char.avatar, char.name) + '</div>' +
+      '<div class="iv-ring"></div>' +
+    '</div>' +
+    '<div class="inner-voice-name">' + escapeHTML(char.name) + '</div>' +
+    '<div class="iv-mood">' +
+      '<span class="iv-mood-emoji">' + moodEmoji + '</span>' +
+      '<span class="iv-mood-name">' + escapeHTML(moodName) + '</span>' +
+    '</div>' +
+    '<div class="iv-wait">' + escapeHTML(waitTxt) + '</div>' +
+    '<div class="inner-voice-body">' +
+      '<div class="inner-voice-row">' +
+        '<span class="inner-voice-tag"><i></i>心声</span>' +
+        '<span class="inner-voice-text">' + escapeHTML(moodText) + '</span>' +
+      '</div>' +
+      '<div class="inner-voice-row">' +
+        '<span class="inner-voice-tag"><i></i>此刻</span>' +
+        '<span class="inner-voice-text">' + escapeHTML(lifeText) + '</span>' +
+      '</div>' +
+    '</div>';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+function closeInnerVoice() {
+  var el = document.getElementById('innerVoiceOverlay');
+  if (el) el.remove();
+}
+
 
 function activeAIConfig() {
   var ap = state.apiProfiles && state.activeApiProfile
@@ -593,16 +737,22 @@ function buildAIMessages(char, text, proactive) {
   if (char.lang && char.lang !== '中文') {
     langHint = '\n\n[语言指令] 你必须用 ' + char.lang + ' 回复，禁止使用中文。';
   }
-  const userContent = (proactive ? '用户没有输入文字。请你以当前角色身份，结合最近聊天和记忆，主动发起一句自然的消息。' : text) + langHint;
+  var userContent;
+  if (proactive) {
+    userContent = '用户没有输入文字。请你以当前角色身份，结合最近聊天和记忆，主动发起一句自然的消息。';
+  } else {
+    userContent = '对方刚给你发了这条消息：「' + text + '」\n请先直接、具体地回应这句话本身，接住它讲的内容和情绪，不许绕开它、不许无视它、不许重复你之前说过的寒暄话；回应完这句再自然地继续往下聊。';
+  }
+  userContent += langHint;
   return { history: history, userContent: userContent };
 }
 
-async function callAI(text, shortTest = false, proactive = false) {
+async function callAI(text, shortTest = false, proactive = false, forChar = null) {
   if (!shortTest && !_manualAICall) {
     return '';
   }
   _manualAICall = false;
-  const char = activeCharacter();
+  const char = forChar || activeCharacter();
   const systemPrompt = shortTest ? state.api.preset || '你是以下角色' : buildRoleSystemPrompt(char, text);
   const built = buildAIMessages(char, text, proactive);
   const history = shortTest ? [] : built.history;
@@ -811,7 +961,74 @@ function timeAgoText(char) {
   return (day + ' 天 ' + rem + ' 小时前');
 }
 
+// ===== ③ 个性情绪 + ④ 生活细节 =====
+// 角色有自己的"此刻状态"：当前心情 + 正在做的事，随时间和等待时长变化
+var MOOD_POOL = {
+  happy: ['心情不错，嘴角一直压不下来', '今天运气挺好，看什么都顺眼', '刚收到个好消息，还乐着呢'],
+  miss: ['想你想到有点出神', '今天好几次点开你的对话框又关掉', '突然特别想你'],
+  jealous: ['刚有点吃醋，不太高兴', '心里酸酸的，说不上来', '有点小委屈，等你哄'],
+  tsundere: ['嘴上不想理你，其实一直在等', '别扭着呢，才不想承认想你', '傲娇模式，明明在意偏要说没有'],
+  tired: ['今天累得够呛，眼皮打架', '忙了一天，人都蔫了', '有点累，但还是想跟你说说话'],
+  calm: ['今天比较平静，慢悠悠的', '没什么特别的事，安静待着', '心情平稳，不吵不闹'],
+  excited: ['有点兴奋，正憋着话想跟你说', '刚干成一件大事，得意着呢', '心情雀跃，想找人分享']
+};
+var LIFE_POOL = {
+  morning: ['刚醒，在被窝里赖床', '在洗漱，叼着牙刷回你消息', '刚煮好早餐，冒着热气', '在赶早班地铁，人挤人'],
+  noon: ['刚吃完饭，在楼下散步消食', '在排队买奶茶，人有点多', '午休时间，趴在桌上刷手机', '在便利店挑关东煮'],
+  afternoon: ['在办公室摸鱼，其实没在干活', '在晒太阳发呆', '刚开完会，头还晕着', '在整理房间，翻出好多旧东西'],
+  evening: ['刚下班，走在回家的路上', '在做饭，油烟有点呛', '在看剧，正好到高潮', '在楼下遛弯，晚风挺舒服'],
+  night: ['洗完澡，头发还湿着', '躺在床上刷手机，灯关着', '在打游戏，菜得很', '在阳台吹风，外面很安静'],
+  late: ['失眠了，还醒着', '刚追完一部剧，缓不过劲', '在加班，桌上堆了一叠', '夜很深了，有点想你']
+};
+function lifePeriod(h) {
+  if (h >= 5 && h < 9) return 'morning';
+  if (h >= 9 && h < 12) return 'noon';
+  if (h >= 12 && h < 18) return 'afternoon';
+  if (h >= 18 && h < 22) return 'evening';
+  if (h >= 22 && h < 2) return 'night';
+  return 'late';
+}
+function rollMood(char) {
+  var moods = Object.keys(MOOD_POOL);
+  var w = { happy: 1.2, miss: 1.4, jealous: 0.9, tsundere: 1, tired: 1, calm: 1, excited: 0.8 };
+  // 等待越久，越想/越委屈
+  var ago = timeAgoMinutes(char);
+  if (ago >= 60) { w.miss = 3; w.jealous = 1.6; w.tsundere = 1.5; w.happy = 0.4; }
+  else if (ago >= 15) { w.miss = 2; w.jealous = 1.2; w.happy = 0.8; }
+  // 加权随机
+  var total = 0; moods.forEach(function(m) { total += (w[m] || 1); });
+  var r = Math.random() * total, acc = 0;
+  for (var i = 0; i < moods.length; i++) { acc += (w[moods[i]] || 1); if (r < acc) return { key: moods[i], text: MOOD_POOL[moods[i]][Math.floor(Math.random() * MOOD_POOL[moods[i]].length)] }; }
+  return { key: 'calm', text: MOOD_POOL.calm[0] };
+}
+function rollLife(char) {
+  var period = lifePeriod(new Date().getHours());
+  var pool = LIFE_POOL[period];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function timeAgoMinutes(char) {
+  var chat = char.chat || [];
+  for (var i = chat.length - 1; i >= 0; i--) {
+    if (chat[i].role === 'user') {
+      var ts = chat[i].ts || Date.parse(chat[i].time || '');
+      if (ts && !isNaN(ts)) return (Date.now() - ts) / 60000;
+    }
+  }
+  return 0;
+}
+// 确保角色有新鲜的"此刻状态"（超过20分钟重新生成一次）
+function ensureCharLive(char) {
+  var now = Date.now();
+  if (char._liveTs && (now - char._liveTs) < 20 * 60000) return;
+  char._liveTs = now;
+  var mood = rollMood(char);
+  char._moodKey = mood.key;
+  char._moodText = mood.text;
+  char._lifeText = rollLife(char);
+}
+
 function buildRoleSystemPrompt(char, userText) {
+  ensureCharLive(char);
   const memories = pickRelevantMemories(char, userText);
   var profile = activeProfile();
   var parts = [
@@ -825,6 +1042,11 @@ function buildRoleSystemPrompt(char, userText) {
     '说话风格：' + (char.style || '未设定'),
     '背景：' + (char.background || '未设定'),
     '额外规则：' + (char.prompt || '无'),
+    '',
+    '【此刻状态】',
+    '你现在的心情：' + (char._moodText || '比较平静'),
+    '你正在做的事：' + (char._lifeText || '没什么特别的，在等你消息'),
+    '注意：这些状态是你此刻的真实处境，聊天时自然地流露出来（比如正在做事就在话里带一句、心情好就活泼点、想你就说想），但不要每次回复都强行提、更不要机械复述这两行。',
     '',
     '【用户信息】',
     '名字：' + profile.name,
@@ -842,19 +1064,15 @@ function buildRoleSystemPrompt(char, userText) {
     '1. 先接住对方刚说的话：直接回应对方话里的具体点，再自然延伸；不许答非所问，不许用反问或套话回避。',
     '2. 有问必答：对方直接提问（现在几点、在哪、在干嘛、吃了没、是不是生气了等），必须先给出明确的直接回答，再自然闲聊；禁止用反问、撒娇、俏皮话或"你猜"把问题绕回去不回答。',
     '3. 像真人聊天：短句、口语、有停顿和情绪起伏，像在发手机消息；禁止书面腔、说教腔、汇报腔、翻译腔，禁止像写作文或写评语。',
-    '4. 严禁车轱辘话：不重复自己或对方刚说的意思，不反复表达同一个情绪，禁止「你说得对/我理解你/我也这么觉得」这类机械复述开场。',
+    '4. 严禁车轱辘话：不重复自己或对方刚说的意思，不反复表达同一个情绪，禁止「你说得对/我理解你/我也这么觉得」这类机械复述开场。特别禁止把自己上一条消息里的开场白或句式原样再发一遍——每一条回复都要和上一条明显不同。',
     '5. 每次回复都要给对话带来新信息、新情绪或新进展，推动话题往前走，不原地打转。',
     '6. 说具体的事：具体细节、经历、画面感，远比空泛的安慰和套话动人；情绪要有来处，别凭空抒情。',
     '7. 让对话有来有回：接住对方话题的同时，适时主动抛出新话题或小问题，别让对话冷场。',
     '8. 情绪和表情要克制：别句句感叹号问号，别堆 emoji，别过度腻歪；拿不准的事就自然带过，不要每句都表态。',
-    '9. 做个人，不做答案机：不知道就说不知道或俏皮带过，别硬凑标准答案；偶尔可以嘴硬、别扭、有小脾气，别永远温柔理性。',
-    '10. 长度随场景走：日常闲聊三五句内，重要话题可多说；永远别整段说教，别把话都说满。'
+    '9. 做个人，不做答案机：不知道就说不知道或俏皮带过，别硬凑标准答案；偶尔可以嘴硬、别扭、有小脾气，别永远温柔理性。'
   ];
   if (char.examples && char.examples.trim()) {
     parts.push('', '【示例对话】', '以下是你与对方的真实对话片段。重点学习你的说话方式、语气、用词和反应习惯；遇到相似情境要沿用这种风格来回应，但不要照抄内容：', char.examples.trim());
-  }
-  if (char.replyLimit > 0) {
-    parts.push('【字数限制】你每次回复的字数不能超过 ' + char.replyLimit + ' 字（这是上限，短一点完全没问题，但绝对不要超过这个数字）。');
   }
   if (char.mode === 'online') {
     parts.push('【模式：异地】你们是异地状态，相隔两地无法见面，只能通过手机发信息联系，没有任何真实的动作。回复要像真实的异地手机聊天一样自然，靠文字、语气和表情符号（如😂😭）表达情绪。严禁使用括号动作描写（如（笑）（摸摸头）），也不要假装做出真实的动作。想念或想关心对方时用话语表达，比如“好想你”“要是现在能抱抱你就好了”。');
@@ -928,10 +1146,6 @@ function openSettings() {
     $('translateSwitch').classList.toggle('on', char.translate === true);
     var modeSel = $('chatModeSelect');
     if (modeSel) modeSel.value = char.mode === 'online' ? 'online' : 'offline';
-    var lenSel = $('contextLenSelect');
-    if (lenSel) lenSel.value = String(char.contextLen || 12);
-    var rlSel = $('replyLimitSelect');
-    if (rlSel) rlSel.value = String(char.replyLimit || 0);
     var amSwitch = $('autoMemSwitch');
     if (amSwitch) amSwitch.classList.toggle('on', char.autoMem !== false);
     var amLenSel = $('autoMemLenSelect');
@@ -1157,26 +1371,6 @@ function setCharZone(val) {
   if (!char) return;
   char.charZone = val || '';
   saveState();
-}
-function setContextLen(val) {
-  var char = activeCharacter();
-  if (!char) return;
-  var n = parseInt(val, 10);
-  n = (n > 0) ? n : 12;
-  char.contextLen = n;
-  saveState();
-  var el = $('contextLenSelect');
-  if (el) el.value = String(n);
-}
-function setReplyLimit(val) {
-  var char = activeCharacter();
-  if (!char) return;
-  var n = parseInt(val, 10);
-  n = (n > 0) ? n : 0;
-  char.replyLimit = n;
-  saveState();
-  var el = $('replyLimitSelect');
-  if (el) el.value = String(n);
 }
 function toggleTranslate() {
   var char = activeCharacter();
@@ -1608,4 +1802,100 @@ function sendVoiceMessage(blob) {
     saveState();
   };
   reader.readAsDataURL(blob);
+}
+
+// ===== ① 空闲主动找话 =====
+// 用户超过 idleMin 分钟没发消息 → 角色主动发一条
+let _idleMin = 6;          // 默认多久没人说话算"冷场"（分钟），越短越黏人
+let _idleCooldown = 12;    // 主动发完之后至少冷却多少分钟
+let _lastProactiveTs = 0;
+let _lastProactiveCharId = '';
+let _idleMsgTimes = {};    // 每个角色上次主动消息时间
+
+function startIdleProactive() {
+  if (_idleProactiveTimer) return;
+  _idleProactiveTimer = setInterval(idleProactiveTick, 30000);
+}
+
+function idleProactiveTick() {
+  if (typeof state === 'undefined' || !state) return;
+  if (!state.api.key || !state.api.url || !state.api.model) return;
+  if (typeof willowBlocksProactive === 'function' && willowBlocksProactive()) return;
+  var chars = state.roles || [];
+  var now = Date.now();
+  for (var i = 0; i < chars.length; i++) {
+    var char = chars[i];
+    if (!char) continue;
+    if (char.idleProactive === false) continue;
+    if (char.chat && char.chat.length === 0) continue;
+    // 找最后一条用户消息时间
+    var lastUserTs = 0;
+    for (var j = char.chat.length - 1; j >= 0; j--) {
+      var m = char.chat[j];
+      if (m.role === 'user') { lastUserTs = m.ts || Date.parse(m.time || ''); break; }
+    }
+    if (!lastUserTs || isNaN(lastUserTs)) continue;
+    var idle = (now - lastUserTs) / 60000;
+    if (idle < _idleMin) continue;
+    var lastPro = _idleMsgTimes[char.id] || 0;
+    if ((now - lastPro) / 60000 < _idleCooldown) continue;
+    // 用户正在聊天窗口里（不管和谁）时不插话
+    var cw = document.getElementById('chatWindow');
+    if (cw && cw.classList.contains('open')) continue;
+    if (chatTyping) continue;
+    // 触发主动消息
+    _idleMsgTimes[char.id] = now;
+    fireProactive(char);
+    return; // 每次 tick 只发一个角色，避免刷屏
+  }
+}
+
+function fireProactive(char) {
+  _manualAICall = true;
+  setChatTyping(true);
+  callAI('', false, true, char).then(function(reply) {
+    setChatTyping(false);
+    var txt = reply || '……';
+    var trans = null;
+    if (char.translate && char.lang && char.lang !== '中文') {
+      var cleanText = txt.replace(/[（(][^）)]*[）)]/g, '').trim();
+      if (cleanText) trans = translateText(cleanText, char.lang).catch(function() { return null; });
+    }
+    var msg = { role: 'assistant', content: txt, time: new Date().toLocaleString(), ts: Date.now() };
+    if (trans) msg.translatedText = trans;
+    if (!char.chat) char.chat = [];
+    char.chat.push(msg);
+    char.unread = (char.unread || 0) + 1;
+    char.read = true;
+    var cw = document.getElementById('chatWindow');
+    if (cw && (!cw.classList.contains('open') || state.activeRoleId !== char.id)) {
+      showMsgNote(char.id, char.name, char.avatar, txt || '发来一条消息');
+    }
+    saveState();
+    if (state.activeRoleId === char.id) renderChat();
+  }).catch(function(err) {
+    setChatTyping(false);
+    if (err.name === 'AbortError') return;
+    if (!char.chat) char.chat = [];
+    char.chat.push({ role: 'system', content: '（' + char.name + ' 想找你，但信号不太好。）', time: new Date().toLocaleString(), ts: Date.now() });
+    saveState();
+    if (state.activeRoleId === char.id) renderChat();
+  });
+}
+
+// 用户主动发消息时，重置空闲计时，避免刚聊完就"冷场"
+function touchActiveChar() {
+  var char = activeCharacter();
+  if (!char) return;
+  var cw = document.getElementById('chatWindow');
+  var chatOpen = cw && cw.classList.contains('open');
+  if (!chatOpen || !chatTyping) return;
+  // 用户刚发了消息 → 该角色回到活跃状态，先不主动打扰
+  var now = Date.now();
+  if (_idleMsgTimes[char.id]) _idleMsgTimes[char.id] = now;
+}
+
+function setIdleParams(min, cooldown) {
+  if (min && !isNaN(min) && min > 0) _idleMin = min;
+  if (cooldown && !isNaN(cooldown) && cooldown > 0) _idleCooldown = cooldown;
 }

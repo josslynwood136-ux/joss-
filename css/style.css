@@ -553,6 +553,123 @@ button { border: 0; cursor: pointer; }
   pointer-events: none;
 }
 .bubble.system { align-self: center; max-width: 100%; width: fit-content; background: transparent; color: #c4b5a8; font-size: 12px; box-shadow: none; white-space: nowrap; word-break: keep-all; }
+.bubble.retract-bubble { color: #b0a095; font-style: italic; }
+.voice-avatar { cursor: pointer; position: relative; }
+.voice-avatar::after { content: '☁'; position: absolute; right: -2px; bottom: -1px; font-size: 9px; color: #c9b8a5; background: #fff; border-radius: 50%; width: 13px; height: 13px; line-height: 13px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+@keyframes innerVoiceIn { from { opacity: 0; transform: translateY(14px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* ===== 心声弹窗 · 正统美漫风 ===== */
+.inner-voice-overlay { position: fixed; inset: 0; z-index: 99999; background: rgba(15,15,15,.55); display: flex; align-items: center; justify-content: center; animation: fadeIn .2s ease; }
+.inner-voice-card {
+  width: min(84vw, 320px);
+  border-radius: 12px;
+  padding: 0 0 28px;
+  position: relative;
+  overflow: hidden;
+  animation: innerVoiceIn .4s cubic-bezier(.34,1.56,.64,1);
+  text-align: center;
+  background: #fff;
+  background-image: radial-gradient(rgba(28,28,28,.12) 2px, transparent 2.6px);
+  background-size: 22px 22px;
+  border: 3.5px solid #1c1c1c;
+  box-shadow: 7px 7px 0 rgba(28,28,28,.38);
+  transform: rotate(-1.2deg);
+}
+/* 半调网点覆盖层 */
+.iv-dots {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background-image: radial-gradient(rgba(28,28,28,.06) 1.5px, transparent 2px);
+  background-size: 16px 16px;
+}
+/* 顶部漫画色块（斜切 + 黑描边） */
+.iv-arc {
+  position: absolute; top: 0; left: -12%; right: -12%; height: 132px;
+  background: linear-gradient(120deg, var(--iv) 0 60%, var(--iv-soft) 100%);
+  border-bottom: 3.5px solid #1c1c1c;
+  transform: rotate(-3deg);
+  pointer-events: none;
+  z-index: 2;
+}
+.iv-arc::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -14px; height: 12px;
+  background: repeating-linear-gradient(-45deg, #1c1c1c 0 10px, #fff 10px 20px);
+  transform: rotate(3deg);
+}
+/* 星爆贴纸 */
+.iv-starburst {
+  position: absolute; top: 14px; right: 14px; z-index: 5;
+  width: 44px; height: 44px;
+  background: #ffd84d; color: #1c1c1c;
+  display: grid; place-items: center;
+  font-weight: 900; font-size: 22px; font-style: italic;
+  clip-path: polygon(50% 0%, 61% 14%, 80% 8%, 76% 25%, 94% 29%, 80% 40%, 94% 55%, 77% 60%, 84% 78%, 67% 69%, 62% 90%, 50% 73%, 38% 90%, 33% 69%, 16% 78%, 23% 60%, 6% 55%, 20% 40%, 6% 29%, 24% 25%, 20% 8%, 39% 14%);
+  filter: drop-shadow(2.5px 2.5px 0 rgba(28,28,28,.45));
+  transform: rotate(8deg);
+  animation: ivSpinSlow 7s linear infinite;
+}
+@keyframes ivSpinSlow { from { transform: rotate(8deg); } to { transform: rotate(368deg); } }
+
+/* 右上角自绘心情线条图形（漫画涂鸦） */
+.iv-art { position: absolute; top: 66px; right: 16px; width: 56px; height: 56px; pointer-events: none; z-index: 4; filter: drop-shadow(2px 2px 0 rgba(28,28,28,.25)); transform: rotate(-6deg); animation: ivFloat 4s ease-in-out infinite; }
+.iv-art svg { width: 100%; height: 100%; }
+@keyframes ivFloat { 0%,100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-7px) rotate(-6deg); } }
+
+.inner-voice-close { position: absolute; top: 12px; left: 12px; width: 32px; height: 32px; border: 2.5px solid #1c1c1c; border-radius: 50%; background: #fff; color: #1c1c1c; font-size: 15px; font-weight: 900; cursor: pointer; line-height: 1; display: flex; align-items: center; justify-content: center; z-index: 6; box-shadow: 2.5px 2.5px 0 rgba(28,28,28,.3); transition: transform .1s; }
+.inner-voice-close:hover { background: #ffd84d; }
+.inner-voice-close:active { transform: translate(2px,2px); box-shadow: none; }
+.iv-top { position: relative; width: 104px; height: 92px; margin: 0 auto; z-index: 6; }
+.iv-ring {
+  position: absolute; top: 30px; left: 6px; width: 92px; height: 92px; border-radius: 50%;
+  border: 3px solid #1c1c1c;
+  border-top-color: var(--iv-deep);
+  animation: ivSpin 7s linear infinite;
+  z-index: 4;
+}
+@keyframes ivSpin { to { transform: rotate(360deg); } }
+.iv-av { position: absolute; top: 36px; left: 12px; width: 80px; height: 80px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 33px; background: #fff; border: 3px solid #1c1c1c; box-shadow: 3px 3px 0 rgba(28,28,28,.3); }
+.iv-av img { width: 100%; height: 100%; object-fit: cover; }
+.inner-voice-name { position: relative; margin: 24px auto 0; display: block; width: fit-content; background: #fff; border: 3px solid #1c1c1c; border-radius: 6px; box-shadow: 3px 3px 0 rgba(28,28,28,.3); padding: 3px 16px; transform: rotate(-1.5deg); font-size: 19px; font-weight: 900; font-style: italic; color: #1c1c1c; letter-spacing: .05em; z-index: 3; }
+.iv-mood { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; z-index: 3; }
+.iv-mood-emoji {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--iv); color: #1c1c1c;
+  display: grid; place-items: center; font-size: 17px;
+  border: 2.5px solid #1c1c1c;
+  box-shadow: 2.5px 2.5px 0 rgba(28,28,28,.3);
+  transform: rotate(-4deg);
+  animation: ivPop .5s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes ivPop { 0% { transform: scale(0) rotate(-20deg); } 100% { transform: scale(1) rotate(-4deg); } }
+.iv-mood-name { font-size: 14px; font-weight: 900; color: var(--iv-deep); letter-spacing: .04em; font-style: italic; }
+.iv-wait { position: relative; font-size: 12px; font-weight: 700; color: #3a3a3a; margin-top: 6px; letter-spacing: .03em; z-index: 3; }
+.inner-voice-body {
+  position: relative;
+  margin: 12px 14px 0;
+  text-align: left;
+  border-radius: 10px;
+  background: #fff;
+  border: 3px solid #1c1c1c;
+  box-shadow: 3.5px 3.5px 0 rgba(28,28,28,.3);
+  padding: 14px 15px;
+  display: grid; gap: 12px;
+  transform: rotate(.8deg);
+  z-index: 3;
+}
+.inner-voice-row { display: flex; align-items: flex-start; gap: 11px; font-size: 13.5px; color: #1c1c1c; line-height: 1.7; font-weight: 600; }
+.inner-voice-tag {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  color: #1c1c1c; font-size: 11px; font-weight: 900;
+  padding: 3px 9px; border-radius: 6px;
+  background: var(--iv);
+  border: 2px solid #1c1c1c;
+  letter-spacing: .06em;
+  margin-top: 1px;
+  box-shadow: 2px 2px 0 rgba(28,28,28,.25);
+  transform: rotate(-2deg);
+}
+.inner-voice-tag i { width: 7px; height: 7px; border-radius: 2px; background: #1c1c1c; display: block; }
+.inner-voice-text { color: #1c1c1c; font-weight: 600; user-select: text; }
 .bubble.left .trans-divider { border-top-color: rgba(200,170,150,.2) !important; }
 .bubble.right .trans-divider { border-top-color: rgba(180,170,200,.2) !important; }
 .bubble.typing {

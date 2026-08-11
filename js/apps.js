@@ -131,7 +131,7 @@ function renderApiSettings() {
   var params = [
     ['Temperature','apiTemp','vTemp',d.temp??0.75,0,2,0.05,2,'越小越保守，越大越发散'],
     ['Top P','apiTopP','vTopP',d.topP??0.9,0,1,0.05,2,'和 temp 类似，通常保持 0.9 不动'],
-    ['Max Tokens','apiMaxTokens','vMT',d.maxTokens??500,64,2048,64,0,'AI 每次回复的最大字数'],
+    ['Max Tokens','apiMaxTokens','vMT',d.maxTokens??500,64,8192,64,0,'AI 每次回复的最大字数'],
     ['Presence Penalty','apiPresenceP','vPP',d.presencePenalty??0.6,-2,2,0.1,1,'越高越少重复已聊话题'],
     ['Frequency Penalty','apiFreqP','vFP',d.frequencyPenalty??0.4,-2,2,0.1,1,'越高用词越不重复']
   ];

@@ -39,6 +39,7 @@ function init() {
   if (typeof loadNcmState === 'function') loadNcmState();
   if (typeof loadQqState === 'function') loadQqState();
   if (typeof maybeProbeNcm === 'function') maybeProbeNcm();
+  if (typeof startIdleProactive === 'function') startIdleProactive();
 }
 
 // 桌面热点绑定（兼容触摸 + 鼠标）
@@ -149,6 +150,8 @@ _w.closeStickerForm = closeStickerForm; _w.stickerPickImage = stickerPickImage; 
 _w.deleteSticker = deleteSticker;
 _w.renderWillow = renderWillow; _w.makeWish = makeWish; _w.clearWishToday = clearWishToday;
 _w.currentWillowWish = currentWillowWish; _w.currentWillowRule = currentWillowRule; _w.willowContextText = willowContextText; _w.willowBlocksProactive = willowBlocksProactive; _w.willowBlocksReplyFor = willowBlocksReplyFor; _w.willowBreaksRelation = willowBreaksRelation; _w.willowParseRule = willowParseRule;
+_w.startIdleProactive = startIdleProactive; _w.setIdleParams = setIdleParams;
+_w.showInnerVoice = showInnerVoice; _w.closeInnerVoice = closeInnerVoice;
 
 // 离开时保存
 window.addEventListener('beforeunload', saveState);
