@@ -337,6 +337,7 @@ function renderChat() {
       if (!isNaN(_d.getTime())) msgTime = String(_d.getHours()).padStart(2, '0') + ':' + String(_d.getMinutes()).padStart(2, '0');
     } catch (e) {}
     const timeStamp = (msg.role !== 'system' && msgTime) ? `<div class="msg-time">${msgTime}</div>` : '';
+    const avCol = (avHtmlInner) => `<span class="msg-avcol">${avHtmlInner}${timeStamp}</span>`;
     if (msg.role === 'system') {
       return `${divider}<div class="msg system${multiCls(i)}" data-idx="${i}" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(false, i)}<div class="bubble system">${escapeHTML(msg.content)}</div></div>`;
     }
@@ -353,17 +354,17 @@ function renderChat() {
       const note = msg.note || '';
       const amtText = amount.toFixed(amount % 1 ? 2 : 0);
       const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="askDeleteMessage('${char.id}',${i})" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="_multiSelect?onMsgTap(event,${i}):openRedPacket('${char.id}',${i})"` : ''}>
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="askDeleteMessage('${char.id}',${i})" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})">${msgCheck(isUser, i)}${avCol(`<div class="avatar">${renderAvatar(av, nm)}</div>`)}<div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="_multiSelect?onMsgTap(event,${i}):openRedPacket('${char.id}',${i})"` : ''}>
         <span class="rp-card-icon">🧧</span>
         <span class="rp-card-label">${isUser ? '你' : escapeHTML(nm)}</span>
         ${opened ? `<div class="rp-card-amount">¥ ${amtText}</div>` : `<div class="rp-card-btn">開</div>`}
         <div class="rp-card-note">${escapeHTML(note || '恭喜发财')}</div>
-      </div>${tick}${timeStamp}</div>`;
+      </div>${tick}</div>`;
     }
     if (msg.type === 'sticker') {
       const stickerSrc = msg.media && msg.media.src ? msg.media.src : '';
       const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" oncontextmenu="return false;">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div>${stickerSrc ? `<img src="${escapeHTML(stickerSrc)}" class="chat-sticker-img" alt="表情包">` : ''}${tick}${timeStamp}</div>`;
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" oncontextmenu="return false;">${msgCheck(isUser, i)}${avCol(`<div class="avatar">${renderAvatar(av, nm)}</div>`)}${stickerSrc ? `<img src="${escapeHTML(stickerSrc)}" class="chat-sticker-img" alt="表情包">` : ''}${tick}</div>`;
     }
     let mediaHtml = '';
     if (msg.media && msg.media.type === 'image') {
@@ -381,7 +382,7 @@ function renderChat() {
     const quoteHtml = quoteBlock(msg.quote);
     const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
     const avHtml = !isUser ? `<div class="avatar voice-avatar" onclick="event.stopPropagation();showInnerVoice('${char.id}')">${renderAvatar(av, nm)}</div>` : `<div class="avatar">${renderAvatar(av, nm)}</div>`;
-    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="return false;" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(isUser, i)}${avHtml}<div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}${timeStamp}</div>`;
+    return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="return false;" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})" onclick="onMsgTap(event,${i})">${msgCheck(isUser, i)}${avCol(avHtml)}<div class="bubble ${isUser ? 'right' : 'left'}">${quoteHtml}${textHtml}${mediaHtml}${transHtml}</div>${tick}</div>`;
   }).join('') + typing;
   if (!_multiSelect) $('chatBody').scrollTop = $('chatBody').scrollHeight;
   applyBubbleStyle();
