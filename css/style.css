@@ -2255,6 +2255,112 @@ button { border: 0; cursor: pointer; }
 @keyframes studyBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
 @keyframes studyFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
 
+/* 展示台·人物呼吸 */
+.study-char-bob { transform-box:fill-box; transform-origin:center; animation:studyCharBob 3.2s ease-in-out infinite; }
+@keyframes studyCharBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+/* 展示台·光环呼吸 */
+.study-ring { transform-box:fill-box; transform-origin:center; animation:studyRing 3.6s ease-in-out infinite; }
+@keyframes studyRing { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(1.07);opacity:1} }
+/* 展示台·光晕脉冲 */
+.study-glow-pulse { transform-box:fill-box; transform-origin:center; animation:studyPulse 3s ease-in-out infinite; }
+@keyframes studyPulse { 0%,100%{opacity:.5} 50%{opacity:.85} }
+/* 展示台·星光闪烁 */
+.study-twinkle { animation:studyTwinkle 2.2s ease-in-out infinite; }
+@keyframes studyTwinkle { 0%,100%{opacity:.2} 50%{opacity:1} }
+/* 展示台·光斑漂浮 */
+.study-spark { animation:studySpark 6s ease-in-out infinite; }
+@keyframes studySpark {
+  0%,100% { transform:translateY(0); opacity:.3; }
+  50% { transform:translateY(-14px); opacity:.9; }
+}
+/* 展示台·名字柔光 */
+.study-name-glow { filter:drop-shadow(0 0 5px rgba(232,176,189,.55)) drop-shadow(0 0 14px rgba(201,168,224,.35)); }
+
+/* 自习室·拍立得相册场景 */
+.study-window-scene {
+  position:relative; height:250px; border-radius:18px; overflow:hidden;
+  flex-shrink:0; box-shadow:0 6px 20px rgba(120,100,80,.2);
+}
+.study-window-scene::after {
+  content:''; position:absolute; inset:0; pointer-events:none; z-index:6;
+  box-shadow:inset 0 0 40px rgba(255,255,255,.12);
+}
+/* 陪伴气泡（场景中不再显示） */
+.study-window-scene .study-speech { display:none !important; }
+
+/* 陪伴卡片 */
+.study-mate-card {
+  background:linear-gradient(180deg,#fff,#fbf8f3);
+  border:1px solid #f0e8de; border-radius:20px;
+  padding:14px 16px 16px; margin-top:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.03);
+}
+.study-mate-head { display:flex; align-items:center; gap:12px; }
+.study-mate-chip {
+  width:46px; height:46px; border-radius:50%; overflow:hidden;
+  background:#fff; border:2px solid #eee5da; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; box-shadow:0 2px 8px rgba(0,0,0,.08);
+  position:relative;
+}
+.study-mate-chip::after {
+  content:''; position:absolute; bottom:-2px; right:-2px; width:12px; height:12px;
+  border-radius:50%; background:#6fcf97; border:2.5px solid #fff; z-index:2;
+}
+.study-mate-name { font-size:14px; color:#5c4f42; font-weight:700; }
+.study-mate-sub { font-size:11px; color:#b8a99a; margin-top:2px; }
+.study-mate-swap {
+  margin-left:auto; border:1px solid #eee5da; background:#fff; color:#7a6b5c;
+  border-radius:999px; padding:5px 14px; font-size:12px; cursor:pointer;
+  transition:all .15s; flex-shrink:0;
+}
+.study-mate-swap:active { transform:scale(.95); background:#faf6f0; }
+.study-mate-stats {
+  display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:14px;
+}
+.study-mate-stat {
+  text-align:center; background:linear-gradient(180deg,#fdfaf5,#f7f2ea);
+  border:1px solid #f2eadf; border-radius:14px; padding:9px 4px 8px;
+}
+.study-mate-stat b { display:block; font-size:17px; color:#5c4f42; font-weight:700; margin-top:2px; }
+.study-mate-stat span { font-size:11px; color:#b8a99a; }
+.study-mate-divider {
+  display:flex; align-items:center; gap:8px; margin:14px 0 8px;
+}
+.study-mate-divider span { font-size:13px; color:#7a6b5c; font-weight:600; flex-shrink:0; }
+.study-mate-divider::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,#eee5da,transparent); }
+
+/* 环境音 / 成长 / 记录 */
+.study-sub-card {
+  background:#fff; border-radius:18px; padding:14px 16px; margin-top:12px;
+  border:1px solid #f3ecdf;
+}
+.study-sub-title { font-size:13px; color:#7a6b5c; font-weight:600; margin-bottom:10px; }
+.study-pill-btn {
+  flex:1; border:none; border-radius:12px; padding:9px 0; font-size:12px;
+  cursor:pointer; transition:all .15s; background:#f0ece5; color:#7a6b5c;
+}
+.study-pill-btn:active { transform:scale(.96); }
+.study-pill-btn.on { background:linear-gradient(135deg,#d8c9b6,#c8b49b); color:#fff; font-weight:600; box-shadow:0 3px 10px rgba(150,125,95,.25); }
+/* 计时卡片 */
+.study-timer-card {
+  background:#fff; border-radius:20px; padding:14px 16px;
+  border:1px solid #f0e8de; box-shadow:0 2px 10px rgba(0,0,0,.03);
+}
+.study-timer-label { font-size:12px; color:#b8a99a; }
+.study-timer-num { text-align:center; font-size:52px; font-weight:300; color:#5c4f42; letter-spacing:3px; margin:4px 0; font-variant-numeric:tabular-nums; }
+.study-dur-btn { background:#f0e8de; color:#7a6b5c; border:none; border-radius:20px; padding:8px 0; font-size:13px; cursor:pointer; transition:all .15s; }
+.study-dur-btn:active { transform:scale(.95); }
+.study-main-btn { background:linear-gradient(135deg,#d8c9b6,#c8b49b); color:#fff; border:none; border-radius:20px; padding:11px 0; font-size:14px; cursor:pointer; font-weight:600; box-shadow:0 4px 12px rgba(150,125,95,.25); transition:all .15s; }
+.study-main-btn:active { transform:scale(.97); filter:brightness(.96); }
+.study-end-btn { background:transparent; color:#b8a99a; border:1px solid #e0d5c8; border-radius:20px; padding:11px 0; font-size:13px; cursor:pointer; transition:all .15s; }
+.study-end-btn:active { transform:scale(.97); }
+.study-record-row { display:flex; align-items:center; gap:8px; padding:7px 2px; border-bottom:1px solid #f0ece5; }
+.study-record-row:last-child { border:none; }
+.study-record-sub { font-size:13px; color:#5c4f42; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.study-record-min { font-size:12px; color:#b8a99a; flex-shrink:0; }
+.study-record-date { font-size:11px; color:#c9bcad; flex-shrink:0; }
+
 /* ===== 通话 ===== */
 .call-overlay{position:absolute;inset:0;z-index:9999;background:var(--bg-gray);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;animation:fadeIn .25s ease}
 .call-avatar{width:88px;height:88px;border-radius:50%;background-size:cover;background-position:center;border:2px solid var(--line);flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,.05)}

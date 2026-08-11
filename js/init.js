@@ -116,7 +116,7 @@ _w.newProfile = newProfile; _w.editProfile = editProfile;
 _w.doCheckin = doCheckin; _w.deleteCheckin = deleteCheckin; _w.submitNewCheckin = submitNewCheckin; _w.submitEditCheckin = submitEditCheckin;
 _w.addDiary = addDiary; _w.setStudyMinutes = setStudyMinutes; _w.setBreak = setBreak;
 _w.toggleStudy = toggleStudy; _w.finishStudy = finishStudy; _w.clearStudyRecords = clearStudyRecords; _w.companionSay = companionSay; _w.refreshCompanion = refreshCompanion; _w.inviteStudy = inviteStudy;
-_w.switchStudyCompanion = switchStudyCompanion; _w.toggleStudyDecor = toggleStudyDecor; _w.toggleStudySound = toggleStudySound; _w.studySoundStop = studySoundStop;
+_w.switchStudyCompanion = switchStudyCompanion; _w.toggleStudySound = toggleStudySound; _w.studySoundStop = studySoundStop;
 _w.addLedger = addLedger; _w.deleteLedger = deleteLedger; _w.editLedger = editLedger; _w.changeLedgerMonth = changeLedgerMonth;
 _w.clearCanvas = clearCanvas; _w.saveDoodle = saveDoodle; _w.undoDoodle = undoDoodle; _w.uploadDoodleBg = uploadDoodleBg;
 _w.uploadMusic = uploadMusic; _w.playSong = playSong; _w.playMusic = playSong; _w.renameMusic = renameMusic; _w.deleteMusic = deleteMusic; _w.togglePlay = togglePlay; _w.nextSong = nextSong; _w.prevSong = prevSong; _w.cycleMode = cycleMode; _w.toggleFav = toggleFav; _w.setFavView = setFavView; _w.searchMusic = searchMusic; _w.clearSearch = clearSearch; _w.playSearch = playSearch; _w.openNcmLogin = openNcmLogin; _w.closeNcmLogin = closeNcmLogin; _w.setSearchSrc = setSearchSrc; _w.openQqLogin = openQqLogin; _w.closeQqLogin = closeQqLogin;

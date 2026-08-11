@@ -1472,16 +1472,6 @@ const COMPANION_LINES = {
   remind: ['第几个番茄了？我帮你看着时间。', '呼吸放慢，专注手里的书。', '距离目标又近了一步。', '别分心，我守着你。', '喝水，然后继续。']
 };
 
-const STUDY_DECOR = [
-  { id: 'window', icon: '🪟', name: '窗户', lv: 1 },
-  { id: 'plant', icon: '🪴', name: '桌边绿植', lv: 2 },
-  { id: 'lamp', icon: '🛋️', name: '落地灯', lv: 3 },
-  { id: 'shelf', icon: '📚', name: '书架', lv: 4 },
-  { id: 'poster', icon: '🖼️', name: '墙贴', lv: 5 },
-  { id: 'rug', icon: '🧶', name: '地毯', lv: 6 },
-  { id: 'cat', icon: '🐱', name: '小猫咪', lv: 8 },
-  { id: 'coffee', icon: '☕', name: '咖啡机', lv: 10 }
-];
 const STUDY_SOUNDS = [
   { id: 'rain', name: '雨声', icon: '🌧️' },
   { id: 'cafe', name: '咖啡店', icon: '☕' },
@@ -1491,15 +1481,6 @@ const STUDY_SOUNDS = [
 let studyTimer = null;
 let studyAudio = null;
 
-function studyLevelInfo() {
-  let lv = 1, need = 80, into = state.study.xp;
-  while (into >= need) { into -= need; lv++; need = 80 + (lv - 1) * 40; }
-  return { level: lv, into, need };
-}
-function studyCharPrefix() {
-  const char = studyCompanion();
-  return char && char.name && char.name !== '未命名角色' ? char.name + '：' : '';
-}
 function studyCompanion() {
   if (state.study.companionRoleId) {
     const r = state.roles.find(x => x.id === state.study.companionRoleId);
@@ -1528,18 +1509,7 @@ function ensureStudyDay() {
 }
 function studyGain(min) {
   ensureStudyDay();
-  const m = Math.max(1, Math.round(min));
-  const st = state.study;
-  st.dailyMin += m;
-  st.xp += m * 2;
-  const info = studyLevelInfo();
-  if (info.level > st.level) {
-    const newly = STUDY_DECOR.filter(d => d.lv <= info.level && !st.decor.includes(d.id));
-    newly.forEach(d => st.decor.push(d.id));
-    st.level = info.level;
-    const names = newly.map(d => d.icon + d.name).join('、');
-    st.companionMsg = studyCharPrefix() + '🎉 升级啦！现在是 Lv.' + info.level + (names ? '，解锁了「' + names + '」' : '');
-  }
+  state.study.dailyMin += Math.max(1, Math.round(min));
 }
 function studySoundStart(id) {
   studySoundStop();
@@ -1583,66 +1553,94 @@ function toggleStudySound(id) {
   if (state.study.sound === id) studySoundStart('');
   else studySoundStart(id);
 }
-function toggleStudyDecor(id) {
-  const info = studyLevelInfo();
-  const d = STUDY_DECOR.find(x => x.id === id);
-  if (!d || d.lv > info.level) return;
-  const i = state.study.decor.indexOf(id);
-  if (i >= 0) state.study.decor.splice(i, 1);
-  else state.study.decor.push(id);
-  saveState();
-  renderStudy();
-}
 function studySky() {
   const h = new Date().getHours();
-  if (h >= 5 && h < 11) return 'linear-gradient(180deg,#ffdfb0,#ffeede)';
-  if (h >= 11 && h < 17) return 'linear-gradient(180deg,#a5d6f7,#e6f4fb)';
-  if (h >= 17 && h < 21) return 'linear-gradient(180deg,#ffb98a,#ffdbb8)';
-  return 'linear-gradient(180deg,#1f2b4d,#33406e)';
+  if (h >= 5 && h < 11) return { top: '#ffdfb0', bottom: '#ffeede' };
+  if (h >= 11 && h < 17) return { top: '#a5d6f7', bottom: '#e6f4fb' };
+  if (h >= 17 && h < 21) return { top: '#ffb98a', bottom: '#ffdbb8' };
+  return { top: '#1f2b4d', bottom: '#33406e' };
 }
 function studyRoomHTML() {
   const st = state.study;
   const char = studyCompanion();
-  const hour = new Date().getHours();
-  const night = hour >= 21 || hour < 5;
-  const sky = studySky();
-  const on = id => st.decor.includes(id);
-  const inFocus = st.running && st.mode === 'focus';
-  const deskBook = inFocus ? '📖' : (st.mode === 'break' && st.running ? '☕' : '📚');
+  const avatarSrc = String(char.avatar || '');
+  const isImg = avatarSrc.startsWith('data:image/');
+  const name = (char.name || '未命名角色').trim();
+  const dateStr = new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+  const note = (char.relation || 'Luv u ♡').trim().slice(0, 18);
   return `
-    <div style="position:relative;height:236px;border-radius:20px;overflow:hidden;background:${sky};box-shadow:inset 0 0 42px rgba(0,0,0,.08);flex-shrink:0">
-      ${night ? '<div style="position:absolute;top:10px;left:0;right:0;text-align:center;font-size:10px;color:#fff;opacity:.75;letter-spacing:16px">✦ ✧ ✦ ✧ ✦ ✧</div>' : ''}
-      <div style="position:absolute;top:12px;right:18px;font-size:24px">${night ? '🌙' : '🌤️'}</div>
-      ${on('window') ? `<div style="position:absolute;top:12px;left:14px;width:96px;height:76px;border-radius:10px;border:5px solid #f7f1e6;background:${night ? '#24304f' : '#bfe6ff'};box-shadow:0 2px 6px rgba(0,0,0,.08);overflow:hidden">
-        <div style="position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 44px,#f7f1e6 44px 46px)"></div>
-        <div style="position:absolute;left:0;right:0;top:50%;height:2px;background:#f7f1e6"></div>
-        ${night ? '' : '<div style="position:absolute;top:8px;left:58px;font-size:16px">☁️</div>'}
-      </div>` : ''}
-      ${on('shelf') ? `<div style="position:absolute;top:14px;right:60px;width:64px;height:86px;border-radius:6px;background:#c9a97c;box-shadow:0 2px 6px rgba(0,0,0,.12);padding:6px">
-        <div style="display:flex;gap:2px;margin-bottom:4px">${['#e07a5f', '#3d405b', '#81b29a'].map(c => `<div style="flex:1;height:28px;background:${c};border-radius:2px"></div>`).join('')}</div>
-        <div style="display:flex;gap:2px">${['#5f9ea0', '#b5838d', '#ffd166'].map(c => `<div style="flex:1;height:20px;background:${c};border-radius:2px"></div>`).join('')}</div>
-      </div>` : ''}
-      ${on('poster') ? '<div style="position:absolute;top:16px;right:16px;width:38px;height:50px;border-radius:6px;background:#fdf6e3;border:3px solid #e8ddd0;display:flex;align-items:center;justify-content:center;font-size:16px">🏞️</div>' : ''}
-      ${on('plant') ? '<div class="study-float" style="position:absolute;bottom:48px;left:22px;font-size:38px;line-height:1">🪴</div>' : ''}
-      ${on('lamp') ? `<div style="position:absolute;bottom:42px;right:24px;text-align:center">
-        <div style="width:30px;height:16px;border-radius:10px 10px 3px 3px;background:${night ? '#ffd166' : '#b8a99a'};${night ? 'box-shadow:0 0 16px 5px rgba(255,209,102,.45)' : ''};margin:0 auto -2px"></div>
-        <div style="width:6px;height:34px;background:#8a7a66;border-radius:3px;margin:0 auto"></div>
-        <div style="width:26px;height:5px;background:#8a7a66;border-radius:3px;margin:0 auto"></div>
-      </div>` : ''}
-      ${on('cat') ? '<div class="study-float" style="position:absolute;bottom:44px;right:74px;font-size:28px;line-height:1">🐱</div>' : ''}
-      ${on('rug') ? '<div style="position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:156px;height:36px;border-radius:50%;background:#e8a87c;opacity:.9;box-shadow:inset 0 0 0 6px #d98e63"></div>' : ''}
-      <div style="position:absolute;left:0;right:0;bottom:0;height:66px;background:linear-gradient(180deg,#d9c6a9,#cfb997);border-top:3px solid #e6d7bd"></div>
-      <div style="position:absolute;bottom:32px;left:50%;transform:translateX(-50%);text-align:center;z-index:2">
-        <div class="study-bob" style="display:inline-block">
-          <div style="width:56px;height:56px;border-radius:50%;border:3px solid #fff;background:#fff;display:flex;align-items:center;justify-content:center;font-size:38px;line-height:1;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.12)">${renderAvatar(char.avatar, char.name)}</div>
-        </div>
-        <div style="width:128px;height:34px;border-radius:4px;background:#c08b5c;box-shadow:0 3px 0 #a06f47;margin:-4px auto 0;position:relative">
-          <div style="position:absolute;top:-5px;left:10px;width:34px;height:20px;border-radius:3px;background:#fff;border-left:3px solid #e07a5f"></div>
-          <div style="position:absolute;top:-7px;right:12px;font-size:17px">${deskBook}</div>
-        </div>
-      </div>
-      <div style="position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:74%;background:${night ? 'rgba(46,58,90,.92)' : '#fff'};color:${night ? '#fff' : '#5c4f42'};border-radius:14px;padding:6px 12px;font-size:12px;box-shadow:0 2px 10px rgba(0,0,0,.1);text-align:center;z-index:5">${escapeHTML(st.companionMsg || '我在呢～')}</div>
-    </div>`;
+  <div class="study-room study-window-scene study-polaroid">
+    <svg viewBox="0 0 560 250" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block">
+      <defs>
+        <!-- 软木板 -->
+        <pattern id="pl-cork" width="20" height="20" patternUnits="userSpaceOnUse">
+          <rect width="20" height="20" fill="#c39a72"/>
+          <circle cx="4" cy="6" r="1" fill="rgba(120,85,55,.35)"/>
+          <circle cx="15" cy="14" r="1.2" fill="rgba(120,85,55,.3)"/>
+          <circle cx="9" cy="17" r=".8" fill="rgba(255,255,255,.25)"/>
+          <circle cx="17" cy="4" r=".8" fill="rgba(120,85,55,.28)"/>
+        </pattern>
+        <!-- 相纸渐变 -->
+        <linearGradient id="pl-paper" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="60%" stop-color="#fffefb"/>
+          <stop offset="100%" stop-color="#f8f2e9"/>
+        </linearGradient>
+        <!-- 照片淡黄滤镜 -->
+        <linearGradient id="pl-img-tint" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="rgba(255,190,120,.14)"/>
+          <stop offset="100%" stop-color="rgba(160,110,70,.18)"/>
+        </linearGradient>
+      </defs>
+
+      <!-- 软木板底 -->
+      <rect x="0" y="0" width="560" height="250" fill="url(#pl-cork)"/>
+      <rect x="0" y="0" width="560" height="250" fill="rgba(60,40,25,.08)"/>
+
+      <!-- 相纸 -->
+      <g transform="rotate(-1.2 280 130)">
+        <rect x="46" y="22" width="468" height="206" rx="10" fill="url(#pl-paper)"/>
+        <rect x="46" y="22" width="468" height="206" rx="10" fill="none" stroke="rgba(120,95,75,.18)"/>
+
+        <!-- 照片影像 -->
+        <rect x="64" y="38" width="432" height="150" rx="4" fill="#f5efe6"/>
+        <clipPath id="pl-ph-clip"><rect x="64" y="38" width="432" height="150" rx="4"/></clipPath>
+        <g clip-path="url(#pl-ph-clip)">
+          ${isImg
+            ? `<image href="${avatarSrc}" x="64" y="38" width="432" height="150" preserveAspectRatio="xMidYMid meet"/>`
+            : `<text x="280" y="128" text-anchor="middle" font-size="76">${escapeHTML(avatarSrc || name.slice(0, 1))}</text>`}
+          <!-- 柔焦 + 复古色调 -->
+          <rect x="64" y="38" width="432" height="150" fill="url(#pl-img-tint)"/>
+          <rect x="64" y="38" width="432" height="150" fill="#fff" opacity=".05"/>
+        </g>
+
+        <!-- 手写注记（底部白边） -->
+        <text x="80" y="210" font-family="Pacifico, cursive" font-size="16" fill="#7a6a5c">${escapeHTML(name)}</text>
+        <text x="498" y="210" text-anchor="end" font-family="Pacifico, cursive" font-size="13" fill="#b49c8a">${dateStr}</text>
+        <path d="M92 216 Q104 222 100 212 Q97 204 108 216" stroke="#d99a6c" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <text x="282" y="212" text-anchor="middle" font-family="Pacifico, cursive" font-size="12" fill="#c8957a">${escapeHTML(note)}</text>
+      </g>
+
+      <!-- 胶带 -->
+      <g>
+        <rect x="-6" y="40" width="80" height="24" rx="2" fill="rgba(240,234,218,.88)" transform="rotate(-26 34 52)"/>
+        <rect x="-6" y="40" width="80" height="24" rx="2" fill="none" stroke="rgba(160,140,120,.15)" transform="rotate(-26 34 52)"/>
+        <rect x="490" y="150" width="80" height="24" rx="2" fill="rgba(236,222,238,.85)" transform="rotate(20 530 162)"/>
+      </g>
+
+      <!-- 贴纸 -->
+      <g>
+        <circle cx="470" cy="46" r="15" fill="rgba(255,255,255,.75)" transform="rotate(-8 470 46)"/>
+        <text x="470" y="52" text-anchor="middle" font-size="17" fill="#d98b9e">♡</text>
+        <circle cx="66" cy="176" r="12" fill="rgba(255,255,255,.72)" transform="rotate(10 66 176)"/>
+        <text x="66" y="181" text-anchor="middle" font-size="12" fill="#b08bd9">✦</text>
+      </g>
+
+      <!-- 顶部图钉 -->
+      <circle cx="280" cy="22" r="7" fill="#e86b80" stroke="#c95468"/>
+      <circle cx="277.5" cy="19.5" r="2.2" fill="rgba(255,255,255,.7)"/>
+    </svg>
+  </div>`;
 }
 
 function renderStudy() {
@@ -1653,88 +1651,61 @@ function renderStudy() {
   const m = Math.floor(st.seconds / 60).toString().padStart(2, '0');
   const s = (st.seconds % 60).toString().padStart(2, '0');
   const isFocus = st.mode === 'focus';
-  const info = studyLevelInfo();
   const recs = st.records.slice(0, 6);
   const recordsHtml = recs.length === 0
     ? '<div style="color:#d0c5b8;font-size:12px;padding:4px 2px 2px">还没有学习记录，开始第一个番茄吧～</div>'
-    : recs.map(r => `<div style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid #f0ece5">
-        <span style="font-size:13px;color:#5c4f42;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(r.subject)}</span>
-        <span style="font-size:12px;color:#b8a99a;flex-shrink:0">${r.minutes}分</span>
-        <span style="font-size:11px;color:#c9bcad;flex-shrink:0">${escapeHTML(r.date)}</span>
+    : recs.map(r => `<div class="study-record-row">
+        <span class="study-record-sub">${escapeHTML(r.subject)}</span>
+        <span class="study-record-min">${r.minutes}分</span>
+        <span class="study-record-date">${escapeHTML(r.date)}</span>
       </div>`).join('')
       + '<div style="text-align:right;padding:6px 0 0"><button onclick="clearStudyRecords()" style="background:none;border:none;color:#c9bcad;font-size:12px;cursor:pointer">清空记录</button></div>';
   const soundHtml = STUDY_SOUNDS.map(sd =>
-    `<button onclick="toggleStudySound('${sd.id}')" style="flex:1;border:none;border-radius:12px;padding:9px 0;font-size:12px;cursor:pointer;${st.sound === sd.id ? 'background:#d4c5b3;color:#fff;font-weight:600' : 'background:#f0ece5;color:#7a6b5c'}">${sd.icon} ${sd.name}</button>`).join('')
-    + `<button onclick="toggleStudySound('')" style="flex:1;border:none;border-radius:12px;padding:9px 0;font-size:12px;cursor:pointer;${!st.sound ? 'background:#d4c5b3;color:#fff;font-weight:600' : 'background:#f0ece5;color:#7a6b5c'}">🔇 关</button>`;
-  const decorHtml = STUDY_DECOR.map(d => {
-    const unlocked = d.lv <= info.level;
-    const on = st.decor.includes(d.id);
-    return `<button onclick="${unlocked ? `toggleStudyDecor('${d.id}')` : ''}" style="border:1px solid ${on ? '#d4c5b3' : '#eee5da'};background:${on ? '#faf4ec' : '#fff'};border-radius:12px;padding:8px 10px;font-size:12px;color:#7a6b5c;cursor:${unlocked ? 'pointer' : 'not-allowed'};opacity:${unlocked ? 1 : .45};display:flex;align-items:center;gap:6px">
-      <span style="font-size:16px">${d.icon}</span>${d.name}
-      ${unlocked ? (on ? ' ✓' : '') : `<span style="font-size:10px;color:#c9bcad">Lv${d.lv}</span>`}
-    </button>`;
-  }).join('');
+    `<button class="study-pill-btn${st.sound === sd.id ? ' on' : ''}" onclick="toggleStudySound('${sd.id}')">${sd.icon} ${sd.name}</button>`).join('')
+    + `<button class="study-pill-btn${!st.sound ? ' on' : ''}" onclick="toggleStudySound('')">🔇 关</button>`;
   const extras = `
-    <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px">
-      <div style="font-size:13px;color:#7a6b5c;font-weight:600;margin-bottom:10px">🎵 环境音</div>
+    <div class="study-sub-card">
+      <div class="study-sub-title">🎵 环境音</div>
       <div style="display:flex;gap:8px">${soundHtml}</div>
-    </div>
-    <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:13px;color:#7a6b5c;font-weight:600">🌱 学习成长</span>
-        <span style="font-size:12px;color:#b8a99a">Lv.${info.level} · ${info.into}/${info.need} XP</span>
-      </div>
-      <div style="height:8px;background:#f0ece5;border-radius:999px;overflow:hidden;margin:10px 0 4px">
-        <div style="height:100%;width:${Math.max(4, Math.round(info.into / info.need * 100))}%;background:linear-gradient(90deg,#81b29a,#5f9ea0);border-radius:999px;transition:width .5s"></div>
-      </div>
-      <div style="font-size:11px;color:#c9bcad;margin:6px 0 8px">专注 1 分钟 = 2 XP，升级解锁房间家具</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">${decorHtml}</div>
     </div>`;
   const el = c();
   el.style.background = '#f0ede8';
   el.innerHTML = `
     <div class="stack" style="max-width:560px;margin:0 auto">
       ${studyRoomHTML()}
-      <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px;border:1px solid #f0e8de">
+      <div class="study-timer-card">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;color:#b8a99a">${isFocus ? '🍅 专注中' : '☕ 休息中'} · 第 ${st.round} 个番茄</span>
         </div>
-        <div style="text-align:center;font-size:50px;font-weight:300;color:#5c4f42;letter-spacing:3px;margin:6px 0 4px">${m}:${s}</div>
+        <div class="study-timer-num">${m}:${s}</div>
         ${isFocus
           ? `<input class="field" id="studySubject" value="${escapeHTML(st.subject)}" placeholder="学习科目" style="border-color:#e8ddd0;background:#faf6f0;color:#5c4f42;text-align:center">`
           : '<div style="font-size:13px;color:#b8a99a;padding:2px 0;text-align:center">喝口水，伸个懒腰～</div>'}
         <div class="grid3" style="margin-top:8px;gap:6px">
           ${isFocus
-            ? `<button onclick="setStudyMinutes(25)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">25分</button><button onclick="setStudyMinutes(45)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">45分</button><button onclick="setStudyMinutes(15)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">15分</button>`
-            : `<button onclick="setBreak(5)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">5分</button><button onclick="setBreak(10)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">10分</button><button onclick="setBreak(15)" style="background:#f0e8de;color:#7a6b5c;border:none;border-radius:20px;padding:8px 0;font-size:13px;cursor:pointer">15分</button>`}
+            ? `<button class="study-dur-btn" onclick="setStudyMinutes(25)">25分</button><button class="study-dur-btn" onclick="setStudyMinutes(45)">45分</button><button class="study-dur-btn" onclick="setStudyMinutes(15)">15分</button>`
+            : `<button class="study-dur-btn" onclick="setBreak(5)">5分</button><button class="study-dur-btn" onclick="setBreak(10)">10分</button><button class="study-dur-btn" onclick="setBreak(15)">15分</button>`}
         </div>
         <div class="grid2" style="margin-top:10px;gap:8px">
-          <button onclick="toggleStudy()" style="background:#d4c5b3;color:#fff;border:none;border-radius:20px;padding:11px 0;font-size:14px;cursor:pointer;font-weight:600">${st.running ? '暂停' : '开始'}</button>
-          <button onclick="finishStudy(true)" style="background:transparent;color:#b8a99a;border:1px solid #e0d5c8;border-radius:20px;padding:11px 0;font-size:13px;cursor:pointer">结束</button>
+          <button class="study-main-btn" onclick="toggleStudy()">${st.running ? '暂停' : '开始'}</button>
+          <button class="study-end-btn" onclick="finishStudy(true)">结束</button>
         </div>
       </div>
       ${extras}
-      <div class="card" style="background:#fff;border-radius:18px;padding:14px 16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:13px;color:#7a6b5c;font-weight:600">🤗 角色陪伴</span>
-          <button onclick="switchStudyCompanion()" style="border:1px solid #eee5da;background:#fff;color:#7a6b5c;border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer">换人</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 0 10px">
-          <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:#fff;border:1px solid #eee5da;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0">${renderAvatar(cp.avatar, cp.name)}</div>
+      <div class="study-mate-card">
+        <div class="study-mate-head">
+          <div class="study-mate-chip">${renderAvatar(cp.avatar, cp.name)}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:#5c4f42;font-weight:600">${escapeHTML(cp.name)}</div>
-            <div style="font-size:11px;color:#b8a99a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHTML(cp.persona || '正在陪你学习')}</div>
+            <div class="study-mate-name">${escapeHTML(cp.name)}</div>
+            <div class="study-mate-sub">${escapeHTML(cp.persona || '正在陪你学习')}</div>
           </div>
+          <button class="study-mate-swap" onclick="switchStudyCompanion()">换人</button>
         </div>
-        <div class="grid3" style="gap:8px">
-          <div style="text-align:center;background:#faf6f0;border-radius:12px;padding:8px"><div style="font-size:11px;color:#b8a99a">今日专注</div><div style="font-size:17px;color:#5c4f42;font-weight:600">${st.dailyMin}分</div></div>
-          <div style="text-align:center;background:#faf6f0;border-radius:12px;padding:8px"><div style="font-size:11px;color:#b8a99a">累计番茄</div><div style="font-size:17px;color:#5c4f42;font-weight:600">${st.round}个</div></div>
-          <div style="text-align:center;background:#faf6f0;border-radius:12px;padding:8px"><div style="font-size:11px;color:#b8a99a">成长等级</div><div style="font-size:17px;color:#5c4f42;font-weight:600">Lv.${info.level}</div></div>
+        <div class="study-mate-stats">
+          <div class="study-mate-stat"><span>今日专注</span><b>${st.dailyMin}分</b></div>
+          <div class="study-mate-stat"><span>累计番茄</span><b>${st.round}个</b></div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;margin:12px 0 4px">
-          <span style="font-size:13px;color:#7a6b5c;font-weight:600;flex-shrink:0">📋 学习记录</span>
-          <div style="flex:1;height:1px;background:#eee5da"></div>
-        </div>
+        <div class="study-mate-divider"><span>📋 学习记录</span></div>
         <div style="max-height:190px;overflow:auto">${recordsHtml}</div>
       </div>
     </div>`;
