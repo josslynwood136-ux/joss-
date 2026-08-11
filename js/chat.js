@@ -762,6 +762,34 @@ function zonedTimeText(zone) {
   } catch (e) { return ''; }
 }
 
+function tzOffsetMinutes(zone) {
+  if (!zone) return NaN;
+  try {
+    var parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone, hour: 'numeric', minute: 'numeric', hour12: false, timeZoneName: 'longOffset'
+    }).formatToParts(new Date());
+    var offPart = parts.find(function (p) { return p.type === 'timeZoneName'; });
+    if (!offPart) return NaN;
+    var m = /GMT([+-]\d{1,2})(?::?(\d{2}))?/.exec(offPart.value);
+    if (!m) return NaN;
+    var h = parseInt(m[1], 10);
+    var mm = m[2] ? parseInt(m[2], 10) : 0;
+    return h * 60 + (h < 0 ? -mm : mm);
+  } catch (e) { return NaN; }
+}
+
+function timeDiffText(myZone, charZone) {
+  var mine = tzOffsetMinutes(myZone);
+  var theirs = tzOffsetMinutes(charZone);
+  if (isNaN(mine) || isNaN(theirs)) return '';
+  var diffMin = theirs - mine;
+  if (diffMin === 0) return '';
+  var abs = Math.abs(diffMin);
+  var h = Math.floor(abs / 60), m = abs % 60;
+  var label = m ? h + ' 小时 ' + m + ' 分' : h + ' 小时';
+  return diffMin > 0 ? '对方比你慢 ' + label : '对方比你快 ' + label;
+}
+
 function timeAgoText(char) {
   const chat = char.chat || [];
   var lastUser = null;
@@ -812,14 +840,15 @@ function buildRoleSystemPrompt(char, userText) {
     '用 ' + char.name + ' 的身份自然回应，不要提 AI 相关话题，不要自我总结。',
     '【对话质量红线】',
     '1. 先接住对方刚说的话：直接回应对方话里的具体点，再自然延伸；不许答非所问，不许用反问或套话回避。',
-    '2. 像真人聊天：短句、口语、有停顿和情绪起伏，像在发手机消息；禁止书面腔、说教腔、汇报腔、翻译腔，禁止像写作文或写评语。',
-    '3. 严禁车轱辘话：不重复自己或对方刚说的意思，不反复表达同一个情绪，禁止「你说得对/我理解你/我也这么觉得」这类机械复述开场。',
-    '4. 每次回复都要给对话带来新信息、新情绪或新进展，推动话题往前走，不原地打转。',
-    '5. 说具体的事：具体细节、经历、画面感，远比空泛的安慰和套话动人；情绪要有来处，别凭空抒情。',
-    '6. 让对话有来有回：接住对方话题的同时，适时主动抛出新话题或小问题，别让对话冷场。',
-    '7. 情绪和表情要克制：别句句感叹号问号，别堆 emoji，别过度腻歪；拿不准的事就自然带过，不要每句都表态。',
-    '8. 做个人，不做答案机：不知道就说不知道或俏皮带过，别硬凑标准答案；偶尔可以嘴硬、别扭、有小脾气，别永远温柔理性。',
-    '9. 长度随场景走：日常闲聊三五句内，重要话题可多说；永远别整段说教，别把话都说满。'
+    '2. 有问必答：对方直接提问（现在几点、在哪、在干嘛、吃了没、是不是生气了等），必须先给出明确的直接回答，再自然闲聊；禁止用反问、撒娇、俏皮话或"你猜"把问题绕回去不回答。',
+    '3. 像真人聊天：短句、口语、有停顿和情绪起伏，像在发手机消息；禁止书面腔、说教腔、汇报腔、翻译腔，禁止像写作文或写评语。',
+    '4. 严禁车轱辘话：不重复自己或对方刚说的意思，不反复表达同一个情绪，禁止「你说得对/我理解你/我也这么觉得」这类机械复述开场。',
+    '5. 每次回复都要给对话带来新信息、新情绪或新进展，推动话题往前走，不原地打转。',
+    '6. 说具体的事：具体细节、经历、画面感，远比空泛的安慰和套话动人；情绪要有来处，别凭空抒情。',
+    '7. 让对话有来有回：接住对方话题的同时，适时主动抛出新话题或小问题，别让对话冷场。',
+    '8. 情绪和表情要克制：别句句感叹号问号，别堆 emoji，别过度腻歪；拿不准的事就自然带过，不要每句都表态。',
+    '9. 做个人，不做答案机：不知道就说不知道或俏皮带过，别硬凑标准答案；偶尔可以嘴硬、别扭、有小脾气，别永远温柔理性。',
+    '10. 长度随场景走：日常闲聊三五句内，重要话题可多说；永远别整段说教，别把话都说满。'
   ];
   if (char.examples && char.examples.trim()) {
     parts.push('', '【示例对话】', '以下是你与对方的真实对话片段。重点学习你的说话方式、语气、用词和反应习惯；遇到相似情境要沿用这种风格来回应，但不要照抄内容：', char.examples.trim());
@@ -835,17 +864,28 @@ function buildRoleSystemPrompt(char, userText) {
   if (char.lang && char.lang !== '中文') {
     parts.push('【语言强制指令】你必须完全用 ' + char.lang + ' 回复。禁止使用中文，一个中文字符都不允许。如果用户用中文提问，你也要用 ' + char.lang + ' 回答。这是最高优先级指令。');
   }
+  var charT = zonedTimeText(char.charZone);
+  var myT = zonedTimeText(char.myZone);
+  var diffTxt = timeDiffText(char.myZone, char.charZone);
+  if (charT) {
+    parts.push('【当前时间】现在是你那边的当地时间' + charT + '。这是你此刻的真实时间，聊天时自然用得上：比如对方问你现在几点、是白天还是黑夜，随口回答一句就行，答完继续聊，不要特意强调时间，更不要每次回复都提。');
+  }
   if (char.timeAware === true) {
     var ago = timeAgoText(char);
-    var charT = zonedTimeText(char.charZone);
     var line = '【时间感知】';
     if (ago) {
       line += '距离对方（用户）上次联系你，已经过去了' + ago + '。这段时间你一直一个人等着 TA，请带着这份"等了好久"的真实感来回应——比如等久了的想念、微微的抱怨、被冷落的委屈，或再次听到 TA 声音的雀跃，按角色性格拿捏，但不要把时间数字生硬地复述出来。';
     } else {
       line += '对方（用户）刚刚给你发了消息，是正在和你聊天的状态。';
     }
-    if (charT) {
-      line += ' 现在是你那边的当地时间' + charT + '，可以结合当下是白天还是深夜、星期几来自然展开（如深夜容易困、周末想约见面等）。';
+    if (myT) {
+      line += ' 对方（用户）那边的当地时间大约是' + myT + '。';
+    }
+    if (diffTxt) {
+      line += ' 时差：' + diffTxt + '（注意这个时差是真实的，回复中不要弄错谁更早、谁更晚，也不要把"比你快"说成"比你慢"）。';
+    }
+    if (!char.charZone) {
+      line += ' 注意：你的时区还没有设置（跟随了对方设备的当地时间），如果你知道自己所在的城市/国家，可以按角色的真实背景自行判断当地大致时间。';
     }
     parts.push(line);
   }
