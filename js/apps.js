@@ -1607,7 +1607,7 @@ function studyRoomHTML() {
         <clipPath id="pl-ph-clip"><rect x="64" y="38" width="432" height="150" rx="4"/></clipPath>
         <g clip-path="url(#pl-ph-clip)">
           ${isImg
-            ? `<image href="${avatarSrc}" x="64" y="38" width="432" height="150" preserveAspectRatio="xMidYMid meet"/>`
+            ? `<image href="${avatarSrc}" x="64" y="38" width="432" height="150" preserveAspectRatio="xMidYMid slice"/>`
             : `<text x="280" y="128" text-anchor="middle" font-size="76">${escapeHTML(avatarSrc || name.slice(0, 1))}</text>`}
           <!-- 柔焦 + 复古色调 -->
           <rect x="64" y="38" width="432" height="150" fill="url(#pl-img-tint)"/>
