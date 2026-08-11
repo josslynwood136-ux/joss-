@@ -344,8 +344,8 @@ function importAllData(event) {
   event.target.value = '';
 }
 
-function resetAllData() {
-  if (!confirm('确定清空全部角色、聊天、记忆和设置？')) return;
+async function resetAllData() {
+  if (!await uiConfirm('确定清空全部角色、聊天、记忆和设置？')) return;
   state = cloneDefaultState();
   saveState();
   renderApiSettings();
@@ -554,9 +554,9 @@ function compressAvatar(file) {
   });
 }
 
-function deleteCharacter(id) {
+async function deleteCharacter(id) {
   if (state.roles.length <= 1) return alert('至少保留一个角色');
-  if (!confirm('删除这个角色卡和它的聊天记录？')) return;
+  if (!await uiConfirm('删除这个角色卡和它的聊天记录？')) return;
   state.roles = state.roles.filter(char => char.id !== id);
   if (state.activeRoleId === id) state.activeRoleId = state.roles[0].id;
   saveState();
@@ -660,10 +660,10 @@ function likeMoment(id) {
   renderMoments();
 }
 
-function addComment(id) {
+async function addComment(id) {
   const m = state.moments.find(x => x.id === id);
   if (!m) return;
-  const text = prompt('写评论：');
+  const text = await uiPrompt('写评论：');
   if (!text || !text.trim()) return;
   m.comments = m.comments || [];
   m.comments.push({ name: activeProfile().name || '我', text: text.trim() });
@@ -913,8 +913,8 @@ function syncEndToDays() {
   if (diff > 0) total.value = diff;
 }
 
-function deleteCheckin(id) {
-  if (!confirm('删除该打卡项目？')) return;
+async function deleteCheckin(id) {
+  if (!await uiConfirm('删除该打卡项目？')) return;
   state.checkins = state.checkins.filter(c => c.id !== id);
   saveState();
   renderCheckins();
@@ -954,15 +954,15 @@ function toggleHabit(id) {
   saveState();
   renderCheckins();
 }
-function addHabit() {
-  const name = prompt('新习惯名称：', '新习惯');
+async function addHabit() {
+  const name = await uiPrompt('新习惯名称：', '新习惯');
   if (!name) return;
   state.habits.push({ id: 'h' + Date.now(), name: name.trim(), icon: '🎯', done: {} });
   saveState();
   renderCheckins();
 }
-function delHabit(id) {
-  if (!confirm('删除这个习惯？历史记录会一起清掉。')) return;
+async function delHabit(id) {
+  if (!await uiConfirm('删除这个习惯？历史记录会一起清掉。')) return;
   state.habits = state.habits.filter(x => x.id !== id);
   saveState();
   renderCheckins();
@@ -1813,9 +1813,9 @@ function finishStudy(manual) {
   saveState();
   renderStudy();
 }
-function clearStudyRecords() {
+async function clearStudyRecords() {
   if (!state.study.records.length) return;
-  if (!confirm('确定要清空所有学习记录吗？')) return;
+  if (!await uiConfirm('确定要清空所有学习记录吗？')) return;
   state.study.records = [];
   saveState();
   renderStudy();
@@ -2047,20 +2047,20 @@ function addLedgerQuick(amount, note, notice) {
   saveState();
   if (notice) quickNotice('已记到账本：' + note);
 }
-function deleteLedger(id) {
-  if (!confirm('删除这笔账目？')) return;
+async function deleteLedger(id) {
+  if (!await uiConfirm('删除这笔账目？')) return;
   const item = state.ledger.find(x => x.id === id);
   if (item) state.profile.wallet -= Number(item.amount);
   state.ledger = state.ledger.filter(x => x.id !== id);
   saveState();
   renderLedger();
 }
-function editLedger(id) {
+async function editLedger(id) {
   const item = state.ledger.find(x => x.id === id);
   if (!item) return;
-  const note = prompt('备注：', item.note);
+  const note = await uiPrompt('备注：', item.note);
   if (note === null) return;
-  const cat = prompt('分类（餐饮/交通/购物/居住/娱乐/工资/其他）：', item.category || '其他');
+  const cat = await uiPrompt('分类（餐饮/交通/购物/居住/娱乐/工资/其他）：', item.category || '其他');
   if (cat !== null) { item.note = note.trim(); item.category = cat.trim() || '其他'; saveState(); renderLedger(); }
 }
 
@@ -2622,13 +2622,13 @@ function clearSearch() {
   if (currentSong && currentSong.online) stopMusic(); else renderMusic();
 }
 
-function openNcmLogin() {
+async function openNcmLogin() {
   if (!ncmUp) {
     alert('本机网易云助手未启动。\n\n请双击打开 server 文件夹里的「启动网易云音乐助手.bat」，等出现「已启动」后，再点这里登录。');
     return;
   }
   if (ncmNick) {
-    if (!confirm('已登录网易云：' + ncmNick + '。要退出登录吗？')) return;
+    if (!await uiConfirm('已登录网易云：' + ncmNick + '。要退出登录吗？')) return;
     ncmCookie = ''; ncmNick = '';
     state.settings.ncmCookie = ''; state.settings.ncmNick = '';
     saveState();
@@ -2725,9 +2725,9 @@ function setSearchSrc(s) {
   if (searchKeyword) searchMusic(); else renderMusic();
 }
 
-function openQqLogin() {
+async function openQqLogin() {
   if (qqNick) {
-    if (!confirm('已登录QQ音乐：' + qqNick + '。要退出登录吗？')) return;
+    if (!await uiConfirm('已登录QQ音乐：' + qqNick + '。要退出登录吗？')) return;
     qqCookie = ''; qqNick = '';
     state.settings.qqCookie = ''; state.settings.qqNick = '';
     saveState();
@@ -2998,8 +2998,8 @@ function uploadMusic(event) {
   if (!file) return;
   if (!file.type.startsWith('audio/')) return alert('请选择音频文件');
   const reader = new FileReader();
-  reader.onload = () => {
-    const name = prompt('歌曲命名：', file.name.replace(/\.[^.]+$/, ''));
+  reader.onload = async () => {
+    const name = await uiPrompt('歌曲命名：', file.name.replace(/\.[^.]+$/, ''));
     if (name === null) return;
     const id = 'm' + Date.now();
     putMusicBlob(id, reader.result).then(() => {
@@ -3011,14 +3011,14 @@ function uploadMusic(event) {
   reader.readAsDataURL(file);
   event.target.value = '';
 }
-function renameMusic(id) {
+async function renameMusic(id) {
   const m = state.music.find(x => x.id === id);
   if (!m) return;
-  const name = prompt('歌曲命名：', m.name);
+  const name = await uiPrompt('歌曲命名：', m.name);
   if (name) { m.name = name.trim(); saveState(); renderMusic(); updateMiniPlayer(); }
 }
 async function deleteMusic(id) {
-  if (!confirm('删除这首音乐？')) return;
+  if (!await uiConfirm('删除这首音乐？')) return;
   state.music = state.music.filter(x => x.id !== id);
   await deleteMusicBlob(id);
   if (currentSong && currentSong.id === id) { stopAudio(); currentSong = null; elapsed = 0; }
@@ -4044,19 +4044,19 @@ function renderAlbum() {
     </div>`;
 }
 function openAlbum(id) { currentAlbumId = id; renderAlbum(); }
-function newAlbum() {
-  const name = prompt('相册夹名称：');
+async function newAlbum() {
+  const name = await uiPrompt('相册夹名称：');
   if (!name) return;
   state.albums.push({ id: 'a' + Date.now(), name: name.trim(), photos: [] });
   saveState(); renderAlbum();
 }
-function renameAlbum(id) {
+async function renameAlbum(id) {
   const a = state.albums.find(x => x.id === id); if (!a) return;
-  const name = prompt('重命名相册夹：', a.name);
+  const name = await uiPrompt('重命名相册夹：', a.name);
   if (name) { a.name = name.trim(); saveState(); renderAlbum(); }
 }
-function delAlbum(id) {
-  if (!confirm('删除该相册夹及其所有照片？')) return;
+async function delAlbum(id) {
+  if (!await uiConfirm('删除该相册夹及其所有照片？')) return;
   state.albums = state.albums.filter(x => x.id !== id);
   if (currentAlbumId === id) currentAlbumId = null;
   saveState(); renderAlbum();
@@ -4154,29 +4154,29 @@ function compressPhoto(file) {
     reader.readAsDataURL(file);
   });
 }
-function deletePhoto(albumId, idx) {
+async function deletePhoto(albumId, idx) {
   const a = state.albums.find(x => x.id === albumId); if (!a || !a.photos[idx]) return;
-  if (!confirm('删除这张照片？')) return;
+  if (!await uiConfirm('删除这张照片？')) return;
   a.photos.splice(idx, 1);
   saveState(); renderAlbum();
 }
-function renamePhoto(albumId, idx) {
+async function renamePhoto(albumId, idx) {
   const a = state.albums.find(x => x.id === albumId); if (!a || !a.photos[idx]) return;
-  const name = prompt('照片命名：', a.photos[idx].caption);
+  const name = await uiPrompt('照片命名：', a.photos[idx].caption);
   if (name !== null) { a.photos[idx].caption = name.trim(); saveState(); renderAlbum(); }
 }
-function copyPhoto(albumId, idx) {
+async function copyPhoto(albumId, idx) {
   const a = state.albums.find(x => x.id === albumId); if (!a || !a.photos[idx]) return;
-  const target = prompt('复制到哪个相册夹？（输入名称，不存在将新建）', a.name);
+  const target = await uiPrompt('复制到哪个相册夹？（输入名称，不存在将新建）', a.name);
   if (!target) return;
   let t = state.albums.find(x => x.name === target.trim());
   if (!t) { t = { id: 'a' + Date.now(), name: target.trim(), photos: [] }; state.albums.push(t); }
   t.photos.unshift(Object.assign({}, a.photos[idx], { id: 'p' + Date.now() }));
   saveState(); renderAlbum();
 }
-function movePhoto(albumId, idx) {
+async function movePhoto(albumId, idx) {
   const a = state.albums.find(x => x.id === albumId); if (!a || !a.photos[idx]) return;
-  const target = prompt('移动到哪个相册夹？（输入名称）', a.name);
+  const target = await uiPrompt('移动到哪个相册夹？（输入名称）', a.name);
   if (!target) return;
   let t = state.albums.find(x => x.name === target.trim());
   if (!t) { t = { id: 'a' + Date.now(), name: target.trim(), photos: [] }; state.albums.push(t); }
@@ -4380,8 +4380,8 @@ function willowParseRule(text) {
     return out || text;
   }).catch(function () { return text; }).finally(function () { clearTimeout(tmr); });
 }
-function clearWishToday() {
-  if (!confirm('撕掉今天的愿望？撕掉后许愿柳会记住今天已经用过一次。')) return;
+async function clearWishToday() {
+  if (!await uiConfirm('撕掉今天的愿望？撕掉后许愿柳会记住今天已经用过一次。')) return;
   state.willow = { date: localDateKey(new Date()), text: '', rule: '' };
   saveState();
   renderWillow();
@@ -5553,8 +5553,8 @@ function saveStickerForm() {
   renderEmojiPanel();
 }
 
-function deleteSticker(id) {
-  if (!confirm('删除这个表情包？')) return;
+async function deleteSticker(id) {
+  if (!await uiConfirm('删除这个表情包？')) return;
   state.customStickers = state.customStickers.filter(s => s.id !== id);
   saveState();
   renderStickerManager();

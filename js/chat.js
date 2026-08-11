@@ -190,11 +190,11 @@ function selectAllMsgs() {
   updatePreview();
   renderPreviewVisual();
 }
-function deleteSelected() {
+async function deleteSelected() {
   const char = activeCharacter();
   const idxs = Object.keys(_selectedMsgs).map(Number).sort(function(a, b) { return b - a; });
   if (!idxs.length) return;
-  if (!confirm('确定删除选中的 ' + idxs.length + ' 条消息吗？删除后无法恢复。')) return;
+  if (!await uiConfirm('确定删除选中的 ' + idxs.length + ' 条消息吗？删除后无法恢复。')) return;
   idxs.forEach(function(i) {
     if (char.chat[i]) char.chat.splice(i, 1);
   });
@@ -348,7 +348,7 @@ function renderChat() {
       const note = msg.note || '';
       const amtText = amount.toFixed(amount % 1 ? 2 : 0);
       const tick = isUser ? `<div class="read-tick">${msg.status === 'read' ? '已读' : '已发送'}</div>` : '';
-      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="if(!_multiSelect&&confirm('删除这条消息？'))deleteMessage('${char.id}',${i})" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="_multiSelect?onMsgTap(event,${i}):openRedPacket('${char.id}',${i})"` : ''}>
+      return `${divider}<div class="msg ${isUser ? 'right' : 'left'}${multiCls(i)}" data-idx="${i}" oncontextmenu="askDeleteMessage('${char.id}',${i})" onclick="onMsgTap(event,${i})" ontouchstart="onMsgDown(event,${i})" onmousedown="onMsgDown(event,${i})">${msgCheck(isUser, i)}<div class="avatar">${renderAvatar(av, nm)}</div><div class="rp-card ${opened ? 'rp-opened' : ''} rp-msg-${i}" ${!isUser && !opened ? `onclick="_multiSelect?onMsgTap(event,${i}):openRedPacket('${char.id}',${i})"` : ''}>
         <span class="rp-card-icon">🧧</span>
         <span class="rp-card-label">${isUser ? '你' : escapeHTML(nm)}</span>
         ${opened ? `<div class="rp-card-amount">¥ ${amtText}</div>` : `<div class="rp-card-btn">開</div>`}
@@ -385,13 +385,20 @@ function renderChat() {
   }
 }
 
-function deleteMessage(charId, index) {
+async function deleteMessage(charId, index, noConfirm) {
   const char = getCharacter(charId);
   if (!char.chat[index]) return;
-  if (!confirm('确定删除这条消息吗？删除后无法恢复。')) return;
+  if (!noConfirm && !await uiConfirm('确定删除这条消息吗？删除后无法恢复。')) return;
   char.chat.splice(index, 1);
   saveState();
   renderChat();
+}
+
+function askDeleteMessage(charId, index) {
+  if (_multiSelect) return;
+  uiConfirm('删除这条消息？').then(function (ok) {
+    if (ok) deleteMessage(charId, index, true);
+  });
 }
 
 function quoteMessage(index) {
@@ -1152,8 +1159,8 @@ function applyBubbleStyle() {
   var sel = $('bubbleStyleSelect');
   if (sel) sel.value = s;
 }
-function clearHistory() {
-  if (!confirm('清空聊天记录？')) return;
+async function clearHistory() {
+  if (!await uiConfirm('清空聊天记录？')) return;
   activeCharacter().chat = [];
   saveState();
   renderChat();

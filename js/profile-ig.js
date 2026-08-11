@@ -602,10 +602,10 @@ function saveIGCharEditor() {
   showIGToast(isNew ? '角色 ' + name + ' 已创建 ✨' : '角色已更新 ✅');
 }
 
-function deleteIGChar() {
+async function deleteIGChar() {
   if (!igEditingCharId) return;
   if (state.roles.length <= 1) { showIGToast('至少保留一个角色'); return; }
-  if (!confirm('删除这个角色？')) return;
+  if (!await uiConfirm('删除这个角色？')) return;
   state.roles = state.roles.filter(r => r.id !== igEditingCharId);
   if (state.activeRoleId === igEditingCharId) state.activeRoleId = state.roles[0].id;
   saveState();
@@ -873,9 +873,9 @@ function closePostDetail() {
   viewPostId = null;
 }
 
-function deletePost() {
+async function deletePost() {
   if (!viewPostId) return;
-  if (!confirm('确定删除这条帖子？')) return;
+  if (!await uiConfirm('确定删除这条帖子？')) return;
   state.profilePosts = state.profilePosts.filter(function(p) { return p.id !== viewPostId; });
   closePostDetail();
   saveState();
