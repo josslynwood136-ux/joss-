@@ -552,20 +552,7 @@ function sendChat() {
     appendBubble('user', text, null, null, null, quoteData);
     input.value = '';
     touchActiveChar();
-    var _char = activeCharacter();
-    if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(_char.id, _char.name)) {
-      appendBubble('system', '（许愿柳生效中：' + _char.name + ' 今天不回复你的消息。）');
-      return;
-    }
-    _manualAICall = true;
-    setChatTyping(true);
-    callAI(text, false).then(async function(reply) {
-      await deliverReply(reply);
-    }).catch(function(err) {
-      if (err.name === 'AbortError') { setChatTyping(false); return; }
-      setChatTyping(false);
-      appendBubble('system', '暂时没回应（' + err.message + '）');
-    });
+    return;
   } else {
     const char = activeCharacter();
     if (typeof willowBlocksReplyFor === 'function' && willowBlocksReplyFor(char.id, char.name)) {
