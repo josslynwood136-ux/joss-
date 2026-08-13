@@ -2247,6 +2247,18 @@ function saveDoodle() {
 // ---------- 音乐 ----------
 const MUS_EMOJIS = ['🎧', '🎹', '🎸', '🎷', '🥁', '🎻', '🪕', '🎺', '🎤', '💿', '📻', '🎼'];
 const MUS_GRADS = [['#f953c6', '#b91d73'], ['#4facfe', '#00f2fe'], ['#f6d365', '#fda085'], ['#f5576c', '#f093fb'], ['#5b86e5', '#36d1dc'], ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#30cfd0', '#330867']];
+const MUS_ICO = {
+  prev: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 6h2v12H6zM20 18l-8.5-6L20 6v12z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6v12z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" width="21" height="21" fill="currentColor"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',
+  loop: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>',
+  single: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z"/></svg>',
+  shuffle: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>',
+  heartO: '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.6-7.5-10a4.4 4.4 0 018-2.6 4.4 4.4 0 018 2.6c0 5.4-7.5 10-7.5 10z"/></svg>',
+  heartF: '<svg viewBox="0 0 24 24" width="19" height="19" fill="currentColor"><path d="M12 20.5s-7.5-4.6-7.5-10a4.4 4.4 0 018-2.6 4.4 4.4 0 018 2.6c0 5.4-7.5 10-7.5 10z"/></svg>',
+  close: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+};
 let audioEl = null;
 let currentSong = null;
 let currentList = [];
@@ -2357,10 +2369,10 @@ let qqProbedAt = 0;
 function maybeProbeQq() {
   if (Date.now() - qqProbedAt < 20000) return Promise.resolve(qqUp);
   qqProbedAt = Date.now();
-  return fetch(QQ_BASE + '/search?key=' + encodeURIComponent('周杰伦'), { signal: AbortSignal.timeout(8000) })
+  return fetch(QQ_BASE + '/qr?t=' + Date.now(), { signal: AbortSignal.timeout(8000) })
     .then(function(r) { return r.json(); })
     .then(function(d) {
-      qqUp = !!(d && d.result === 100 && d.data && d.data.length);
+      qqUp = !!(d && d.result === 100 && d.img);
       if (musicAppOpen) renderMusic();
       return qqUp;
     })
@@ -2435,64 +2447,81 @@ function renderMusic() {
   const cur = currentSong || q[0] || null;
   const playingThis = cur && currentSong && cur.id === currentSong.id && playing;
   const grad = cur ? `linear-gradient(135deg, ${cur.colors[0]}, ${cur.colors[1]})` : 'linear-gradient(135deg,#ffd9e8,#c9dcff)';
-  const modeIcon = playMode === 'single' ? '🔂' : playMode === 'shuffle' ? '🔀' : '🔁';
   const modeText = playMode === 'single' ? '单曲循环' : playMode === 'shuffle' ? '随机播放' : '列表循环';
   const curDur = cur ? (cur.duration || 0) : 0;
-  c().style.background = 'linear-gradient(170deg, #fff8f3 0%, #ffeef5 55%, #eef6ff 100%)';
+  const pct = curDur ? Math.min(100, elapsed / curDur * 100) : 0;
+  const curInQueue = cur && q.some(s => s.id === cur.id);
+  const _mBg = 'linear-gradient(180deg,#f6efe2 0%,#f0e6d2 100%)';
+  c().style.background = _mBg;
+  const _mh = document.querySelector('.app-header');
+  if (_mh) _mh.style.background = _mBg;
+  const _mt = document.getElementById('m-tit');
+  if (_mt) _mt.style.color = '#3f3a32';
+  const _ma = document.querySelector('.header-action');
+  if (_ma) _ma.style.color = '#6c7f57';
   c().innerHTML = `
     <div class="music-page">
       <div class="music-hero">
-        <div class="music-cover ${playingThis ? 'spin' : ''}" style="background:${grad}">${songCoverHtml(cur)}</div>
-        <div class="music-hero-info">
-          <b>${cur ? escapeHTML(cur.name) : '还没有歌曲'}</b>
-          <span>${cur ? escapeHTML(cur.artist) : (searchKeyword ? '输入关键词搜索全网歌曲' : '去上传一首或搜索一下')}</span>
-        </div>
+        <div class="m-hero-art" style="background:${grad}">${songCoverHtml(cur)}</div>
+        <div class="m-hero-eyebrow"><span class="m-eq${playingThis ? '' : ' off'}"><span></span><span></span><span></span></span>${playingThis ? '正在播放' : (cur ? '待播放' : '音乐')}</div>
+        <div class="m-hero-title">${cur ? escapeHTML(cur.name) : '还没有歌曲'}</div>
+        <div class="m-hero-sub">${cur ? escapeHTML(cur.artist) + (cur.album ? ' · ' + escapeHTML(cur.album) : '') : (searchKeyword ? '输入关键词搜索全网歌曲' : '上传一首本地音乐，或搜索全网歌曲')}</div>
         <div class="progress-wrap">
           <div class="progress-track" id="musicTrack">
-            <div class="progress-fill" id="musicProgressFill" style="width:${curDur ? Math.min(100, elapsed / curDur * 100) : 0}%"></div>
-            <div class="progress-dot" id="musicProgressDot" style="left:${curDur ? Math.min(100, elapsed / curDur * 100) : 0}%"></div>
+            <div class="progress-fill" id="musicProgressFill" style="width:${pct}%"></div>
+            <div class="progress-dot" id="musicProgressDot" style="left:${pct}%"></div>
           </div>
-          <div class="progress-time"><span id="musicElapsed">${fmtTime(elapsed)}</span><span id="musicDuration">${fmtTime(curDur)}</span></div>
+          <div class="progress-time">
+            <span id="musicElapsed">${fmtTime(elapsed)}</span>
+            <span id="musicDuration">${fmtTime(curDur)}</span>
+          </div>
         </div>
         <div class="music-controls">
-          <button class="icon-btn mus-ctl" onclick="prevSong()" title="上一首">⏮</button>
-          <button class="mus-play" onclick="togglePlay()" title="播放/暂停">${playingThis ? '❚❚' : '▶'}</button>
-          <button class="icon-btn mus-ctl" onclick="nextSong(false)" title="下一首">⏭</button>
-          <button class="mode-btn" onclick="cycleMode()" title="${modeText}">${modeIcon}<span>${modeText}</span></button>
+          <button class="mus-mode" onclick="cycleMode()" title="${modeText}">${playMode === 'single' ? MUS_ICO.single : playMode === 'shuffle' ? MUS_ICO.shuffle : MUS_ICO.loop}<span>${modeText}</span></button>
+          <button class="icon-btn mus-ctl" onclick="prevSong()" title="上一首">${MUS_ICO.prev}</button>
+          <button class="mus-play" onclick="togglePlay()" title="播放/暂停">${playingThis ? MUS_ICO.pause : MUS_ICO.play}</button>
+          <button class="icon-btn mus-ctl" onclick="nextSong(false)" title="下一首">${MUS_ICO.next}</button>
+          ${curInQueue ? `<button class="icon-btn mus-fav ${cur.fav ? 'on' : ''}" onclick="toggleFav('${cur.id}')" title="收藏">${cur.fav ? MUS_ICO.heartF : MUS_ICO.heartO}</button>` : ''}
         </div>
       </div>
-      ${ncmUp ? (ncmNick ? `<div class="ncm-pill" onclick="openNcmLogin()">👤 网易云 ${escapeHTML(ncmNick)} · 点此退出</div>` : `<div class="ncm-pill" onclick="openNcmLogin()">🔑 登录网易云 · 解锁 VIP 完整播放</div>`) : ''}
-      ${qqUp ? (qqNick ? `<div class="ncm-pill" onclick="openQqLogin()" style="background:linear-gradient(135deg,#6db3f2,#1b79d3)">👤 QQ音乐 ${escapeHTML(qqNick)} · 点此退出</div>` : `<div class="ncm-pill" onclick="openQqLogin()" style="background:linear-gradient(135deg,#6db3f2,#1b79d3)">🔑 登录 QQ音乐 · 解锁 VIP</div>`) : ''}
-      <div class="music-toolbar">
-        <input id="musicSearchInput" class="music-search" value="${escapeHTML(searchKeyword)}" placeholder="搜歌名 / 歌手" onkeydown="if(event.key==='Enter')searchMusic()">
-        <button class="music-tab mus-search-btn" onclick="searchMusic()">搜索</button>
-        <button class="music-tab ${searchSrc === 'ncm' ? 'on' : ''}" onclick="setSearchSrc('ncm')" title="网易云搜索">网易云</button>
-        <button class="music-tab ${searchSrc === 'qq' ? 'on' : ''}" onclick="setSearchSrc('qq')" title="QQ音乐搜索">QQ音乐</button>
-        ${searchKeyword ? '<button class="music-tab" onclick="clearSearch()">✕ 退出搜索</button>' : ''}
-      </div>
-      ${!searchKeyword ? `
-      <div class="music-toolbar">
-        <button class="music-tab ${!favView ? 'on' : ''}" onclick="setFavView(false)">全部 (${q.length})</button>
-        <button class="music-tab ${favView ? 'on' : ''}" onclick="setFavView(true)">我的收藏 (${q.filter(s => s.fav).length})</button>
-        <input type="file" id="musicFile" accept="audio/*" style="display:none" onchange="uploadMusic(event)">
-        <button class="music-upload" onclick="$('musicFile').click()">＋ 上传</button>
-      </div>` : ''}
-      <div class="music-list">
-        ${searchKeyword ? renderSearchList() : (list.length ? list.map(s => {
-          const isCur = currentSong && currentSong.id === s.id;
-          return `<div class="music-row ${isCur ? 'cur' : ''}" onclick="playSong(${getQueue().indexOf(s)})">
-            <div class="music-mini" style="background:linear-gradient(135deg,${s.colors[0]},${s.colors[1]})">${songCoverHtml(s)}</div>
-            <div class="music-info">
-              <b>${escapeHTML(s.name)}</b>
-              <span>${escapeHTML(s.artist)}${s.album ? ' · ' + escapeHTML(s.album) : ''}</span>
-            </div>
-            ${isCur && playing ? '<div class="eq"><span></span><span></span><span></span></div>' : ''}
-            <button class="fav-heart ${s.fav ? 'on' : ''}" onclick="event.stopPropagation();toggleFav('${s.id}')">${s.fav ? '❤️' : '🤍'}</button>
-          </div>`;
-        }).join('') : '<div class="music-empty">没有歌曲' + (favView ? '，去收藏几首吧' : '，点＋上传本地音乐') + '</div>')}
+      ${searchSrc === 'qq' ? (qqUp ? (qqNick ? `<div class="ncm-pill" onclick="openQqLogin()">🎧 QQ音乐 ${escapeHTML(qqNick)} · 点此退出</div>` : `<div class="ncm-pill" onclick="openQqLogin()">🔑 登录 QQ音乐 · 解锁 VIP</div>`) : '') : (ncmUp ? (ncmNick ? `<div class="ncm-pill" onclick="openNcmLogin()">🎧 网易云 ${escapeHTML(ncmNick)} · 点此退出</div>` : `<div class="ncm-pill" onclick="openNcmLogin()">🔑 登录网易云 · 解锁 VIP 完整播放</div>`) : '')}
+      <div class="mus-sheet">
+        <div class="mus-tabs">
+          <button class="mus-tab ${!favView && !searchKeyword ? 'on' : ''}" onclick="setFavView(false)">播放列表<span class="mus-cnt"> ${q.length}</span></button>
+          <button class="mus-tab ${favView && !searchKeyword ? 'on' : ''}" onclick="setFavView(true)">我的收藏<span class="mus-cnt"> ${q.filter(s => s.fav).length}</span></button>
+        </div>
+        <div class="mus-searchbar">
+          <input id="musicSearchInput" class="music-search" value="${escapeHTML(searchKeyword)}" placeholder="搜歌名 / 歌手" onkeydown="if(event.key==='Enter')searchMusic()">
+          <button class="mus-search-go" onclick="searchMusic()">搜索</button>
+          <div class="mus-srcswitch">
+            <button class="mus-src ${searchSrc === 'ncm' ? 'on' : ''}" onclick="setSearchSrc('ncm')" title="网易云搜索">网易云</button>
+            <button class="mus-src ${searchSrc === 'qq' ? 'on' : ''}" onclick="setSearchSrc('qq')" title="QQ音乐搜索">QQ</button>
+          </div>
+        </div>
+        <div class="mus-toolrow">
+          <span class="mus-listlabel">${searchKeyword ? '搜索结果' : (favView ? '我的收藏' : '全部歌曲')}</span>
+          <span class="mus-listcount">${searchKeyword ? (searching ? '搜索中…' : onlineResults.length + ' 首') : list.length + ' 首'}</span>
+          <input type="file" id="musicFile" accept="audio/*" style="display:none" onchange="uploadMusic(event)">
+          <button class="music-upload" onclick="$('musicFile').click()">＋ 上传</button>
+          ${searchKeyword ? '<button class="mus-clearsearch" onclick="clearSearch()">✕ 退出搜索</button>' : ''}
+        </div>
+        <div class="music-list">
+          ${searchKeyword ? renderSearchList() : (list.length ? list.map(s => {
+            const isCur = currentSong && currentSong.id === s.id;
+            return `<div class="music-row ${isCur ? 'cur' : ''}" onclick="playSong(${getQueue().indexOf(s)})">
+              <div class="music-mini" style="background:linear-gradient(135deg,${s.colors[0]},${s.colors[1]})">${songCoverHtml(s)}</div>
+              <div class="music-info">
+                <b>${escapeHTML(s.name)}</b>
+                <span>${escapeHTML(s.artist)}${s.album ? ' · ' + escapeHTML(s.album) : ''}</span>
+              </div>
+              ${isCur && playing ? '<div class="eq"><span></span><span></span><span></span></div>' : ''}
+              <button class="fav-heart ${s.fav ? 'on' : ''}" onclick="event.stopPropagation();toggleFav('${s.id}')">${s.fav ? MUS_ICO.heartF : MUS_ICO.heartO}</button>
+            </div>`;
+          }).join('') : '<div class="music-empty"><span class="empty-ico">🎵</span>' + (favView ? '还没有收藏的歌，去收藏几首吧' : '歌单还是空的，点「＋ 上传」或搜索全网歌曲') + '</div>')}
+        </div>
       </div>
     </div>
-    <div style="height:70px"></div>`;
+    <div style="height:10px"></div>`;
   (function() {
     const t = $('musicTrack');
     if (!t) return;
@@ -2608,6 +2637,9 @@ async function openNcmLogin() {
   }
   const phone = document.querySelector('.phone') || document.body;
   if ($('ncmLoginMask')) $('ncmLoginMask').remove();
+  if ($('qqLoginMask')) $('qqLoginMask').remove();
+  if (ncmQrTimer) { clearTimeout(ncmQrTimer); ncmQrTimer = null; }
+  if (qqQrTimer) { clearTimeout(qqQrTimer); qqQrTimer = null; }
   const mask = document.createElement('div');
   mask.className = 'ncm-login-mask';
   mask.id = 'ncmLoginMask';
@@ -2706,7 +2738,10 @@ async function openQqLogin() {
     return;
   }
   const phone = document.querySelector('.phone') || document.body;
+  if ($('ncmLoginMask')) $('ncmLoginMask').remove();
   if ($('qqLoginMask')) $('qqLoginMask').remove();
+  if (ncmQrTimer) { clearTimeout(ncmQrTimer); ncmQrTimer = null; }
+  if (qqQrTimer) { clearTimeout(qqQrTimer); qqQrTimer = null; }
   const mask = document.createElement('div');
   mask.className = 'ncm-login-mask';
   mask.id = 'qqLoginMask';
@@ -3006,10 +3041,10 @@ function ensureMiniPlayer() {
       <b id="gmpName"></b>
       <span id="gmpArtist"></span>
     </div>
-    <button class="gmp-btn" onclick="prevSong()">⏮</button>
-    <button class="gmp-btn gmp-play" id="gmpPlay" onclick="togglePlay()">▶</button>
-    <button class="gmp-btn" onclick="nextSong(false)">⏭</button>
-    <button class="gmp-close" onclick="stopMusic()">✕</button>`;
+    <button class="gmp-btn" onclick="prevSong()" title="上一首">${MUS_ICO.prev}</button>
+    <button class="gmp-btn gmp-play" id="gmpPlay" onclick="togglePlay()">${MUS_ICO.play}</button>
+    <button class="gmp-btn" onclick="nextSong(false)" title="下一首">${MUS_ICO.next}</button>
+    <button class="gmp-close" onclick="stopMusic()" title="关闭">${MUS_ICO.close}</button>`;
   const phone = document.querySelector('.phone') || document.body;
   phone.appendChild(mp);
   return mp;
@@ -3023,7 +3058,7 @@ function updateMiniPlayer() {
   $('gmpCover').style.background = 'linear-gradient(135deg,' + currentSong.colors[0] + ',' + currentSong.colors[1] + ')';
   $('gmpName').textContent = currentSong.name;
   $('gmpArtist').textContent = currentSong.artist + (currentSong.online ? ' · ' + ((currentSong.ncmId || currentSong.qqmid) ? '全曲' : '预览') : '');
-  $('gmpPlay').textContent = playing ? '❚❚' : '▶';
+  $('gmpPlay').innerHTML = playing ? MUS_ICO.pause : MUS_ICO.play;
 }
 
 // ---------- 啵啵间 · 直播 ----------
@@ -5057,16 +5092,8 @@ function renderOffline() {
   const list = sp.offlineChat || [];
   const meAv = renderAvatar(state.myProfile && (state.myProfile.avatarImage || state.myProfile.avatar) || activeProfile().avatar, '我');
   const roleAv = renderAvatar(role.avatar, role.name);
-  const bub = function (m) {
-    const me = m.who === 'me';
-    if (m.type === 'invite') {
-      const is = OFFLINE_SCENES.find(s => s.id === m.sceneId) || OFFLINE_SCENES[0];
-      return `<div class="offline-msg me"><span class="offline-msg-av">${meAv}</span><div class="offline-invite-card"><div class="offline-invite-title">💌 约会邀请函</div><div class="offline-invite-row">📍 ${escapeHTML(is.name)}</div>${m.time ? `<div class="offline-invite-row">🕐 ${escapeHTML(m.time)}</div>` : ''}${m.note ? `<div class="offline-invite-note">${escapeHTML(m.note)}</div>` : ''}</div></div>`;
-    }
-    return `<div class="offline-msg ${me ? 'me' : ''}"><span class="offline-msg-av">${me ? meAv : roleAv}</span><div class="offline-msg-bub">${escapeHTML(m.text)}</div></div>`;
-  };
   const chatHTML = list.length
-    ? list.map(bub).join('') + (offlineTyping ? `<div class="offline-msg"><span class="offline-msg-av">${roleAv}</span><div class="offline-msg-bub typing"><span class="comic-tdot"></span><span class="comic-tdot"></span><span class="comic-tdot"></span></div></div>` : '')
+    ? list.map(offlineMsgHTML).join('') + (offlineTyping ? `<div class="offline-msg"><span class="offline-msg-av">${roleAv}</span><div class="offline-msg-bub typing"><span class="comic-tdot"></span><span class="comic-tdot"></span><span class="comic-tdot"></span></div></div>` : '')
     : `<div class="offline-chat-empty">选个地方，点「邀请见面」，TA 会在这里回复你。</div>`;
   const zoneHTML = dating ? `
     <div class="off-dialogue-input"><input id="offlineInput" placeholder="对 ${escapeHTML(role.name)} 说点什么…" onkeydown="if(event.key==='Enter')offlineSend()"><button onclick="offlineSend()">发送</button></div>
@@ -5114,6 +5141,59 @@ function renderOffline() {
   if (ol) ol.scrollTop = ol.scrollHeight;
 }
 function offlinePick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function offlineMsgHTML(m) {
+  const meAv = renderAvatar(state.myProfile && (state.myProfile.avatarImage || state.myProfile.avatar) || activeProfile().avatar, '我');
+  const roleAv = renderAvatar(activeRole().avatar, activeRole().name);
+  const me = m.who === 'me';
+  if (m.type === 'invite') {
+    const is = OFFLINE_SCENES.find(s => s.id === m.sceneId) || OFFLINE_SCENES[0];
+    return `<div class="offline-msg me"><span class="offline-msg-av">${meAv}</span><div class="offline-invite-card"><div class="offline-invite-title">💌 约会邀请函</div><div class="offline-invite-row">📍 ${escapeHTML(is.name)}</div>${m.time ? `<div class="offline-invite-row">🕐 ${escapeHTML(m.time)}</div>` : ''}${m.note ? `<div class="offline-invite-note">${escapeHTML(m.note)}</div>` : ''}</div></div>`;
+  }
+  return `<div class="offline-msg ${me ? 'me' : ''}"><span class="offline-msg-av">${me ? meAv : roleAv}</span><div class="offline-msg-bub">${escapeHTML(m.text)}</div></div>`;
+}
+function offlineScrollBottom() {
+  const ol = document.querySelector('.offline-chat-list');
+  if (ol) ol.scrollTop = ol.scrollHeight;
+}
+function offlineAppendMsg(m) {
+  const ol = document.querySelector('.offline-chat-list');
+  if (!ol) return;
+  const wrap = document.createElement('div');
+  wrap.innerHTML = offlineMsgHTML(m);
+  ol.appendChild(wrap.firstElementChild);
+  offlineScrollBottom();
+}
+function offlineSetTyping(on) {
+  const ol = document.querySelector('.offline-chat-list');
+  if (!ol) return;
+  const old = ol.querySelector('.offline-msg-bub.typing');
+  if (old && old.parentNode) old.parentNode.remove();
+  if (on) {
+    const roleAv = renderAvatar(activeRole().avatar, activeRole().name);
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `<div class="offline-msg"><span class="offline-msg-av">${roleAv}</span><div class="offline-msg-bub typing"><span class="comic-tdot"></span><span class="comic-tdot"></span><span class="comic-tdot"></span></div></div>`;
+    ol.appendChild(wrap.firstElementChild);
+  }
+  offlineScrollBottom();
+}
+function offlineRefreshZone() {
+  const role = activeRole();
+  const d = offlineDate();
+  const head = document.querySelector('.off-chat-head');
+  if (head) head.textContent = d.state === 'dating' ? '约会中 · 此刻面对面' : '线下约会';
+  const z = document.querySelector('.off-cta-zone');
+  if (!z) return;
+  z.innerHTML = d.state === 'dating'
+    ? `<div class="off-dialogue-input"><input id="offlineInput" placeholder="对 ${escapeHTML(role.name)} 说点什么…" onkeydown="if(event.key==='Enter')offlineSend()"><button onclick="offlineSend()">发送</button></div>
+       <button class="offline-cta ghost" onclick="offlineEnd()">🌙 结束约会 · AI 写进记忆</button>`
+    : d.state === 'waiting'
+    ? `<div class="off-status">📨 邀请函已发出，等 ${escapeHTML(role.name)} 回复…</div>`
+    : d.state === 'rejected'
+    ? `<div class="off-status">😢 ${escapeHTML(role.name)} 这次婉拒了，换个时间再战</div>
+       <button class="offline-cta" onclick="offlineInvite()">💌 再邀请一次</button>`
+    : `<div class="off-status">挑个地方，把 ${escapeHTML(role.name)} 约出来</div>
+       <button class="offline-cta" onclick="offlineInvite()">💌 邀请 ${escapeHTML(role.name)} 出来见面</button>`;
+}
 function toggleScenePicker() {
   const p = $('offScenePicker');
   if (!p) return;
@@ -5170,23 +5250,27 @@ async function offlineSend() {
   const input = document.getElementById('offlineInput');
   const text = input ? input.value.trim() : '';
   if (!text) return;
-  offlineChatList().push({ who: 'me', text: text, time: new Date().toLocaleString() });
+  const list = offlineChatList();
+  list.push({ who: 'me', text: text, time: new Date().toLocaleString() });
   if (input) input.value = '';
   saveState();
+  offlineAppendMsg(list[list.length - 1]);
   offlineTyping = true;
-  renderOffline();
+  offlineSetTyping(true);
   try {
     const reply = await offlineCallAI(text);
     if (offlineDate().state === 'dating') {
-      offlineChatList().push({ who: 'role', text: reply, time: new Date().toLocaleString() });
+      list.push({ who: 'role', text: reply, time: new Date().toLocaleString() });
       saveState();
+      offlineAppendMsg(list[list.length - 1]);
     }
   } catch (err) {
-    offlineChatList().push({ who: 'role', text: '（' + (err && err.message || err) + '）', time: new Date().toLocaleString() });
+    list.push({ who: 'role', text: '（' + (err && err.message || err) + '）', time: new Date().toLocaleString() });
     saveState();
+    offlineAppendMsg(list[list.length - 1]);
   }
   offlineTyping = false;
-  renderOffline();
+  offlineSetTyping(false);
 }
 function offlineInvite(fromChat) {
   const d = offlineDate();
@@ -5223,11 +5307,14 @@ async function offlineSubmitInvite() {
   const time = OFFLINE_TIMES[0];
   const note = '';
   d.state = 'waiting'; d.sceneId = scene.id;
-  offlineChatList().push({ who: 'me', type: 'invite', text: '发来一封约会邀请函', sceneId: scene.id, time: time, note: note, ts: Date.now() });
+  const list = offlineChatList();
+  const inviteMsg = { who: 'me', type: 'invite', text: '发来一封约会邀请函', sceneId: scene.id, time: time, note: note, ts: Date.now() };
+  list.push(inviteMsg);
   saveState();
-  renderOffline();
+  offlineAppendMsg(inviteMsg);
+  offlineRefreshZone();
   offlineTyping = true;
-  renderOffline();
+  offlineSetTyping(true);
   const ask = '我约你去' + scene.name + (time ? '（' + time + '）' : '') + (note ? '，' + note : '') + '，你有空来吗？';
   let reply = '';
   try {
@@ -5236,16 +5323,18 @@ async function offlineSubmitInvite() {
     reply = '（' + (err && err.message || err) + '）';
   }
   offlineTyping = false;
-  offlineChatList().push({ who: 'role', text: reply, time: new Date().toLocaleString() });
+  offlineSetTyping(false);
+  list.push({ who: 'role', text: reply, time: new Date().toLocaleString() });
+  offlineAppendMsg(list[list.length - 1]);
   if (offlineAccept(reply)) {
     d.state = 'dating';
     saveState();
-    renderOffline();
+    offlineRefreshZone();
     showIGToast('🎉 ' + role.name + ' 答应啦，约会开始！');
   } else {
     d.state = 'rejected';
     saveState();
-    renderOffline();
+    offlineRefreshZone();
     showIGToast('😢 ' + role.name + ' 这次婉拒了，换个时间再试试');
   }
 }
