@@ -9,10 +9,10 @@ const defaultState = {
   profile: { name: '我', avatar: '', wallet: 99999, persona: '', likes: '', boundaries: '', speaking: '' },
   profiles: [{ id: 'prof-default', name: '我', avatar: '', persona: '', likes: '', boundaries: '', speaking: '' }],
   activeProfileId: 'prof-default',
-  api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '', temp: 0.75, topP: 0.9, maxTokens: 500, presencePenalty: 0.6, frequencyPenalty: 0.4 },
+  api: { key: '', url: 'https://api.openai.com/v1', model: 'gpt-4.1-mini', preset: '', temp: 0.85, topP: 0.9, maxTokens: 800, presencePenalty: 0.6, frequencyPenalty: 0.4 },
   apiProfiles: [],
   activeApiProfile: '',
-  settings: { ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop' },
+  settings: { ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop', translateProvider: 'google', deeplKey: '' },
   activeRoleId: 'role-default',
   roles: [
     {
@@ -134,6 +134,7 @@ const defaultState = {
   live: { viewer: 12, likes: 0, giftWorth: 0, gifts: 0, followers: 0, intimacy: 0, coins: 0, lastSign: '', giftLog: [], song: '', flirt: 0 },
   qq: null,
   customStickers: [],
+  stickerFolders: [],
   call: { active: false, type: 'audio', startTime: 0, muted: false, speaker: false },
   game: { score: 0, best: 0 },
   myProfile: {
@@ -335,6 +336,7 @@ function ensureStateShape(next, saved) {
   }
   if (!Array.isArray(next.profilePosts)) next.profilePosts = [];
   if (!Array.isArray(next.customStickers)) next.customStickers = [];
+  if (!Array.isArray(next.stickerFolders)) next.stickerFolders = [];
   if (!next.live || typeof next.live !== 'object') next.live = {};
   next.live.viewer = Number(next.live.viewer) || 12;
   next.live.likes = Number(next.live.likes) || 0;
@@ -358,7 +360,7 @@ function ensureStateShape(next, saved) {
   next.willow.date = typeof next.willow.date === 'string' ? next.willow.date : '';
   next.willow.text = typeof next.willow.text === 'string' ? next.willow.text : '';
   next.willow.rule = typeof next.willow.rule === 'string' ? next.willow.rule : '';
-  next.settings = Object.assign({ ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop' }, next.settings || {});
+  next.settings = Object.assign({ ai: true, pinned: false, bubbleStyle: 'default', musicMode: 'loop', translateProvider: 'google', deeplKey: '' }, next.settings || {});
   next.settings.relayUrl = typeof next.settings.relayUrl === 'string' ? next.settings.relayUrl : '';
   return next;
 }
@@ -409,9 +411,14 @@ function migrateApiPenalties(st) {
   });
 }
 
+function fireCloudSave() {
+  if (typeof cloudOnSave === 'function') { try { cloudOnSave(); } catch (e) {} }
+}
+
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    fireCloudSave();
     return true;
   } catch (err) {
     var totalRemoved = 0;
@@ -423,6 +430,7 @@ function saveState() {
       totalFreed += r.freedKB;
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        fireCloudSave();
         alert('空间不足，已自动清理 ' + totalRemoved + ' 个大图/头像（释放约 ' + totalFreed + ' KB），保存成功。');
         return true;
       } catch (e) { }
@@ -524,6 +532,7 @@ async function aiRequest(target, opts) {
       opts.headers = Object.assign({}, opts.headers || {});
       opts.headers['x-relay-target'] = target;
       opts.headers['x-relay-method'] = String(opts.method || 'GET').toUpperCase();
+      opts.cache = 'no-store';
       var base = relayBase() || '';
       return fetch((base || '') + '/relay', opts);
     }

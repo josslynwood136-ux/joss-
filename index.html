@@ -6,22 +6,27 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="仿真小手机">
+  <meta name="apple-mobile-web-app-title" content="美乐地">
   <script>
   if (location.protocol !== 'file:') {
-    var _manifestLink = document.createElement('link');
-    _manifestLink.rel = 'manifest';
-    _manifestLink.href = 'manifest.json';
-    document.head.appendChild(_manifestLink);
+    var m = document.createElement('link');
+    m.rel = 'manifest';
+    m.href = 'manifest.json';
+    document.head.appendChild(m);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('Service Worker 注册失败：', e); });
+      });
+    }
   }
   </script>
   <link rel="icon" href="icon.svg">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet">
-  <title>仿真小手机</title>
-  <link rel="stylesheet" href="css/style.css?v=20260812a">
+  <title>美乐地</title>
+  <link rel="stylesheet" href="css/style.css?v=20260818a">
 </head>
 <body>
 
@@ -88,6 +93,18 @@
           </div>
           <button class="reply-bar-close" onclick="clearQuote()">✕</button>
         </div>
+        <div class="more-panel" id="morePanel">
+          <div class="panel-item" onclick="openAlbumPicker()"><div class="panel-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>图片卡片</div>
+          <div class="panel-item" onclick="sendVoiceMsg()"><div class="panel-icon"><svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div>语音消息</div>
+          <div class="panel-item" onclick="startCall('voice')"><div class="panel-icon"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>语音通话</div>
+          <div class="panel-item" onclick="startCall('video')"><div class="panel-icon"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>视频通话</div>
+          <div class="panel-item" onclick="offlineInvite(true)"><div class="panel-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></div>约会邀请</div>
+          <div class="panel-item" onclick="sendNarration()"><div class="panel-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>旁白</div>
+          <div class="panel-item" onclick="sendRed()"><div class="panel-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>转账</div>
+          <div class="panel-item" onclick="pauseGeneration()"><div class="panel-icon"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></div>暂停输出</div>
+          <div class="panel-item" onclick="regenerateReply()"><div class="panel-icon"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg></div>重新生成</div>
+          <div class="panel-item" onclick="renderStickerManager()"><div class="panel-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>表情包</div>
+        </div>
         <div class="footer-main">
           <button class="icon-btn" onclick="toggleEmoji()">☺</button>
           <div class="chat-input-wrapper">
@@ -98,16 +115,6 @@
           <button class="send-btn" id="sendBtn" title="发送" onclick="sendChat()"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
         </div>
         <div class="emoji-panel" id="emojiPanel"></div>
-        <div class="more-panel" id="morePanel">
-          <div class="panel-item" onclick="startCall()"><div class="panel-icon">📹</div>通话</div>
-          <div class="panel-item" onclick="openAlbumPicker()"><div class="panel-icon">🖼</div>相册</div>
-          <div class="panel-item" onclick="startCapture()"><div class="panel-icon">📷</div>拍摄</div>
-          <div class="panel-item" onclick="sendRed()"><div class="panel-icon">🧧</div>红包</div>
-          <div class="panel-item" onclick="inviteStudy()"><div class="panel-icon">🍅</div>邀TA自习</div>
-          <div class="panel-item" onclick="offlineInvite(true)"><div class="panel-icon">💌</div>邀TA线下</div>
-          <div class="panel-item" onclick="sendLocation()"><div class="panel-icon">📍</div>位置</div>
-          <div class="panel-item" onclick="pickFile()"><div class="panel-icon">📁</div>文件</div>
-        </div>
       </div>
       <div id="selectHereLine" class="select-here-line" style="display:none"></div>
       <button id="selectHereBtn" class="select-here-btn" style="display:none" onclick="selectHereTo()">
@@ -172,6 +179,35 @@
             </div>
           </div>
           <div class="switch" id="translateSwitch" onclick="toggleTranslate()"></div>
+        </div>
+        <div class="cs-row">
+          <div class="cs-row-left">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h9"/></svg>
+            <div>
+              <span>翻译平台</span>
+              <div class="cs-hint">翻译请求走哪个平台（失败自动兜底）</div>
+            </div>
+          </div>
+          <select id="translateProviderSelect" onchange="setTranslateProvider(this.value)" style="border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0">
+            <option value="deeplweb">DeepL(免密)</option>
+            <option value="mymemory">MyMemory(免密)</option>
+            <option value="yandex">Yandex(免密)</option>
+            <option value="google">Google</option>
+            <option value="libre">LibreTranslate</option>
+            <option value="lingva">Lingva</option>
+            <option value="deepl">DeepL</option>
+            <option value="bing">微软翻译</option>
+            <option value="modernmt">ModernMT</option>
+            <option value="papago">Papago</option>
+          </select>
+        </div>
+        <div class="cs-row" id="translateKeyRow" style="border-bottom:none;flex-direction:column;align-items:stretch;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="4" y="9" width="12" height="7" rx="1.5"/><path d="M7 9V6a3 3 0 016 0v3"/></svg>
+            <span id="translateKeyLabel">密钥</span>
+          </div>
+          <input id="translateKeyInput" placeholder="粘贴对应平台的密钥" onchange="setTranslateKey(this.value)" style="border:none;background:#f7f5f2;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;">
+          <div class="cs-hint" id="translateKeyHint">免密平台（DeepL免密/MyMemory/Yandex/Google 等）不用填。需要密钥的平台：DeepL 在 deepl.com/pro 复制（Free 版以 :fx 结尾）；微软/ModernMT/Papago 填各自 API Key；Papago 格式为「客户端ID|客户端密钥」。国内平台（腾讯/百度/阿里/有道）需配合中继服务器，详见说明。</div>
         </div>
         <div class="cs-row">
           <div class="cs-row-left">
@@ -258,8 +294,8 @@
           <div class="cs-row-left">
             <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14"/><path d="M8 13h4"/></svg>
             <div>
-              <span>记忆总结条数</span>
-              <div class="cs-hint">每次自动总结最近多少条对话，越大越费 token</div>
+              <span>单次回顾条数</span>
+              <div class="cs-hint">每次总结时回看最近多少条对话（越大上下文越全，但越费 token）</div>
             </div>
           </div>
           <input id="autoMemLenSelect" type="number" min="2" onchange="setAutoMemLen(this.value)" value="8" style="width:56px;border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0;text-align:right">
@@ -268,8 +304,8 @@
           <div class="cs-row-left">
             <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10c0 3.3 3.1 6 7 6 1.2 0 2.4-.2 3.4-.7l3.6 1.2-1.2-3.6c.4-.9.6-1.9.6-2.9 0-3.3-3.1-6-7-6s-7 2.7-7 6z"/><path d="M7 9h8M7 13h5"/></svg>
             <div>
-              <span>总结频率</span>
-              <div class="cs-hint">每多少轮对话总结一次记忆</div>
+              <span>总结间隔(轮)</span>
+              <div class="cs-hint">每聊多少轮自动总结一次记忆（越大越省 token，但记忆更新越慢）</div>
             </div>
           </div>
           <input id="autoMemEverySelect" type="number" min="1" onchange="setAutoMemEvery(this.value)" value="1" style="width:56px;border:none;background:transparent;color:#b8a99a;font-size:13px;outline:none;padding:2px 0;text-align:right">
@@ -316,7 +352,27 @@
           <div id="settingsMemories" style="max-height:200px;overflow-y:auto;"></div>
         </div>
       </div>
-      <div class="cs-group-title">其他</div>
+      <div class="cs-group-title">通知</div>
+    <div class="cs-section">
+      <div class="cs-row">
+        <div class="cs-row-left">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2a5 5 0 00-5 5v3l-2 2v1h14v-1l-2-2V7a5 5 0 00-5-5z"/><path d="M8 17a2 2 0 004 0"/></svg>
+          <div>
+            <span>推送通知</span>
+            <div class="cs-hint push-hint">开启后，即使网页在后台或关闭，也能收到角色消息通知</div>
+          </div>
+        </div>
+        <div class="switch push-switch"></div>
+      </div>
+      <div class="cs-row push-test-btn" style="display:none;border-bottom:none;">
+        <div class="cs-row-left">
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 10h3l2-5 2 10 2-8 2 6 2-3 3 5"/></svg>
+          <span>发送测试推送</span>
+        </div>
+        <button class="icon-btn" onclick="testPush()" title="验证推送">🔔</button>
+      </div>
+    </div>
+    <div class="cs-group-title">其他</div>
       <div class="cs-section">
         <div class="cs-row cs-action cs-danger" onclick="clearHistory()">
           <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 5h12M8 5V3h4v2M7 9v6M10 9v6M13 9v6"/><path d="M5 5l1 12h8l1-12"/></svg>
@@ -403,30 +459,21 @@
   <!-- IG Toast -->
   <div class="ig-toast" id="igToast"></div>
 
-  <script src="js/ui.js?v=20260812a"></script>
-  <script src="js/state.js?v=20260812a"></script>
-  <script src="js/chat.js?v=20260812a"></script>
-  <script src="js/apps.js?v=20260812a"></script>
-  <script src="js/profile-ig.js?v=20260812a"></script>
-  <script src="js/init.js?v=20260812a"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-  function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
-  function syncFullscreenSwitch() {
-    var sw = document.getElementById('fsSwitch');
-    if (sw) sw.classList.toggle('on', isFullscreen());
+  if (!window.supabase) {
+    var _sbFallback = document.createElement('script');
+    _sbFallback.src = 'https://unpkg.com/@supabase/supabase-js@2';
+    document.head.appendChild(_sbFallback);
   }
-  function toggleFullscreen() {
-    var d = document, de = d.documentElement;
-    if (!isFullscreen()) {
-      var req = de.requestFullscreen || de.webkitRequestFullscreen;
-      if (req) { var p = req.call(de); if (p && p.then) p.then(syncFullscreenSwitch); else setTimeout(syncFullscreenSwitch, 300); }
-    } else {
-      var exit = d.exitFullscreen || d.webkitExitFullscreen;
-      if (exit) exit.call(d);
-    }
-  }
-  document.addEventListener('fullscreenchange', syncFullscreenSwitch);
-  document.addEventListener('webkitfullscreenchange', syncFullscreenSwitch);
   </script>
+  <script src="js/ui.js?v=20260812e"></script>
+  <script src="js/state.js?v=20260821b"></script>
+  <script src="js/chat.js?v=20260821i"></script>
+  <script src="js/apps.js?v=20260812e"></script>
+  <script src="js/profile-ig.js?v=20260812e"></script>
+  <script src="js/push.js?v=20260822a"></script>
+  <script src="js/init.js?v=20260812e"></script>
+  <script src="js/sync.js?v=20260821a"></script>
 </body>
 </html>

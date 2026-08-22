@@ -12,6 +12,7 @@ function openApp(name) {
     if (dbg) dbg.style.display = 'none';
     hidePanels();
     if (name !== '许愿柳' && name !== '许愿流') { const mc0 = c(); if (mc0) mc0.classList.remove('willow-fit'); }
+    window._openAppName = name;
     setTitle(name === 'QQ' ? '' : name);
     const ah = document.querySelector('.app-header');
     if (ah) {
@@ -47,6 +48,9 @@ function openApp(name) {
 }
 
 function closeApp() {
+  if (window._openAppName === '游戏' || window._openAppName === '游戏房' || window._openAppName === '游戏游戏') {
+    if (gameMode !== 'list') { gameMode = 'list'; renderGame(); return; }
+  }
   _willowFogShown = false;
   if (spaceFxTimer) { clearInterval(spaceFxTimer); spaceFxTimer = null; }
   if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
@@ -123,7 +127,7 @@ function renderApiSettings() {
   h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">配置名称</div><input class="field" id="apiProfileName" placeholder="例如：OpenAI、中转1、Claude" value="' + escapeHTML(activeProfile ? activeProfile.name : '') + '"></div>';
   h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">API Key</div><input class="field" type="password" id="apiKeyInput" placeholder="sk-..." value="' + escapeHTML(key) + '"></div>';
   h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">Base URL</div><input class="field" id="apiUrlInput" placeholder="https://api.openai.com/v1" value="' + escapeHTML(url) + '"></div>';
-  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">模型</div><div style="display:flex;gap:6px"><input class="field" id="apiModelInput" placeholder="gpt-4.1-mini" value="' + escapeHTML(model) + '" style="flex:1"><button class="ghost-btn" onclick="fetchModels()" style="padding:6px 10px;font-size:11px;white-space:nowrap">获取列表</button></div><div id="apiModelList" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px"></div></div>';
+  h += '<div><div style="font-size:11px;color:#b8a99a;margin-bottom:4px">模型</div><div style="display:flex;gap:6px"><input class="field" id="apiModelInput" placeholder="gpt-4.1-mini" value="' + escapeHTML(model) + '" style="flex:1" autocomplete="off" oninput="filterModelSuggestions()" onfocus="showAllModels()"><button class="ghost-btn" onclick="fetchModels()" style="padding:6px 10px;font-size:11px;white-space:nowrap">获取列表</button></div><div id="apiModelList" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;max-height:160px;overflow:auto"></div></div>';
 
   // 高级参数
   h += '<div style="border-top:1px solid #f0ede8;padding-top:10px">';
@@ -160,6 +164,18 @@ function renderApiSettings() {
   h += '<div style="font-size:11px;color:#c0b0a0">填了之后会自动检测 ' + (relayBase() || 'https://代理域名') + '/relay-probe 是否可用；留空则走默认（有 /relay 的站点用同源，纯静态则直连）。</div>';
   h += '</div>';
 
+  h += sbCloudBlock();
+
+  // 推送通知（设备级：后台/关闭页面也能收到角色消息）
+  h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
+  h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">推送通知</div>';
+  h += '<div style="display:flex;align-items:center;gap:10px">';
+  h += '<div style="flex:1;min-width:0"><div style="font-size:12px;color:#4a3f35">后台消息推送</div><div class="push-hint" style="font-size:11px;color:#b8a99a;margin-top:2px;line-height:1.4">开启后，即使网页在后台或关闭，也能收到角色消息通知</div></div>';
+  h += '<div class="switch push-switch"></div></div>';
+  h += '<button class="ghost-btn push-test-btn" onclick="testPush()" style="justify-content:center;display:none">发送测试推送</button>';
+  h += '<div style="font-size:11px;color:#c0b0a0;line-height:1.5">提示：iOS 需把本页「添加到主屏幕」安装成 App（系统 16.4+）才能后台收推送；安卓 Chrome 直接支持。</div>';
+  h += '</div>';
+
   h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
   h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">数据</div>';
   h += '<div style="font-size:11px;color:#b8a99a">导出备份包含全部角色、聊天记录和 API 配置</div>';
@@ -171,15 +187,11 @@ function renderApiSettings() {
 
   h += '<div style="background:#fff;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:10px">';
   h += '<div style="font-size:13px;font-weight:600;color:#4a3f35;padding-bottom:2px;border-bottom:1px solid #f0ede8">显示</div>';
-  h += '<div style="display:flex;align-items:center;gap:10px">';
-  h += '<div style="flex:1"><div style="font-size:13px;color:#4a3f35">全屏显示</div><div style="font-size:11px;color:#b8a99a;margin-top:1px">在浏览器里全屏运行，Esc 退出</div></div>';
-  h += '<div class="switch' + (isFullscreen() ? ' on' : '') + '" id="fsSwitch" onclick="toggleFullscreen()"></div>';
-  h += '</div></div>';
-
   h += '<div style="font-size:11px;color:#c0b0a0;line-height:1.5;padding:0 4px">如果直接用浏览器打开 HTML，部分接口可能因跨域策略被拦截。能用的中转接口或允许跨域的 API 可直接聊天。</div></div>';
 
   c().innerHTML = h;
   initApiSettings();
+  if (typeof refreshPushUI === 'function') refreshPushUI();
 }
 
 function saveApiConfig() {
@@ -260,6 +272,31 @@ async function testConnection() {
   }
 }
 
+var _cachedModels = [];
+
+function renderModelTags(ids) {
+  var box = $('apiModelList');
+  if (!box) return;
+  if (!ids.length) { box.innerHTML = '<span style="font-size:11px;color:#b8a99a">无匹配模型</span>'; return; }
+  box.innerHTML = ids.map(function (id) {
+    return '<span class="model-tag" data-model="' + id.replace(/"/g, '&quot;') + '">' + escapeHTML(id) + '</span>';
+  }).join('');
+}
+
+// 聚焦时显示全部已获取模型（不按输入框已有内容过滤，方便重选）
+function showAllModels() {
+  if (!_cachedModels.length) return;
+  renderModelTags(_cachedModels);
+}
+
+// 输入时实时筛选（输入框为空则显示全部）
+function filterModelSuggestions() {
+  if (!_cachedModels.length) return; // 还没点过「获取列表」，无数据可筛
+  var q = ($('apiModelInput').value || '').trim().toLowerCase();
+  if (!q) { showAllModels(); return; }
+  renderModelTags(_cachedModels.filter(function (id) { return id.toLowerCase().indexOf(q) >= 0; }));
+}
+
 async function fetchModels() {
   var key = $('apiKeyInput').value.trim();
   var url = $('apiUrlInput').value.trim();
@@ -273,10 +310,9 @@ async function fetchModels() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error && data.error.message || response.status);
     var models = data.data || [];
+    _cachedModels = models.map(function (m) { return m.id; });
     if (!models.length) { box.innerHTML = '<span style="font-size:11px;color:#b8a99a">暂无可用模型</span>'; return; }
-    box.innerHTML = models.map(function(m) {
-      return '<span class="model-tag" data-model="' + m.id.replace(/"/g,'&quot;') + '">' + escapeHTML(m.id) + '</span>';
-    }).join('');
+    showAllModels(); // 拉取后显示完整列表，不按已有输入过滤
   } catch (err) {
     box.innerHTML = '<span style="font-size:11px;color:#c0392b">获取失败：' + escapeHTML(err.message) + '</span>';
   } finally {
@@ -483,14 +519,14 @@ function renderMemoryEditor(char) {
       <textarea class="textarea" id="memoryText" placeholder="这个角色需要记住什么？" style="margin-top:8px"></textarea>
       <button class="primary-btn" style="width:100%;margin-top:8px" onclick="addMemory('${char.id}')">加入记忆</button>
     </div>
-    ${(char.memories || []).map(mem => `
+    ${renderMemoriesGrouped(char.memories, mem => `
       <div class="list-card">
         <div style="flex:1;min-width:0">
           <b>${escapeHTML(mem.title || '记忆')}</b>
           <div class="subtle">${escapeHTML(mem.text)}</div>
         </div>
         <button class="danger-btn" onclick="deleteMemory('${char.id}','${mem.id}')">删</button>
-      </div>`).join('') || '<div class="card subtle">这个角色还没有记忆。</div>'}`;
+      </div>`, '<div class="card subtle">这个角色还没有记忆。</div>')}`;
 }
 
 function saveCharacter(id) {
@@ -981,19 +1017,31 @@ const YARD_DEFAULT = {
   person: 'https://img.facfox.com/imgs/2026/07/19/ea51598f7d0459ee.jpg',
   personPos: { x: 50, y: 88 },
   furniture: [
-    { id: 'fur-swing', name: '🌳 秋千', img: '', x: 2, y: 44, w: 22, h: 24, actions: [
+    { id: 'fur-swing', name: '秋千', img: '', x: 2, y: 44, w: 22, h: 24, actions: [
       { label: '坐上去', result: '小人坐到秋千上，脚尖点着地面，慢慢地荡了起来。' },
-      { label: '把它推高', result: '小人把秋千荡得老高，笑声顺着风传开。🎈' },
-      { label: '躺着看云', result: '小人躺在秋千上，看着云朵慢慢挪窝。☁️' }
+      { label: '把它推高', result: '小人把秋千荡得老高，笑声顺着风传开。' },
+      { label: '躺着看云', result: '小人躺在秋千上，看着云朵慢慢挪窝。' }
     ]},
-    { id: 'fur-pond', name: '🪷 水池', img: '', x: 34, y: 60, w: 14, h: 14, actions: [
-      { label: '捞月亮', result: '小人伸手去捞池里的月亮倒影，涟漪一圈圈荡开，月亮碎成了光点。🌙' },
+    { id: 'fur-pond', name: '水池', img: '', x: 34, y: 60, w: 14, h: 14, actions: [
+      { label: '捞月亮', result: '小人伸手去捞池里的月亮倒影，涟漪一圈圈荡开，月亮碎成了光点。' },
       { label: '丢石子', result: '扑通——石子沉底，水花溅起来打湿了裤脚。' },
-      { label: '喂锦鲤', result: '几条锦鲤围过来，嘴巴一张一合地讨吃的。🐟' }
+      { label: '喂锦鲤', result: '几条锦鲤围过来，嘴巴一张一合地讨吃的。' }
     ]},
-    { id: 'fur-well', name: '⚓ 水井', img: '', x: 72, y: 44, w: 12, h: 16, actions: [
-      { label: '打桶水', result: '吱呀——轱辘摇上来一桶清亮亮的井水，凉丝丝的。💧' },
+    { id: 'fur-well', name: '水井', img: '', x: 72, y: 44, w: 12, h: 16, actions: [
+      { label: '打桶水', result: '吱呀——轱辘摇上来一桶清亮亮的井水，凉丝丝的。' },
       { label: '朝井里喊', result: '小人对着井口大喊：「喂——」井里传回一声「喂——」，拖得很长。' }
+    ]},
+    { id: 'fur-bench', name: '长椅', img: '', x: 30, y: 44, w: 24, h: 15, actions: [
+      { label: '坐一会儿', result: '小人坐在长椅上，双腿晃荡，望着远处发呆。' },
+      { label: '拍张照', result: '小人把下巴搁在椅背上，让你帮它拍了张照。' }
+    ]},
+    { id: 'fur-flowerbed', name: '花圃', img: '', x: 40, y: 72, w: 13, h: 10, actions: [
+      { label: '浇花', result: '小人拎着小水壶给花浇了水，花瓣轻轻抖了抖。' },
+      { label: '闻一闻', result: '小人凑近闻了闻花香，眼睛弯成了月牙。' }
+    ]},
+    { id: 'fur-lantern', name: '石灯笼', img: '', x: 88, y: 50, w: 9, h: 15, actions: [
+      { label: '点亮', result: '小人踮起脚把灯笼点亮，暖黄的光晕开一小圈。' },
+      { label: '看光晕', result: '小人盯着灯芯出神，影子被拉得长长的。' }
     ]}
   ],
   plots: [null, null, null, null],
@@ -1001,11 +1049,132 @@ const YARD_DEFAULT = {
   harvest: { radish: 0, tomato: 0, pumpkin: 0 }
 };
 
+// 庭院图片素材：把下面的空字符串换成你的精致插画 URL（秋千/水池/水井，以及三种作物图标）
+// 留空则使用下方手绘 SVG 插画（yardFurArt / yardCropArt）
+var YARD_FUR_IMG = { 'fur-swing': '', 'fur-pond': '', 'fur-well': '', 'fur-bench': '', 'fur-flowerbed': '', 'fur-lantern': '' };
+var YARD_CROP_IMG = { radish: '', tomato: '', pumpkin: '' };
+
+function yardFurArt(id) {
+  if (id === 'fur-swing') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <line x1="24" y1="90" x2="40" y2="28" stroke="#caa46f" stroke-width="5" stroke-linecap="round"/>
+      <line x1="76" y1="90" x2="60" y2="28" stroke="#caa46f" stroke-width="5" stroke-linecap="round"/>
+      <line x1="40" y1="28" x2="60" y2="28" stroke="#caa46f" stroke-width="5" stroke-linecap="round"/>
+      <line x1="45" y1="32" x2="45" y2="66" stroke="#b98b5a" stroke-width="2.4"/>
+      <line x1="55" y1="32" x2="55" y2="66" stroke="#b98b5a" stroke-width="2.4"/>
+      <rect x="39" y="66" width="22" height="7" rx="3.5" fill="#e0a96d"/>
+    </svg>`;
+  }
+  if (id === 'fur-pond') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <ellipse cx="50" cy="60" rx="40" ry="25" fill="#bfe3ef"/>
+      <ellipse cx="50" cy="60" rx="40" ry="25" fill="none" stroke="#9fd0e0" stroke-width="2"/>
+      <path d="M28 60 q9 -6 18 0 t18 0" stroke="#ffffff" stroke-width="2" fill="none" opacity=".7"/>
+      <ellipse cx="36" cy="52" rx="14" ry="8" fill="#8fc97a"/>
+      <circle cx="36" cy="48" r="3" fill="#ffd3e0"/>
+      <circle cx="36" cy="43" r="3.4" fill="#ffb3c8"/>
+      <circle cx="41" cy="45.5" r="3.4" fill="#ffb3c8"/>
+      <circle cx="31" cy="45.5" r="3.4" fill="#ffb3c8"/>
+      <circle cx="39" cy="50" r="3.4" fill="#ffb3c8"/>
+      <circle cx="33" cy="50" r="3.4" fill="#ffb3c8"/>
+    </svg>`;
+  }
+  if (id === 'fur-well') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <rect x="30" y="52" width="40" height="34" rx="6" fill="#c9b79b"/>
+      <rect x="30" y="52" width="40" height="34" rx="6" fill="none" stroke="#a8916f" stroke-width="2"/>
+      <line x1="30" y1="67" x2="70" y2="67" stroke="#a8916f" stroke-width="2" opacity=".5"/>
+      <line x1="30" y1="81" x2="70" y2="81" stroke="#a8916f" stroke-width="2" opacity=".5"/>
+      <line x1="35" y1="52" x2="35" y2="24" stroke="#caa46f" stroke-width="4" stroke-linecap="round"/>
+      <line x1="65" y1="52" x2="65" y2="24" stroke="#caa46f" stroke-width="4" stroke-linecap="round"/>
+      <path d="M27 27 L50 12 L73 27 Z" fill="#e08a6a"/>
+      <rect x="44" y="40" width="12" height="13" rx="3" fill="#9aa0a6"/>
+    </svg>`;
+  }
+  if (id === 'fur-bench') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <rect x="22" y="40" width="56" height="6" rx="3" fill="#c89b6a"/>
+      <rect x="22" y="52" width="56" height="6" rx="3" fill="#c89b6a"/>
+      <rect x="20" y="62" width="60" height="7" rx="3.5" fill="#ddb27e"/>
+      <rect x="26" y="69" width="6" height="18" rx="2" fill="#b98b5a"/>
+      <rect x="68" y="69" width="6" height="18" rx="2" fill="#b98b5a"/>
+    </svg>`;
+  }
+  if (id === 'fur-flowerbed') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <ellipse cx="50" cy="80" rx="38" ry="13" fill="#caa46f"/>
+      <ellipse cx="50" cy="80" rx="38" ry="13" fill="none" stroke="#a8916f" stroke-width="2"/>
+      <line x1="34" y1="80" x2="34" y2="58" stroke="#6fb85c" stroke-width="3"/>
+      <circle cx="34" cy="53" r="6" fill="#ff9bbf"/>
+      <line x1="50" y1="80" x2="50" y2="50" stroke="#6fb85c" stroke-width="3"/>
+      <circle cx="50" cy="45" r="6.5" fill="#ffd36e"/>
+      <line x1="66" y1="80" x2="66" y2="58" stroke="#6fb85c" stroke-width="3"/>
+      <circle cx="66" cy="53" r="6" fill="#b89bff"/>
+    </svg>`;
+  }
+  if (id === 'fur-lantern') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <rect x="40" y="82" width="20" height="8" rx="3" fill="#b9b2a6"/>
+      <rect x="45" y="58" width="10" height="24" rx="2" fill="#cfc8bb"/>
+      <rect x="38" y="52" width="24" height="8" rx="3" fill="#b9b2a6"/>
+      <rect x="40" y="34" width="20" height="20" rx="4" fill="#e2dccf"/>
+      <rect x="46" y="40" width="8" height="10" rx="2" fill="#ffe9a8"/>
+      <path d="M34 34 L50 20 L66 34 Z" fill="#a89e8c"/>
+      <circle cx="50" cy="18" r="3" fill="#8a8170"/>
+    </svg>`;
+  }
+  return '';
+}
+
+function yardCropArt(k) {
+  if (k === 'radish') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <path d="M50 42 C40 20 30 24 39 40 Z" fill="#7cc36a"/>
+      <path d="M50 42 C60 20 70 24 61 40 Z" fill="#8fd07a"/>
+      <path d="M50 42 C48 18 52 18 50 42 Z" fill="#6fb85c"/>
+      <path d="M38 42 Q50 38 62 42 Q58 80 50 86 Q42 80 38 42 Z" fill="#ffd7df"/>
+      <path d="M38 42 Q50 38 62 42 Q58 80 50 86 Q42 80 38 42 Z" fill="none" stroke="#f4a9bb" stroke-width="2"/>
+    </svg>`;
+  }
+  if (k === 'tomato') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <path d="M50 32 l-9 -9 M50 32 l9 -9 M50 32 l0 -11" stroke="#5fa64e" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="50" cy="28" r="4" fill="#6fb85c"/>
+      <circle cx="50" cy="60" r="27" fill="#ef5b4c"/>
+      <ellipse cx="41" cy="51" rx="8" ry="5" fill="#ffffff" opacity=".28"/>
+    </svg>`;
+  }
+  if (k === 'pumpkin') {
+    return `<svg viewBox="0 0 100 100" class="yard-art-svg">
+      <ellipse cx="50" cy="60" rx="30" ry="23" fill="#f0a23c"/>
+      <path d="M50 37 Q41 60 50 83" stroke="#d9852a" stroke-width="2" fill="none"/>
+      <path d="M50 37 Q59 60 50 83" stroke="#d9852a" stroke-width="2" fill="none"/>
+      <path d="M38 39 Q30 60 38 81" stroke="#d9852a" stroke-width="2" fill="none" opacity=".55"/>
+      <path d="M62 39 Q70 60 62 81" stroke="#d9852a" stroke-width="2" fill="none" opacity=".55"/>
+      <rect x="46" y="22" width="8" height="13" rx="3" fill="#6fa84e"/>
+    </svg>`;
+  }
+  return '';
+}
+
 function yardState() {
   var h = state.home;
   if (!h) return null;
   if (!h.rooms) h.rooms = {};
-  if (!h.rooms.yard) h.rooms.yard = JSON.parse(JSON.stringify(YARD_DEFAULT));
+  if (!h.rooms.yard) {
+    h.rooms.yard = JSON.parse(JSON.stringify(YARD_DEFAULT));
+  } else {
+    var def = YARD_DEFAULT.furniture || [];
+    h.rooms.yard.furniture = h.rooms.yard.furniture || [];
+    var added = false;
+    def.forEach(function (d) {
+      if (!h.rooms.yard.furniture.some(function (f) { return f.id === d.id; })) {
+        h.rooms.yard.furniture.push(JSON.parse(JSON.stringify(d)));
+        added = true;
+      }
+    });
+    if (added) saveState();
+  }
   h.rooms.yard.bg = '';
   return h.rooms.yard;
 }
@@ -1025,31 +1194,53 @@ function yardProgress(p) {
   return { progress: matured ? 1 : progress, bugged: !!p.bugged, matured: matured, boosted: boosted };
 }
 
+function yardBgArt() {
+  var u = 'y' + Math.random().toString(36).slice(2, 7);
+  return '<svg class="yard-bg" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<defs>' +
+      '<linearGradient id="' + u + 'sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eaf4fb"/><stop offset="0.5" stop-color="#f4f9f5"/><stop offset="1" stop-color="#eef6ea"/></linearGradient>' +
+      '<linearGradient id="' + u + 'lawn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8edc2"/><stop offset="0.5" stop-color="#c4e2a6"/><stop offset="1" stop-color="#b0d894"/></linearGradient>' +
+      '<linearGradient id="' + u + 'path" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4ecd6"/><stop offset="1" stop-color="#e7d8b8"/></linearGradient>' +
+      '<radialGradient id="' + u + 'sun" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff7da" stop-opacity="0.95"/><stop offset="0.4" stop-color="#ffe9a8" stop-opacity="0.65"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></radialGradient>' +
+      '<filter id="' + u + 'wc" x="-25%" y="-25%" width="150%" height="150%"><feTurbulence type="fractalNoise" baseFrequency="0.011 0.02" numOctaves="2" seed="6" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G"/><feGaussianBlur stdDeviation="0.8"/></filter>' +
+      '<filter id="' + u + 'soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>' +
+      '<filter id="' + u + 'grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>' +
+    '</defs>' +
+    '<rect x="0" y="0" width="1000" height="700" fill="url(#' + u + 'sky)"/>' +
+    '<circle cx="838" cy="116" r="130" fill="url(#' + u + 'sun)"/>' +
+    '<circle cx="838" cy="116" r="40" fill="#fff3cf" opacity="0.9" filter="url(#' + u + 'soft)"/>' +
+    '<g fill="#ffffff" opacity="0.82" filter="url(#' + u + 'soft)">' +
+      '<ellipse cx="210" cy="118" rx="86" ry="36"/><ellipse cx="300" cy="134" rx="60" ry="28"/><ellipse cx="560" cy="86" rx="74" ry="30"/><ellipse cx="628" cy="104" rx="52" ry="22"/><ellipse cx="120" cy="170" rx="50" ry="20"/>' +
+    '</g>' +
+    '<g filter="url(#' + u + 'wc)">' +
+      '<path fill="url(#' + u + 'lawn)" d="M0,358 C150,330 260,392 430,364 C560,342 690,402 850,372 C922,358 972,380 1000,366 L1000,700 L0,700 Z"/>' +
+      '<path fill="#b6db95" opacity="0.5" d="M0,358 C150,330 260,392 430,364 C560,342 690,402 850,372 C922,358 972,380 1000,366 L1000,384 C972,398 922,376 850,390 C690,420 560,360 430,380 C260,408 150,346 0,376 Z"/>' +
+      '<path fill="url(#' + u + 'path)" opacity="0.92" d="M468,360 C480,430 436,500 474,560 C504,608 474,656 502,700 L556,700 C536,654 560,604 540,556 C516,506 556,432 544,360 Z"/>' +
+      '<g opacity="0.2" fill="#eef8da"><ellipse cx="220" cy="520" rx="170" ry="60"/><ellipse cx="720" cy="610" rx="210" ry="70"/></g>' +
+      '<ellipse cx="120" cy="350" rx="72" ry="84" fill="#aed492"/><ellipse cx="120" cy="350" rx="50" ry="60" fill="#c6e4a8"/>' +
+      '<ellipse cx="906" cy="346" rx="64" ry="76" fill="#aed492"/><ellipse cx="906" cy="346" rx="44" ry="54" fill="#c6e4a8"/>' +
+    '</g>' +
+    '<rect x="0" y="0" width="1000" height="700" filter="url(#' + u + 'grain)" opacity="0.05"/>' +
+  '</svg>';
+}
+
 function renderYardPlots(room) {
   var plots = room.plots || [];
   var spots = [
-    { l: 20, t: 58, w: 14, s: 0.74 },
-    { l: 54, t: 56, w: 13, s: 0.7 },
-    { l: 6,  t: 70, w: 18, s: 1.06 },
-    { l: 62, t: 72, w: 19, s: 1.12 }
+    { l: 26, t: 60, w: 11, s: 0.72 },
+    { l: 56, t: 58, w: 10, s: 0.68 },
+    { l: 12, t: 73, w: 13, s: 0.96 },
+    { l: 66, t: 75, w: 14, s: 1.0 }
   ];
   var out = '';
-  out += '<div class="yard-sky">';
-  out += '<span class="yard-sun"></span>';
-  out += '<span class="yard-cloud c1"></span><span class="yard-cloud c2"></span><span class="yard-cloud c3"></span>';
-  out += '</div>';
-  out += '<div class="yard-ground"></div>';
-  out += '<div class="yard-path"></div>';
-  out += '<div class="yard-fence"></div>';
-  out += '<div class="yard-tree t1"></div><div class="yard-tree t2"></div>';
-  out += '<span class="yard-butterfly b1">🦋</span><span class="yard-butterfly b2">🦋</span>';
-  out += '<span class="yard-grass g1">🌿</span><span class="yard-grass g2">🌿</span>';
+  out += yardBgArt();
+  out += '<span class="yard-butterfly b1"></span><span class="yard-butterfly b2"></span>';
   plots.forEach(function (p, idx) {
     var sp = spots[idx] || spots[0];
     out += '<div class="yard-plot" data-idx="' + idx + '" style="left:' + sp.l + '%;top:' + sp.t + '%;width:' + sp.w + '%;height:' + (sp.w * 0.92).toFixed(1) + '%;transform:scale(' + sp.s + ')">' +
-      '<div class="yard-soil">' + renderPlotInner(p) + '</div></div>';
+      '<div class="yard-soil' + (p ? '' : ' empty') + '">' + renderPlotInner(p) + '</div></div>';
   });
-  out += '<div class="yard-harvest" onclick="openYardHarvest()">🧺 <b>' + yardHarvestTotal(room) + '</b></div>';
+  out += '<div class="yard-harvest" onclick="openYardHarvest()">收获 <b>' + yardHarvestTotal(room) + '</b></div>';
   return out;
 }
 
@@ -1057,10 +1248,12 @@ function renderPlotInner(p) {
   if (!p) return '<div class="yard-empty"><span class="yard-plant-hint">＋</span><span class="yard-plot-tag">空地</span></div>';
   var info = yardProgress(p);
   var icon = YARD_CROPS[p.k].icon;
+  var img = YARD_CROP_IMG[p.k] || '';
+  var plant = img ? '<img class="yard-crop-img" src="' + escapeHTML(img) + '" alt="' + escapeHTML(icon) + '">' : yardCropArt(p.k);
   var scale = 0.45 + info.progress * 0.75;
   var label = info.matured ? '熟了' : (info.bugged ? '有虫' : Math.round(info.progress * 100) + '%');
   var cls = info.matured ? ' ready' : (info.bugged ? ' bugged' : '');
-  return '<div class="yard-sprout-wrap' + cls + '"><div class="yard-sprout" style="transform:scale(' + scale.toFixed(2) + ')">' + icon + '</div><span class="yard-plot-tag">' + label + '</span></div>';
+  return '<div class="yard-sprout-wrap' + cls + '"><div class="yard-sprout" style="transform:scale(' + scale.toFixed(2) + ')">' + plant + '</div><span class="yard-plot-tag">' + label + '</span></div>';
 }
 
 function yardHarvestTotal(room) {
@@ -1192,10 +1385,12 @@ function renderHome() {
   var yd = yardState();
   var plotHtml = (activeId === 'yard' && yd) ? renderYardPlots(yd) : '';
   var bathHtml = (activeId === 'bathroom') ? '<div class="bath-floor"></div><div class="bath-light"></div><span class="bath-steam s1"></span><span class="bath-steam s2"></span><span class="bath-steam s3"></span><span class="bath-floatbub b1"></span><span class="bath-floatbub b2"></span>' : '';
-  var furHtml = (room.furniture || []).map(f => `
-    <div class="home-fur" data-fid="${f.id}" style="left:${f.x}%;top:${f.y}%;width:${f.w}%;height:${f.h}%;background-image:${f.img ? `url('${escapeHTML(f.img)}')` : 'none'}">
-      <span class="home-fur-name">${escapeHTML(f.name)}</span>
-    </div>`).join('');
+  var furHtml = (room.furniture || []).map(function (f) {
+    var isYard = (activeId === 'yard');
+    var imgUrl = isYard ? (f.img || YARD_FUR_IMG[f.id] || '') : (f.img || '');
+    var inner = (isYard && imgUrl) ? '<img class="yard-fur-img" src="' + escapeHTML(imgUrl) + '" alt="' + escapeHTML(f.id) + '">' : (isYard ? yardFurArt(f.id) : '');
+    return '<div class="home-fur" data-fid="' + f.id + '" style="left:' + f.x + '%;top:' + f.y + '%;width:' + f.w + '%;height:' + f.h + '%;background-image:' + (imgUrl && !isYard ? ('url(\'' + escapeHTML(imgUrl) + '\')') : 'none') + '">' + (inner ? '<div class="yard-fur-art">' + inner + '</div>' : '') + '<span class="home-fur-name">' + escapeHTML(f.name) + '</span></div>';
+  }).join('');
   var roomTabs = Object.keys(h.rooms).map(function(rid) {
     var r = h.rooms[rid];
     return '<div class="home-tab' + (rid === activeId ? ' active' : '') + '" onclick="switchRoom(\'' + rid + '\')">' + escapeHTML(r.name) + '</div>';
@@ -1309,6 +1504,37 @@ function openFurniture(id) {
     }
     return;
   }
+  /* 庭院：浮动泡泡选项，贴近家具，不外弹大窗 */
+  if (h.activeRoom === 'yard') {
+    panel.style.display = 'none';
+    var yacts = f.actions || [];
+    if (!yacts.length) return;
+    var yold = document.querySelectorAll('.bath-bubble');
+    yold.forEach(function(b) { b.remove(); });
+    var yfur = document.querySelector('.home-room.yard [data-fid="' + id + '"]');
+    if (yfur) {
+      var yfr = yfur.getBoundingClientRect();
+      var ypr = yfur.parentElement.getBoundingClientRect();
+      var yartEl = yfur.querySelector('.yard-fur-art');
+      var yref = yartEl ? yartEl.getBoundingClientRect() : yfr;
+      yacts.forEach(function(a, i) {
+        var yb = document.createElement('div');
+        yb.className = 'bath-bubble';
+        yb.innerText = a.label;
+        var ycx = yref.left - ypr.left + yref.width / 2;
+        var ytop = yref.top - ypr.top;
+        yb.style.left = (ycx - 30) + 'px';
+        yb.style.top = (ytop - 10 - i * 20) + 'px';
+        yb.dataset.fid = f.id;
+        yb.dataset.idx = i;
+        yb.onclick = function(ev) { ev.stopPropagation(); doFurnitureAction(f.id, i); };
+        yfur.parentElement.appendChild(yb);
+        setTimeout(function() { yb.classList.add('show'); }, i * 60);
+      });
+      setTimeout(function() { document.querySelectorAll('.bath-bubble').forEach(function(b) { b.remove(); }); }, 5000);
+    }
+    return;
+  }
   if (id === 'fur-tv') {
     closeHomePanel();
     const room = document.querySelector('.home-room');
@@ -1369,7 +1595,7 @@ function doFurnitureAction(furnitureId, idx) {
   h.logs.unshift(time + ' · ' + f.name + '：' + act.label);
   if (h.logs.length > 50) h.logs.length = 50;
   saveState();
-  /* 厕所：清除泡泡，在相同位置显示结果 */
+  /* 庭院/厕所：清除泡泡，在相同位置显示浮动结果 */
   var bubbles = document.querySelectorAll('.bath-bubble');
   var lastPos = null;
   if (bubbles.length) {
@@ -1377,8 +1603,8 @@ function doFurnitureAction(furnitureId, idx) {
     lastPos = { left: lastBubble.style.left, top: lastBubble.style.top };
   }
   bubbles.forEach(function(b) { b.remove(); });
-  if (document.querySelector('.home-room.bathroom')) {
-    var furEl = document.querySelector('.home-room.bathroom [data-fid="' + furnitureId + '"]');
+  if (h.activeRoom === 'yard' || document.querySelector('.home-room.bathroom')) {
+    var furEl = document.querySelector('.home-room [data-fid="' + furnitureId + '"]');
     if (furEl) {
       var old = furEl.parentElement.querySelector('.home-panel-result');
       if (old) old.remove();
@@ -4491,6 +4717,8 @@ function renderGame() {
               <b>🐍 贪吃蛇</b><span class="subtle">方向键或滑动控制</span></div>
             <div onclick="gameMode='cake';renderGame()" style="display:flex;justify-content:space-between;align-items:center;padding:11px 2px;cursor:pointer">
               <b>🍰 阿Sue做蛋糕</b><span class="subtle">按订单装饰蛋糕</span></div>
+            <div onclick="gameMode='puzzle';renderGame()" style="display:flex;justify-content:space-between;align-items:center;padding:11px 2px;cursor:pointer">
+              <b>🧩 拼图</b><span class="subtle">用你们的合照拼</span></div>
           </div>
         </div>
       </div>`;
@@ -4498,11 +4726,11 @@ function renderGame() {
   }
   c().innerHTML = `
     <div class="stack">
-      <button class="ghost-btn" style="width:100%" onclick="gameMode='list';renderGame()">← 返回游戏列表</button>
       ${gameMode==='target' ? renderGameTarget() : ''}
       ${gameMode==='guess' ? renderGameGuess() : ''}
       ${gameMode==='snake' ? renderGameSnake() : ''}
       ${gameMode==='cake' ? renderGameCake() : ''}
+      ${gameMode==='puzzle' ? renderGamePuzzle() : ''}
     </div>`;
   if (gameMode==='snake') setTimeout(initSnake, 50);
 }
@@ -4829,6 +5057,214 @@ function cakeRestart() {
   const wrap = document.getElementById('cakeWrap');
   if (wrap) { const f = wrap.querySelector('div:last-child'); if (f && f.style.animation) f.remove(); }
 }
+
+// -- 拼图（真正的拼块拼图）--
+function makeDefaultPuzzleImg() {
+  try {
+    const cv = document.createElement('canvas'); cv.width = 300; cv.height = 300;
+    const x = cv.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 300, 300);
+    g.addColorStop(0, '#ffd1e8'); g.addColorStop(1, '#b8a99a');
+    x.fillStyle = g; x.fillRect(0, 0, 300, 300);
+    x.font = '120px serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText('💞', 150, 145);
+    x.fillStyle = '#fff'; x.font = '20px sans-serif';
+    x.fillText('选张合照来拼图', 150, 255);
+    return cv.toDataURL();
+  } catch (e) { return ''; }
+}
+let puzzle = null;
+
+function getPuzzleImages() {
+  const imgs = [];
+  (state.albums || []).forEach(a => (a.photos || []).forEach(p => { if (p.url) imgs.push(p.url); }));
+  return imgs;
+}
+
+function buildPuzzle(img, n) {
+  const pieces = []; for (let i = 0; i < n * n; i++) pieces.push(i);
+  for (let i = pieces.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = pieces[i]; pieces[i] = pieces[j]; pieces[j] = t;
+  }
+  const placed = []; for (let i = 0; i < n * n; i++) placed.push(null);
+  puzzle = { n, img, placed, tray: pieces, selected: null, moves: 0, feedback: '', feedbackOk: true, lastIdx: -1 };
+}
+
+function startPuzzle(img, n) {
+  buildPuzzle(img, n);
+  renderGame();
+}
+
+function shufflePuzzle() { if (puzzle) startPuzzle(puzzle.img, puzzle.n); }
+
+function puzzlePieceStyle(pid) {
+  const n = puzzle.n, pr = Math.floor(pid / n), pc = pid % n;
+  const x = n > 1 ? (pc / (n - 1) * 100) : 0, y = n > 1 ? (pr / (n - 1) * 100) : 0;
+  return `background-image:url('${puzzle.img}');background-size:${n * 100}% ${n * 100}%;background-position:${x}% ${y}%;`;
+}
+
+function puzzleBoardHtml() {
+  const n = puzzle.n, img = puzzle.img, total = n * n;
+  const correct = puzzle.placed.filter((v, i) => v === i).length;
+  const ts = Math.max(48, Math.floor(300 / n));
+  const imgs = getPuzzleImages();
+  const picker = imgs.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">` +
+    imgs.slice(0, 8).map(u => `<img src="${u}" onclick="startPuzzle('${u}',${n})" style="width:38px;height:38px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid ${u === img ? '#ec407a' : 'transparent'}">`).join('') + `</div>` : '';
+  let slots = '';
+  for (let i = 0; i < total; i++) {
+    const pid = puzzle.placed[i];
+    if (pid === null) {
+      const isHome = puzzle.selected !== null && puzzle.selected === i;
+      slots += `<div data-drop="slot" data-index="${i}" onclick="tapSlot(${i})" style="border:${isHome ? '2px solid #18a058' : '2px dashed rgba(0,0,0,.18)'};border-radius:8px;background:rgba(0,0,0,.03);cursor:pointer"></div>`;
+    } else {
+      const isHome = pid === i;
+      slots += `<div data-drop="slot" data-index="${i}" onpointerdown="puzzlePointerDown(event,'slot',${pid},${i})" style="${puzzlePieceStyle(pid)}border-radius:8px;cursor:grab;touch-action:none;box-shadow:0 1px 3px rgba(0,0,0,.15)${isHome ? '' : ';outline:2px solid #ffb300'}"></div>`;
+    }
+  }
+  const tray = puzzle.tray.length ? puzzle.tray.map(pid =>
+    `<div onpointerdown="puzzlePointerDown(event,'tray',${pid},-1)" style="${puzzlePieceStyle(pid)}width:${ts}px;height:${ts}px;border-radius:8px;cursor:grab;touch-action:none;box-shadow:0 1px 3px rgba(0,0,0,.2)${puzzle.selected === pid ? ';outline:3px solid #ec407a' : ''}"></div>`
+  ).join('') : `<span class="subtle">全部拼完啦 🎉</span>`;
+  return `
+    <div class="metric"><span class="subtle">已拼</span><b>${correct} / ${total}</b></div>
+    <div id="puzzleHint" style="min-height:18px;margin-top:6px;font-size:13px;font-weight:600;color:${puzzle.feedbackOk ? '#18a058' : '#e53935'}">${puzzle.feedback || ''}</div>
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="subtle">难度</span>
+      ${[2, 3, 4].map(k => `<button class="ghost-btn" style="padding:6px 12px;${puzzle.n === k ? 'background:#ec407a;color:#fff;border-color:#ec407a' : ''}" onclick="startPuzzle('${img}',${k})">${k}×${k}</button>`).join('')}
+      <button class="ghost-btn" style="padding:6px 12px" onclick="shufflePuzzle()">🔀 重排</button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+      <img src="${img}" style="width:54px;height:54px;object-fit:cover;border-radius:10px;border:1px solid rgba(0,0,0,.1)" alt="原图">
+      <span class="subtle">↑ 要拼回的原图</span>
+    </div>
+    <div style="margin-top:10px;width:100%;max-width:320px;aspect-ratio:1;display:grid;grid-template-columns:repeat(${n},1fr);grid-template-rows:repeat(${n},1fr);gap:3px;background:rgba(0,0,0,.05);padding:3px;border-radius:12px">${slots}</div>
+    ${picker}
+    <div class="subtle" style="margin-top:10px">下方是打乱的拼图块：点一块选中（粉框），再点棋盘上的空位放上去。放错会有橙框，点它可拿起来重放。</div>
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="subtle">拼图块：</span>${tray}</div>`;
+}
+
+function renderGamePuzzle() {
+  if (!puzzle) {
+    const imgs = getPuzzleImages();
+    buildPuzzle(imgs.length ? imgs[0] : makeDefaultPuzzleImg(), 3);
+  }
+  return puzzleBoardHtml();
+}
+
+function puzzleAnimateLast() {
+  if (!puzzle || puzzle.lastIdx < 0) return;
+  requestAnimationFrame(() => {
+    const el = document.querySelector('[data-drop="slot"][data-index="' + puzzle.lastIdx + '"]');
+    if (!el || !el.animate) return;
+    el.animate(
+      puzzle.feedbackOk
+        ? [{ transform: 'scale(1)' }, { transform: 'scale(1.1)' }, { transform: 'scale(1)' }]
+        : [{ transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }],
+      { duration: puzzle.feedbackOk ? 250 : 320 }
+    );
+  });
+}
+
+function tapSlot(i) {
+  if (!puzzle) return;
+  const pid = puzzle.placed[i];
+  if (pid !== null) {
+    puzzle.placed[i] = null;
+    puzzle.tray.push(pid);
+    puzzle.selected = pid;
+    puzzle.feedbackOk = true;
+    puzzle.feedback = '🤔 拿起来啦，换个位置试试';
+    puzzle.lastIdx = i;
+    renderGame();
+    puzzleAnimateLast();
+    return;
+  }
+  if (puzzle.selected === null) return;
+  const sel = puzzle.selected;
+  const isCorrect = sel === i;
+  puzzle.placed[i] = sel;
+  puzzle.tray = puzzle.tray.filter(x => x !== sel);
+  puzzle.selected = null;
+  puzzle.moves++;
+  const total = puzzle.n * puzzle.n;
+  let win = true; for (let k = 0; k < total; k++) if (puzzle.placed[k] !== k) { win = false; break; }
+  puzzle.lastIdx = i;
+  if (win) { puzzle.feedbackOk = true; puzzle.feedback = '🎉 全部拼好啦！'; }
+  else { puzzle.feedbackOk = isCorrect; puzzle.feedback = isCorrect ? '✅ 放对啦！' : '❌ 放错咯，对照原图再看看'; }
+  renderGame();
+  puzzleAnimateLast();
+  if (win) setTimeout(() => alert('🎉 拼好啦！用了 ' + puzzle.moves + ' 步'), 50);
+}
+
+function tapTray(pid) {
+  if (!puzzle) return;
+  puzzle.selected = (puzzle.selected === pid) ? null : pid;
+  renderGame();
+}
+
+// ---- 拖动拼图块（触摸 + 鼠标通用）----
+let puzzleDrag = null;
+function puzzlePointerDown(e, source, pid, slotIndex) {
+  if (!puzzle) return;
+  e.preventDefault();
+  puzzleDrag = { source, pid, slotIndex, startX: e.clientX, startY: e.clientY, moved: false, ghost: null, el: e.currentTarget };
+}
+function puzzlePointerMove(e) {
+  if (!puzzleDrag) return;
+  const dx = e.clientX - puzzleDrag.startX, dy = e.clientY - puzzleDrag.startY;
+  if (!puzzleDrag.moved && Math.hypot(dx, dy) > 6) {
+    puzzleDrag.moved = true;
+    const ts = Math.max(48, Math.floor(300 / puzzle.n));
+    const g = document.createElement('div');
+    g.style.cssText = `${puzzlePieceStyle(puzzleDrag.pid)}width:${ts}px;height:${ts}px;border-radius:8px;position:fixed;pointer-events:none;z-index:9999;box-shadow:0 6px 16px rgba(0,0,0,.3);opacity:.92`;
+    document.body.appendChild(g);
+    puzzleDrag.ghost = g;
+    if (puzzleDrag.el) puzzleDrag.el.style.opacity = '.3';
+  }
+  if (puzzleDrag.moved && puzzleDrag.ghost) {
+    puzzleDrag.ghost.style.left = (e.clientX - puzzleDrag.ghost.offsetWidth / 2) + 'px';
+    puzzleDrag.ghost.style.top = (e.clientY - puzzleDrag.ghost.offsetHeight / 2) + 'px';
+  }
+}
+function puzzlePointerUp(e) {
+  if (!puzzleDrag) return;
+  const d = puzzleDrag; puzzleDrag = null;
+  if (d.ghost) d.ghost.remove();
+  if (d.el) d.el.style.opacity = '';
+  if (!d.moved) {
+    if (d.source === 'tray') tapTray(d.pid);
+    else if (d.source === 'slot') tapSlot(d.slotIndex);
+    return;
+  }
+  const tgt = document.elementFromPoint(e.clientX, e.clientY);
+  const slotEl = tgt && tgt.closest ? tgt.closest('[data-drop="slot"]') : null;
+  if (!slotEl) { renderGame(); return; }
+  const ti = parseInt(slotEl.getAttribute('data-index'), 10);
+  const n = puzzle.n, total = n * n;
+  if (d.source === 'tray') {
+    const occupant = puzzle.placed[ti];
+    puzzle.placed[ti] = d.pid;
+    puzzle.tray = puzzle.tray.filter(x => x !== d.pid);
+    if (occupant !== null) puzzle.tray.push(occupant);
+  } else {
+    if (ti === d.slotIndex) { renderGame(); return; }
+    const occupant = puzzle.placed[ti];
+    puzzle.placed[ti] = d.pid;
+    puzzle.placed[d.slotIndex] = occupant;
+  }
+  puzzle.selected = null; puzzle.moves++;
+  const isCorrect = d.pid === ti;
+  let win = true; for (let k = 0; k < total; k++) if (puzzle.placed[k] !== k) { win = false; break; }
+  puzzle.lastIdx = ti;
+  if (win) { puzzle.feedbackOk = true; puzzle.feedback = '🎉 全部拼好啦！'; }
+  else { puzzle.feedbackOk = isCorrect; puzzle.feedback = isCorrect ? '✅ 放对啦！' : '❌ 放错咯，对照原图再看看'; }
+  renderGame();
+  puzzleAnimateLast();
+  if (win) setTimeout(() => alert('🎉 拼好啦！用了 ' + puzzle.moves + ' 步'), 50);
+}
+document.addEventListener('pointermove', puzzlePointerMove, { passive: false });
+document.addEventListener('pointerup', puzzlePointerUp);
+document.addEventListener('pointercancel', puzzlePointerUp);
 
 // ---------- 情侣空间 ----------
 const SPACE_TASKS = [
@@ -5474,43 +5910,490 @@ function spaceTask(id, el) {
 
 // ===== 自定义表情包 =====
 let stickerFormMode = null;
+var stickerManageMode = false;
+var stickerSelected = [];
+var currentStickerCat = '默认';
 
-function renderEmojiPanel() {
-  const panel = $('emojiPanel');
-  if (!panel) return;
-  const stickers = state.customStickers || [];
-  panel.innerHTML = `
-    <div class="panel-tabs">
-      <button class="active" data-tab="emoji" onclick="switchEmojiTab('emoji', this)">😊 表情</button>
-      <button data-tab="sticker" onclick="switchEmojiTab('sticker', this)">🖼 包</button>
-    </div>
-    <div id="emojiTabContent">
-      <div class="emoji-grid">
-        ${['😀','😂','🥰','😎','😭','👍','🎉','💕','🌟','🍰','🌹','🔥','😘','😊','🤣','😍','💋','✨','❤️','🌈','🎁','🎈','🙏','👌','✌️','😴','😱','🤔','😡','🍓','🍦','🍹'].map(e => `<span>${e}</span>`).join('')}
-      </div>
-    </div>
-    <div id="stickerTabContent" style="display:none">
-      <div class="sticker-grid">${stickers.length ? stickers.map(s => `<div class="sticker-item" title="${escapeHTML(s.meaning || '')}" onclick="sendSticker('${s.id}')"><img src="${escapeHTML(s.image)}" alt="${escapeHTML(s.name)}"></div>`).join('') : '<div style="grid-column:1/-1;text-align:center;color:#ccc;font-size:12px;padding:12px 0">还没有表情包</div>'}</div>
-      <button class="sticker-mgr" onclick="closeChat();openApp('表情包')">📦 管理表情包</button>
-    </div>`;
-  const emojis = panel.querySelectorAll('.emoji-grid span');
-  emojis.forEach(el => {
-    el.onclick = () => { $('chatInput').value += el.textContent; $('chatInput').focus(); };
-  });
+function _ensureStickerFields() {
+  var arr = state.customStickers || [];
+  var changed = false;
+  for (var i = 0; i < arr.length; i++) {
+    if (!arr[i].category) { arr[i].category = '默认'; changed = true; }
+    if (!arr[i].pack) { arr[i].pack = arr[i].category; changed = true; }
+  }
+  // 「默认」是固定默认文件夹，不应出现在文件夹列表里（否则会重复）
+  if (state.stickerFolders && state.stickerFolders.indexOf('默认') > -1) {
+    state.stickerFolders = state.stickerFolders.filter(function (f) { return f !== '默认'; });
+    changed = true;
+  }
+  return changed;
 }
 
-function switchEmojiTab(tab, btn) {
-  document.querySelectorAll('#emojiPanel .panel-tabs button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('emojiTabContent').style.display = tab === 'emoji' ? 'block' : 'none';
-  document.getElementById('stickerTabContent').style.display = tab === 'sticker' ? 'block' : 'none';
+function relayImgUrl(url) {
+  if (!url || url.indexOf('data:') === 0) return url;
+  var base = (typeof relayBase === 'function') ? relayBase() : '';
+  return (base || '') + '/relay?url=' + encodeURIComponent(url);
+}
+function stickerImgFallback(el) {
+  var u = el.getAttribute('data-fb');
+  if (u && el.src !== relayImgUrl(u)) { el.onerror = null; el.src = relayImgUrl(u); }
+}
+
+function renderEmojiPanel() {
+  var panel = $('emojiPanel');
+  if (!panel) return;
+  initStickerCatLongPress();
+  _ensureStickerFields();
+  var stickers = state.customStickers || [];
+
+  // ===== 管理模式：在面板内选择 / 删除 / 移动 / 取消，不切画面 =====
+  if (stickerManageMode) {
+    var gridHtml = stickers.length ? stickers.map(function (s) {
+      var sel = stickerSelected.indexOf(s.id) > -1;
+      return '<div class="sp-card' + (sel ? ' selected' : '') + '" onclick="toggleStickerSelect(\'' + s.id + '\')">' +
+        '<div class="sp-card-img"><img src="' + escapeHTML(s.image) + '" alt="' + escapeHTML(s.name) + '" referrerpolicy="no-referrer" data-fb="' + escapeHTML(s.src || s.image) + '" onerror="stickerImgFallback(this)"></div>' +
+        '<div class="sp-card-name">' + escapeHTML(s.name) + '</div>' +
+        (sel ? '<div class="sp-sel-badge">✓</div>' : '') +
+      '</div>';
+    }).join('') : '<div style="grid-column:1/-1;text-align:center;color:#ccc;font-size:12px;padding:20px 0">还没有贴图</div>';
+  panel.innerHTML =
+    '<div class="sp-header sp-manage-header">' +
+      '<button class="sp-action" onclick="exitStickerManage()">取消</button>' +
+      '<div style="flex:1"></div>' +
+      '<button class="sp-action sp-danger" onclick="deleteSelectedStickers()">删除</button>' +
+      '<button class="sp-action" onclick="moveSelectedStickers()">移动</button>' +
+    '</div>' +
+    '<div class="sticker-panel-grid" id="stickerPanelGrid">' + gridHtml + '</div>';
+    return;
+  }
+
+  // ===== 正常模式 =====
+  var folders = (state.stickerFolders || []).filter(function (f) { return f !== '默认'; });
+  var cats = ['默认'].concat(folders);
+  var stHtml = '';
+  for (var j = 0; j < stickers.length; j++) {
+    var s = stickers[j];
+    stHtml += '<div class="sp-card" data-cat="' + escapeHTML(s.category || '默认') + '" data-name="' + escapeHTML((s.name || '').toLowerCase()) + '" onclick="sendSticker(\'' + s.id + '\')">' +
+      '<div class="sp-card-img"><img src="' + escapeHTML(s.image) + '" alt="' + escapeHTML(s.name) + '" referrerpolicy="no-referrer" data-fb="' + escapeHTML(s.src || s.image) + '" onerror="stickerImgFallback(this)"></div>' +
+      '<div class="sp-card-name">' + escapeHTML(s.name) + '</div></div>';
+  }
+
+  panel.innerHTML =
+    '<div class="sp-header">' +
+      '<div class="sp-search"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#aaa" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg><input id="stickerSearchInput" placeholder="搜寻贴图" oninput="filterStickerPanel()"></div>' +
+      '<button class="sp-action" onclick="showStickerImportDialog()">导入</button>' +
+      '<button class="sp-action" onclick="toggleStickerManage()">管理</button>' +
+    '</div>' +
+    '<div class="sticker-categories" id="stickerCategories">' + cats.map(function (c) {
+      return '<button class="sticker-cat' + (c === currentStickerCat ? ' active' : '') + '" onclick="filterStickerByCat(this, \'' + escapeHTML(c) + '\')">' + escapeHTML(c) + '</button>';
+    }).join('') + '<button class="sticker-cat sp-add-folder" onclick="addStickerFolder()" title="新建表情包文件夹">＋</button>' +
+    '</div>' +
+    '<div class="sticker-panel-grid" id="stickerPanelGrid">' +
+      '<div class="sp-card sp-card-upload" onclick="showStickerImportDialog()">' +
+        '<div class="sp-card-img sp-upload-icon">+</div>' +
+        '<div class="sp-card-name">上传</div>' +
+      '</div>' +
+      (stHtml || '<div style="grid-column:1/-1;text-align:center;color:#ccc;font-size:12px;padding:20px 0">还没有贴图<br>点 + 上传或导入</div>') +
+    '</div>';
+  applyStickerCatFilter();
+}
+
+function toggleStickerManage() {
+  stickerManageMode = !stickerManageMode;
+  if (!stickerManageMode) stickerSelected = [];
+  renderEmojiPanel();
+}
+
+function exitStickerManage() {
+  stickerManageMode = false;
+  stickerSelected = [];
+  renderEmojiPanel();
+}
+
+function toggleStickerSelect(id) {
+  var i = stickerSelected.indexOf(id);
+  if (i > -1) stickerSelected.splice(i, 1);
+  else stickerSelected.push(id);
+  renderEmojiPanel();
+}
+
+function deleteSelectedStickers() {
+  if (!stickerSelected.length) { if (window.uiToast) uiToast('先选择要删除的贴图'); return; }
+  state.customStickers = (state.customStickers || []).filter(function (s) { return stickerSelected.indexOf(s.id) === -1; });
+  stickerSelected = [];
+  stickerManageMode = false;
+  saveState();
+  renderEmojiPanel();
+}
+
+function moveSelectedStickers() {
+  if (!stickerSelected.length) { if (window.uiToast) uiToast('先选择要移动的贴图'); return; }
+  showStickerFolderPicker();
+}
+
+function showStickerFolderPicker() {
+  var folders = state.stickerFolders || [];
+  var html = (folders.length ? folders.map(function (f, idx) {
+    return '<div class="sp-folder-pick" onclick="moveSelectedToIdx(' + idx + ')">' + escapeHTML(f) + '</div>';
+  }).join('') : '') + '<div class="sp-folder-pick sp-folder-new" onclick="addStickerFolderThenMove()">＋ 新建文件夹并移动</div>';
+  var overlay = document.createElement('div');
+  overlay.className = 'sticker-import-overlay active';
+  overlay.id = 'stickerFolderPicker';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div class="sticker-import-sheet" onclick="event.stopPropagation()"><h3>移动到文件夹</h3>' + html + '<div class="sticker-import-actions"><button class="btn-cancel" onclick="var o=document.getElementById(\'stickerFolderPicker\');if(o)o.remove()">取消</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+function moveSelectedToIdx(idx) {
+  var folder = (state.stickerFolders || [])[idx];
+  if (!folder) return;
+  moveSelectedTo(folder);
+}
+
+function moveSelectedTo(folder) {
+  var arr = state.customStickers || [];
+  for (var i = 0; i < arr.length; i++) {
+    if (stickerSelected.indexOf(arr[i].id) > -1) {
+      arr[i].category = folder; arr[i].pack = folder;
+    }
+  }
+  if (folder !== '默认' && state.stickerFolders.indexOf(folder) === -1) state.stickerFolders.push(folder);
+  saveState();
+  var o = document.getElementById('stickerFolderPicker'); if (o) o.remove();
+  stickerSelected = [];
+  stickerManageMode = false;
+  currentStickerCat = folder;
+  renderEmojiPanel();
+}
+
+async function addStickerFolderThenMove() {
+  var input = await prompt('表情包合集命名');
+  if (input === null || input === undefined) return;
+  var name = String(input).trim();
+  if (!name) return;
+  if (!state.stickerFolders) state.stickerFolders = [];
+  if (name !== '默认' && state.stickerFolders.indexOf(name) === -1) state.stickerFolders.push(name);
+  saveState();
+  var o = document.getElementById('stickerFolderPicker'); if (o) o.remove();
+  moveSelectedTo(name);
+}
+
+async function addStickerFolder() {
+  var input = await prompt('表情包合集命名');
+  if (input === null || input === undefined) return;
+  var name = String(input).trim();
+  if (!name) return;
+  if (!state.stickerFolders) state.stickerFolders = [];
+  if (name !== '默认' && state.stickerFolders.indexOf(name) === -1) {
+    state.stickerFolders.push(name);
+    saveState();
+  }
+  renderEmojiPanel();
+}
+
+function showStickerFolderDeletePicker() {
+  var folders = state.stickerFolders || [];
+  if (!folders.length) { if (window.uiToast) uiToast('没有可删除的合集'); return; }
+  var html = folders.map(function (f, idx) {
+    return '<div class="sp-folder-pick" style="display:flex;align-items:center;gap:10px">' +
+      '<span style="flex:1;text-align:left" onclick="deleteStickerFolderIdx(' + idx + ')">' + escapeHTML(f) + '</span>' +
+      '<span class="sp-folder-del" onclick="deleteStickerFolderIdx(' + idx + ')">🗑</span>' +
+    '</div>';
+  }).join('');
+  var overlay = document.createElement('div');
+  overlay.className = 'sticker-import-overlay active';
+  overlay.id = 'stickerFolderDeletePicker';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = '<div class="sticker-import-sheet" onclick="event.stopPropagation()"><h3>删除该合集</h3>' + html + '<div class="sticker-import-actions"><button class="btn-cancel" onclick="var o=document.getElementById(\'stickerFolderDeletePicker\');if(o)o.remove()">取消</button></div></div>';
+  document.body.appendChild(overlay);
+}
+
+function deleteStickerFolderIdx(idx) {
+  var folder = (state.stickerFolders || [])[idx];
+  if (folder) deleteStickerFolderByName(folder);
+}
+
+function deleteStickerFolder() {
+  var folder = _folderActionTarget;
+  if (folder) deleteStickerFolderByName(folder);
+}
+
+function deleteStickerFolderByName(folder) {
+  if (!folder) return;
+  if (folder === '默认') { if (window.uiToast) uiToast('默认文件夹不能删除'); return; }
+  var count = (state.customStickers || []).filter(function (s) { return (s.category || '') === folder; }).length;
+  if (!confirm('删除合集「' + folder + '」？里面的 ' + count + ' 张贴图也会一并删除。')) return;
+  state.stickerFolders = (state.stickerFolders || []).filter(function (f) { return f !== folder; });
+  state.customStickers = (state.customStickers || []).filter(function (s) { return (s.category || '') !== folder; });
+  if (currentStickerCat === folder) currentStickerCat = '默认';
+  saveState();
+  var a = document.getElementById('folderActionMenu'); if (a) a.remove();
+  var p = document.getElementById('stickerFolderDeletePicker'); if (p) p.remove();
+  renderEmojiPanel();
+}
+
+function showFolderActionMenu(cat) {
+  _folderActionTarget = cat;
+  var overlay = document.createElement('div');
+  overlay.className = 'sticker-import-overlay active';
+  overlay.id = 'folderActionMenu';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="sticker-import-sheet" onclick="event.stopPropagation()">' +
+      '<h3>' + escapeHTML(cat) + '</h3>' +
+      '<div class="sp-folder-pick" onclick="renameStickerFolder()">重命名</div>' +
+      '<div class="sp-folder-pick sp-folder-danger" onclick="deleteStickerFolder()">删除该合集</div>' +
+      '<div class="sticker-import-actions"><button class="btn-cancel" onclick="var o=document.getElementById(\'folderActionMenu\');if(o)o.remove()">取消</button></div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function renameStickerFolder() {
+  var old = _folderActionTarget;
+  if (!old) return;
+  if (old === '默认') { if (window.uiToast) uiToast('默认文件夹不能重命名'); var c0 = document.getElementById('folderActionMenu'); if (c0) c0.remove(); return; }
+  var input = await prompt('重命名合集', old);
+  if (input === null || input === undefined) return;
+  var name = String(input).trim();
+  if (!name || name === old) { var c = document.getElementById('folderActionMenu'); if (c) c.remove(); return; }
+  var arr = state.customStickers || [];
+  for (var i = 0; i < arr.length; i++) {
+    if ((arr[i].category || '') === old) {
+      arr[i].category = name; arr[i].pack = name;
+      if (arr[i].name === old) arr[i].name = name;
+    }
+  }
+  var folders = state.stickerFolders || [];
+  var idx = folders.indexOf(old);
+  if (idx > -1) folders[idx] = name;
+  else if (folders.indexOf(name) === -1) folders.push(name);
+  if (currentStickerCat === old) currentStickerCat = name;
+  saveState();
+  var o = document.getElementById('folderActionMenu'); if (o) o.remove();
+  renderEmojiPanel();
+}
+
+var _lpTimer = null, _lpFired = false, _lpCat = '', _folderActionTarget = '';
+function initStickerCatLongPress() {
+  var panel = $('emojiPanel');
+  if (!panel || panel._lpInit) return;
+  panel._lpInit = true;
+  function catOf(e) {
+    var t = e.target;
+    var btn = t && t.closest ? t.closest('.sticker-cat') : null;
+    if (!btn || btn.classList.contains('sp-add-folder')) return null;
+    return btn.textContent;
+  }
+  function start(cat) {
+    if (!cat || cat === '默认') return;
+    _lpFired = false;
+    _lpCat = cat;
+    clearTimeout(_lpTimer);
+    _lpTimer = setTimeout(function () {
+      _lpFired = true;
+      if (navigator.vibrate) { try { navigator.vibrate(30); } catch (e) {} }
+      showFolderActionMenu(_lpCat);
+    }, 500);
+  }
+  function end() { clearTimeout(_lpTimer); }
+  panel.addEventListener('mousedown', function (e) { start(catOf(e)); });
+  panel.addEventListener('touchstart', function (e) { start(catOf(e)); }, { passive: true });
+  panel.addEventListener('mouseup', end);
+  panel.addEventListener('mouseleave', end);
+  panel.addEventListener('touchend', end);
+  panel.addEventListener('touchcancel', end);
+  panel.addEventListener('touchmove', end);
+  panel.addEventListener('contextmenu', function (e) { if (catOf(e)) e.preventDefault(); });
+  panel.addEventListener('click', function (e) {
+    if (_lpFired) { _lpFired = false; e.preventDefault(); e.stopPropagation(); }
+  }, true);
+}
+
+function filterStickerByCat(btn, cat) {
+  currentStickerCat = cat;
+  applyStickerCatFilter();
+}
+
+// 根据 currentStickerCat 高亮对应分类按钮，并应用分类+搜索过滤（重渲染后也会调用，保证视图一致）
+function applyStickerCatFilter() {
+  var cats = document.querySelectorAll('#stickerCategories .sticker-cat');
+  for (var i = 0; i < cats.length; i++) {
+    cats[i].classList.toggle('active', cats[i].textContent === currentStickerCat);
+  }
+  filterStickerPanel();
+}
+
+function filterStickerPanel() {
+  var search = ($('stickerSearchInput') || {}).value || '';
+  var searchLower = search.toLowerCase();
+  var cat = currentStickerCat || '默认';
+  var cards = document.querySelectorAll('#stickerPanelGrid .sp-card:not(.sp-card-upload)');
+  for (var i = 0; i < cards.length; i++) {
+    var card = cards[i];
+    var matchCat = (card.getAttribute('data-cat') === cat);
+    var matchSearch = !searchLower || (card.getAttribute('data-name') || '').indexOf(searchLower) > -1;
+    card.style.display = (matchCat && matchSearch) ? '' : 'none';
+  }
+}
+
+function showStickerImportDialog() {
+  var overlay = document.createElement('div');
+  overlay.className = 'sticker-import-overlay active';
+  overlay.id = 'stickerImportOverlay';
+  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML =
+    '<div class="sticker-import-sheet" onclick="event.stopPropagation()">' +
+      '<h3>导入贴图</h3>' +
+      '<p style="font-size:12px;color:#999;margin:0 0 12px">每行：名字：图片链接（名字可留空）。会放进当前所在的文件夹。</p>' +
+      '<textarea id="stickerImportUrls" rows="8" placeholder="小猫：https://example.com/s1.png&#10;小狗：https://example.com/s2.png&#10;https://example.com/s3.png"></textarea>' +
+      '<div class="sticker-import-actions">' +
+        '<button class="btn-cancel" onclick="document.getElementById(\'stickerImportOverlay\').remove()">取消</button>' +
+        '<button class="btn-cancel" onclick="refreshAllStickerImages()">刷新图片</button>' +
+        '<button class="btn-primary" onclick="doImportStickers()">导入</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+async function doImportStickers() {
+  var ta = $('stickerImportUrls');
+  if (!ta) return;
+  var folderInput = $('stickerImportFolder');
+  var folder = (folderInput ? folderInput.value : '').trim();
+  // 留空 → 放进当前所在文件夹；在「默认」里留空就进「默认」文件夹
+  if (!folder) folder = (currentStickerCat && currentStickerCat !== '默认') ? currentStickerCat : '默认';
+  var lines = ta.value.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 0; });
+  if (!lines.length) { alert('请输入内容'); return; }
+  if (!state.customStickers) state.customStickers = [];
+  if (!state.stickerFolders) state.stickerFolders = [];
+  if (folder !== '默认' && state.stickerFolders.indexOf(folder) === -1) state.stickerFolders.push(folder);
+  // 重复识别：按链接(src/image)或名字判断，避免重复添加
+  function normUrl(u) {
+    if (!u) return '';
+    u = String(u).trim();
+    if (u.indexOf('data:') === 0) return u;
+    return u.replace(/\?.*$/, '').replace(/\/$/, '').toLowerCase();
+  }
+  function normName(n) { return (n || '').trim().toLowerCase(); }
+  var seenImg = {}, seenName = {};
+  var exist = state.customStickers || [];
+  for (var k = 0; k < exist.length; k++) {
+    var ex = exist[k];
+    if (ex.image) seenImg[normUrl(ex.image)] = true;
+    if (ex.src) seenImg[normUrl(ex.src)] = true;
+    if (ex.name) seenName[normName(ex.name)] = true;
+  }
+  var count = 0, skipped = 0, failCount = 0, firstErr = '';
+  // 整批放进同一个文件夹；每行「名字：图片链接」的名字只是该贴图的标签，不会变成文件夹
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var m = /^(.+?)[：:]\s*(https?:\/\/\S+|data:image\/\S+)\s*$/.exec(line);
+    var name, url;
+    if (m) {
+      name = m[1].trim();
+      url = m[2].trim();
+    } else if (/^https?:\/\//i.test(line) || line.indexOf('data:') === 0) {
+      name = '';
+      url = line;
+    } else {
+      continue;
+    }
+    var u = normUrl(url), n = normName(name);
+    if ((u && seenImg[u]) || (n && seenName[n])) { skipped++; continue; }
+    // 尽量把图片抓下来内嵌成 base64，避免图床防盗链导致不显示；失败则保留原链接
+    var imgRes = await fetchImageAsDataUrl(url);
+    var finalImg;
+    if (imgRes.data) {
+      finalImg = imgRes.data;
+    } else {
+      failCount++;
+      if (!firstErr) firstErr = imgRes.error;
+      finalImg = url;
+    }
+    var fu = normUrl(finalImg);
+    // 抓下来后再次比对：已抓取成 base64 的旧图，重新粘贴同一链接也能识别为重复
+    if ((fu && seenImg[fu]) || (u && seenImg[u]) || (n && seenName[n])) { skipped++; continue; }
+    state.customStickers.push({
+      id: 'stk-' + Date.now() + '-' + count,
+      image: finalImg,
+      src: url,
+      name: name,
+      meaning: '',
+      category: folder,
+      pack: folder,
+      date: new Date().toLocaleString()
+    });
+    count++;
+    if (u) seenImg[u] = true;
+    if (fu) seenImg[fu] = true;
+    if (n) seenName[n] = true;
+  }
+  if (count === 0) {
+    if (failCount > 0) {
+      alert('图片一张都没抓下来（' + failCount + ' 张失败）。\n' + (firstErr || '') + '\n\n本地能显示、Render 不显示，通常是图床屏蔽了 Render 服务器的 IP。\n解决办法：去设置里填一个「外置转发代理地址」（把 sever/ 部署到你自己的服务器或能访问图床的地方），所有抓取就走那个代理。');
+    } else if (skipped > 0) {
+      alert('识别到 ' + skipped + ' 张重复，实际导入 0 张');
+    } else {
+      alert('没看出有效的「名字：图片链接」哦\n每行格式：名字：图片链接\n例如：小猫：https://example.com/s1.png');
+    }
+    return;
+  }
+  if (failCount > 0 && window.uiToast) {
+    uiToast(failCount + ' 张抓取失败（图床可能屏蔽了服务器 IP），已用原链接兜底');
+  }
+  saveState();
+  if (window.uiToast) {
+    if (skipped > 0) uiToast('识别到 ' + skipped + ' 张重复，实际导入 ' + count + ' 张');
+    else uiToast('成功导入 ' + count + ' 张');
+  }
+  var overlay = $('stickerImportOverlay');
+  if (overlay) overlay.remove();
+  renderEmojiPanel();
+}
+
+// 经 /relay 代理抓取图片并转成 data URL（规避图床防盗链与跨域）
+// 成功返回 { data: 'data:...' }；失败返回 { error: '原因' }
+async function fetchImageAsDataUrl(url) {
+  if (url.indexOf('data:') === 0) return { data: url };
+  try {
+    var res = await aiRequest(url, { method: 'GET' });
+    if (!res.ok) return { error: 'relay 返回 ' + res.status + '（图床可能屏蔽了服务器 IP）' };
+    var blob = await res.blob();
+    if (!blob || !blob.size) return { error: 'relay 返回了空内容' };
+    var data = await new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result); };
+      reader.onerror = function () { reject(new Error('读取图片失败')); };
+      reader.readAsDataURL(blob);
+    });
+    return { data: data };
+  } catch (e) {
+    return { error: '抓取失败：' + (e && e.message ? e.message : String(e)) };
+  }
+}
+
+// 用修好的 /relay（已禁用缓存）重新抓取所有贴图图片，修复之前被缓存成同一张的错误
+async function refreshAllStickerImages() {
+  var arr = state.customStickers || [];
+  if (!arr.length) { if (window.uiToast) uiToast('还没有表情包'); return; }
+  var done = 0;
+  for (var i = 0; i < arr.length; i++) {
+    var s = arr[i];
+    var url = s.src || (typeof s.image === 'string' && /^https?:\/\//i.test(s.image) ? s.image : '');
+    if (!url) continue;
+    var imgRes = await fetchImageAsDataUrl(url);
+    if (imgRes.data) { s.image = imgRes.data; done++; }
+  }
+  saveState();
+  if (window.uiToast) uiToast('已刷新 ' + done + ' 张图片');
+  renderEmojiPanel();
 }
 
 function sendSticker(id) {
   const s = (state.customStickers || []).find(x => x.id === id);
   if (!s) return;
   hidePanels();
-  appendBubble('user', '', { type: 'image', src: s.image }, '', 'sticker');
+  appendBubble('user', '', { type: 'image', src: s.image, stickerName: s.name, stickerMeaning: s.meaning }, '', 'sticker');
 }
 
 function renderStickerManager() {

@@ -40,6 +40,36 @@ function init() {
   if (typeof loadQqState === 'function') loadQqState();
   if (typeof maybeProbeNcm === 'function') maybeProbeNcm();
   if (typeof startIdleProactive === 'function') startIdleProactive();
+  if (typeof initPush === 'function') initPush();
+  setupLaunchFullscreen();
+}
+
+// 从桌面图标启动（已安装 PWA）时，第一次用户手势进入真全屏（隐藏状态栏）。
+// 浏览器禁止页面自动全屏，所以必须等首次点击/触摸；普通浏览器里不触发。
+function setupLaunchFullscreen() {
+  var mq = window.matchMedia;
+  var launched = (mq && (mq('(display-mode: standalone)').matches || mq('(display-mode: fullscreen)').matches)) || window.navigator.standalone;
+  if (!launched) return;
+  var el = document.documentElement;
+  var reqFs = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (!reqFs) return;
+  var hint = document.createElement('div');
+  hint.id = 'fsHint';
+  hint.textContent = '点击任意处进入全屏';
+  hint.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:rgba(0,0,0,.7);color:#fff;font-size:13px;padding:8px 14px;border-radius:20px;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.3)';
+  document.body.appendChild(hint);
+  var fired = false;
+  function enter() {
+    if (fired) return; fired = true;
+    try { reqFs.call(el); } catch (e) {}
+    if (hint && hint.parentNode) hint.parentNode.removeChild(hint);
+    window.removeEventListener('pointerdown', enter);
+    window.removeEventListener('touchstart', enter);
+    window.removeEventListener('click', enter);
+  }
+  window.addEventListener('pointerdown', enter);
+  window.addEventListener('touchstart', enter);
+  window.addEventListener('click', enter);
 }
 
 // 桌面热点绑定（兼容触摸 + 鼠标）
@@ -109,7 +139,7 @@ var _w = window;
 _w.toggleDebug = toggleDebug; _w.openApp = openApp; _w.closeApp = closeApp; _w.quickNotice = quickNotice;
 _w.switchTab = switchTab; _w.openChat = openChat; _w.closeChat = closeChat; _w.openSettings = openSettings; _w.closeSettings = closeSettings;
 _w.togglePin = togglePin; _w.clearHistory = clearHistory; _w.toggleMore = toggleMore; _w.toggleEmoji = toggleEmoji; _w.toggleAutoMem = toggleAutoMem; _w.setAutoMemLen = setAutoMemLen; _w.setAutoMemEvery = setAutoMemEvery; _w.manualSummarizeMemory = manualSummarizeMemory;
-_w.sendChat = sendChat; _w.sendRed = sendRed; _w.selectRpAmount = selectRpAmount; _w.onRpAmountInput = onRpAmountInput; _w.confirmRedPacket = confirmRedPacket; _w.openRedPacket = openRedPacket; _w.toggleVoice = toggleVoice; _w.stopVoice = stopVoice; _w.voiceTouchStart = voiceTouchStart; _w.voiceTouchEnd = voiceTouchEnd; _w.saveApiConfig = saveApiConfig; _w.fetchModels = fetchModels;
+_w.sendChat = sendChat; _w.sendRed = sendRed; _w.selectRpAmount = selectRpAmount; _w.onRpAmountInput = onRpAmountInput; _w.confirmRedPacket = confirmRedPacket; _w.openRedPacket = openRedPacket; _w.toggleVoice = toggleVoice; _w.stopVoice = stopVoice; _w.voiceTouchStart = voiceTouchStart; _w.voiceTouchEnd = voiceTouchEnd; _w.saveApiConfig = saveApiConfig; _w.fetchModels = fetchModels; _w.filterModelSuggestions = filterModelSuggestions; _w.showAllModels = showAllModels;
 _w.testConnection = testConnection; _w.exportAllData = exportAllData; _w.importAllData = importAllData; _w.resetAllData = resetAllData;
 _w.renderCharacterEditor = renderCharacterEditor; _w.saveCharacter = saveCharacter; _w.deleteCharacter = deleteCharacter; _w.addMemory = addMemory;
 _w.deleteMemory = deleteMemory; _w.uploadAvatar = uploadAvatar; _w.postMoment = postMoment; _w.saveMyProfile = saveMyProfile; _w.settingsAddMemory = settingsAddMemory; _w.settingsDeleteMemory = settingsDeleteMemory;
@@ -144,7 +174,7 @@ _w.handlePostImageSelect = handlePostImageSelect; _w.setPostFilter = setPostFilt
 _w.postCreatorNext = postCreatorNext; _w.publishPost = publishPost;
 _w.viewPost = viewPost; _w.closePostDetail = closePostDetail; _w.deletePost = deletePost;
 _w.openIGStory = openIGStory; _w.igLikeAutoPost = igLikeAutoPost; _w.toggleAutoPost = toggleAutoPost; _w.showIGToast = showIGToast;
-_w.renderEmojiPanel = renderEmojiPanel; _w.switchEmojiTab = switchEmojiTab; _w.sendSticker = sendSticker;
+_w.renderEmojiPanel = renderEmojiPanel; _w.sendSticker = sendSticker; _w.filterStickerPanel = filterStickerPanel; _w.filterStickerByCat = filterStickerByCat; _w.showStickerImportDialog = showStickerImportDialog; _w.doImportStickers = doImportStickers; _w.addStickerFolder = addStickerFolder; _w.toggleStickerManage = toggleStickerManage; _w.exitStickerManage = exitStickerManage; _w.toggleStickerSelect = toggleStickerSelect; _w.deleteSelectedStickers = deleteSelectedStickers; _w.moveSelectedStickers = moveSelectedStickers; _w.showStickerFolderPicker = showStickerFolderPicker; _w.moveSelectedToIdx = moveSelectedToIdx; _w.moveSelectedTo = moveSelectedTo; _w.addStickerFolderThenMove = addStickerFolderThenMove; _w.showStickerFolderDeletePicker = showStickerFolderDeletePicker; _w.deleteStickerFolderIdx = deleteStickerFolderIdx; _w.showFolderActionMenu = showFolderActionMenu; _w.renameStickerFolder = renameStickerFolder; _w.deleteStickerFolder = deleteStickerFolder; _w.refreshAllStickerImages = refreshAllStickerImages;
 _w.renderStickerManager = renderStickerManager; _w.openStickerForm = openStickerForm;
 _w.closeStickerForm = closeStickerForm; _w.stickerPickImage = stickerPickImage; _w.saveStickerForm = saveStickerForm;
 _w.deleteSticker = deleteSticker;

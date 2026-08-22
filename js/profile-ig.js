@@ -188,7 +188,14 @@ async function generateCharPost(char) {
     ? state.apiProfiles.find(function(p) { return p.id === state.activeApiProfile; }) : null;
   var cfg = ap || state.api;
   if (!cfg.key || !cfg.url || !cfg.model) return;
-  var prompt = '你是一个角色。根据以下角色设定，发一条 Instagram 动态（一句话 + 一个emoji）。只输出动态内容，不要解释，不要加引号。\n\n角色名：' + char.name + '\n性格：' + (char.personality || '普通') + '\n说话风格：' + (char.style || '普通') + '\n背景：' + (char.background || '无') + '\n\n示例输出：\n今天天气真好，出去走走🌤️';
+  var prompt = '你是一个角色。根据以下角色设定，发一条 Instagram 动态（一句话 + 一个emoji）。只输出动态内容，不要解释，不要加引号。\n\n角色名：' + char.name + '\n性格：' + (char.personality || '普通') + '\n说话风格：' + (char.style || '普通') + '\n背景：' + (char.background || '无');
+  var memText = '';
+  if (typeof pickRelevantMemories === 'function') {
+    var mems = pickRelevantMemories(char, '').slice(0, 6);
+    if (mems.length) memText = '\n【你对用户的记忆】\n' + mems.map(function(m) { return '- ' + (m.title ? m.title + '：' : '') + m.text; }).join('\n');
+  }
+  prompt += '\n\n这些记忆是你和对方之间真实发生过 / 对方说过的。如果合适，可以基于其中一条发一条动态（比如「路过那家你说想去的店啦🏪」），自然地让粉丝看到你们的小故事；也可以完全不提记忆，发当下随感。\n\n示例输出：\n今天天气真好，出去走走🌤️';
+  if (memText) prompt += '\n\n' + memText;
   var wishCtx = (typeof willowContextText === 'function') ? willowContextText() : '';
   if (wishCtx) prompt += '\n\n' + wishCtx;
   var controller = new AbortController();
@@ -499,14 +506,14 @@ function renderIGCharEditor() {
           <textarea class="ig-ce-textarea" id="igMemoryText" placeholder="这个角色需要记住什么？" style="margin-top:8px;"></textarea>
           <button class="ig-ce-btn ig-ce-btn-primary" style="width:100%;margin-top:8px;" onclick="igAddMemory()">＋ 加入记忆</button>
           <div style="margin-top:10px;">
-            ${(char.memories || []).map(mem => `
+            ${renderMemoriesGrouped(char.memories, mem => `
               <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #efefef;">
                 <div style="flex:1;min-width:0;">
                   <b>${escapeHTML(mem.title || '记忆')}</b>
                   <div style="font-size:12px;color:#8e8e8e;margin-top:2px;word-break:break-all;">${escapeHTML(mem.text)}</div>
                 </div>
                 <button class="ig-ce-btn ig-ce-btn-danger" style="padding:4px 10px;font-size:12px;flex:0 0 auto;" onclick="igDeleteMemory('${mem.id}')">删</button>
-              </div>`).join('') || '<div style="font-size:12px;color:#8e8e8e;padding:6px 0;">这个角色还没有记忆。</div>'}
+              </div>`, '<div style="font-size:12px;color:#8e8e8e;padding:6px 0;">这个角色还没有记忆。</div>')}
           </div>
         </div>`}
         <div style="padding:16px 16px 30px;display:flex;gap:10px;">

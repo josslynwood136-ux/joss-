@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "express": "^4.19.2",
-    "NeteaseCloudMusicApi": "^4.32.0"
+    "NeteaseCloudMusicApi": "^4.32.0",
+    "web-push": "^3.6.7"
   }
 }
